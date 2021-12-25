@@ -1,0 +1,9 @@
+[package]
+name = "s3plot"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.52"
+eframe = "0.15.0"
+
