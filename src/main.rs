@@ -1,14 +1,27 @@
 use std::fs::File;
 use std::io::BufReader;
+use std::path::Path;
 
 use eframe::egui::plot::{Line, Plot, Values};
+use eframe::egui::{menu, CentralPanel, Slider, TopBottomPanel};
 use eframe::{egui, epi, NativeOptions};
 
 use s3plot::Data;
 
-#[derive(Default)]
 struct PlotApp {
+    picked_path: Option<String>,
     data: Option<Data>,
+    aspect: f32,
+}
+
+impl Default for PlotApp {
+    fn default() -> Self {
+        Self {
+            picked_path: None,
+            data: None,
+            aspect: 1.6,
+        }
+    }
 }
 
 impl epi::App for PlotApp {
@@ -16,43 +29,57 @@ impl epi::App for PlotApp {
         "S3 Plot"
     }
 
-    fn setup(
-        &mut self,
-        _ctx: &egui::CtxRef,
-        _frame: &mut epi::Frame<'_>,
-        _storage: Option<&dyn epi::Storage>,
-    ) {
-        let _ = self.import();
-    }
-
-    fn update(&mut self, ctx: &egui::CtxRef, _: &mut epi::Frame<'_>) {
-        egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
-            egui::menu::bar(ui, |ui| {
-                egui::menu::menu(ui, "File", |ui| {
+    fn update(&mut self, ctx: &egui::CtxRef, _: &epi::Frame) {
+        TopBottomPanel::top("top_panel").show(ctx, |ui| {
+            menu::bar(ui, |ui| {
+                menu::menu_button(ui, "File", |ui| {
                     if ui.button("Open").clicked() {
-                        let _ = self.import();
+                        if let Some(path) = rfd::FileDialog::new().pick_file() {
+                            let path = Some(path.display().to_string());
+                            if let Some(p) = path {
+                                if let Ok(_) = self.open(&p) {
+                                    self.picked_path = Some(p);
+                                } else {
+                                    self.picked_path = None;
+                                }
+                            }
+                        }
                     }
                 });
             });
         });
 
-        egui::CentralPanel::default().show(ctx, |ui| {
+        CentralPanel::default().show(ctx, |ui| {
             if let Some(d) = &self.data {
-                ui.horizontal(|ui| {
+                if let Some(p) = &self.picked_path {
+                    ui.label(p);
+                }
+
+                ui.add(Slider::new(&mut self.aspect, 0.2..=3.0));
+                ui.columns(2, |uis| {
+                    let ui = &mut uis[0];
                     let values = Values::from_values_iter(d.pmotor_fl());
-                    ui.add(Plot::new("fl motor").line(Line::new(values)));
-                });
-                ui.horizontal(|ui| {
+                    ui.label("fl motor");
+                    Plot::new("fl_motor")
+                        .view_aspect(self.aspect)
+                        .show(ui, |ui| ui.line(Line::new(values)));
                     let values = Values::from_values_iter(d.pmotor_fr());
-                    ui.add(Plot::new("fr motor").line(Line::new(values)));
-                });
-                ui.horizontal(|ui| {
+                    ui.label("fr motor");
+                    Plot::new("fr_motor")
+                        .view_aspect(self.aspect)
+                        .show(ui, |ui| ui.line(Line::new(values)));
+
+                    let ui = &mut uis[1];
                     let values = Values::from_values_iter(d.pmotor_rl());
-                    ui.add(Plot::new("rl motor").line(Line::new(values)));
-                });
-                ui.horizontal(|ui| {
+                    ui.label("hl motor");
+                    Plot::new("hl_motor")
+                        .view_aspect(self.aspect)
+                        .show(ui, |ui| ui.line(Line::new(values)));
                     let values = Values::from_values_iter(d.pmotor_rr());
-                    ui.add(Plot::new("rr motor").line(Line::new(values)));
+                    ui.label("hr motor");
+                    Plot::new("hr_motor")
+                        .view_aspect(self.aspect)
+                        .show(ui, |ui| ui.line(Line::new(values)));
                 });
             } else {
                 ui.label("Open or drag and drop a file");
@@ -62,8 +89,8 @@ impl epi::App for PlotApp {
 }
 
 impl PlotApp {
-    fn import(&mut self) -> anyhow::Result<()> {
-        let mut reader = BufReader::new(File::open("data/1.bin")?);
+    fn open(&mut self, path: impl AsRef<Path>) -> anyhow::Result<()> {
+        let mut reader = BufReader::new(File::open(path)?);
         self.data = Some(Data::read(&mut reader)?);
         Ok(())
     }
