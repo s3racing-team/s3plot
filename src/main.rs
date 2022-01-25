@@ -3,7 +3,7 @@ use std::io::BufReader;
 use std::path::Path;
 
 use eframe::egui::plot::{Line, Plot, Values};
-use eframe::egui::{menu, CentralPanel, Slider, TopBottomPanel};
+use eframe::egui::{menu, CentralPanel, TopBottomPanel};
 use eframe::{egui, epi, NativeOptions};
 
 use s3plot::Data;
@@ -11,7 +11,6 @@ use s3plot::Data;
 struct PlotApp {
     picked_path: Option<String>,
     data: Option<Data>,
-    aspect: f32,
 }
 
 impl Default for PlotApp {
@@ -19,7 +18,6 @@ impl Default for PlotApp {
         Self {
             picked_path: None,
             data: None,
-            aspect: 1.6,
         }
     }
 }
@@ -55,30 +53,31 @@ impl epi::App for PlotApp {
                     ui.label(p);
                 }
 
-                ui.add(Slider::new(&mut self.aspect, 0.2..=3.0));
+                let h = ui.available_height() / 2.0 - ui.fonts().row_height(egui::TextStyle::Body);
+
                 ui.columns(2, |uis| {
                     let ui = &mut uis[0];
                     let values = Values::from_values_iter(d.pmotor_fl());
                     ui.label("fl motor");
                     Plot::new("fl_motor")
-                        .view_aspect(self.aspect)
+                        .height(h)
                         .show(ui, |ui| ui.line(Line::new(values)));
                     let values = Values::from_values_iter(d.pmotor_fr());
                     ui.label("fr motor");
                     Plot::new("fr_motor")
-                        .view_aspect(self.aspect)
+                        .height(h)
                         .show(ui, |ui| ui.line(Line::new(values)));
 
                     let ui = &mut uis[1];
                     let values = Values::from_values_iter(d.pmotor_rl());
                     ui.label("hl motor");
                     Plot::new("hl_motor")
-                        .view_aspect(self.aspect)
+                        .height(h)
                         .show(ui, |ui| ui.line(Line::new(values)));
                     let values = Values::from_values_iter(d.pmotor_rr());
                     ui.label("hr motor");
                     Plot::new("hr_motor")
-                        .view_aspect(self.aspect)
+                        .height(h)
                         .show(ui, |ui| ui.line(Line::new(values)));
                 });
             } else {
