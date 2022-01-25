@@ -16,7 +16,7 @@ jobs:
       with:
         profile: minimal
         toolchain: stable
-    - run: sudo apt-get install -y libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev libpango1.0-dev libatk1.0-dev
+    - run: sudo apt-get install -y libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev libpango1.0-dev libatk1.0-dev libx11-dev 
     - run: cargo build --release
     - run: cargo test --release
     - uses: actions/upload-artifact@v2
@@ -37,5 +37,5 @@ jobs:
     - run: cargo test --release
     - uses: actions/upload-artifact@v2
       with:
-        name: s3plot-windows.exe
+        name: s3plot-windows
         path: target/release/s3plot.exe
