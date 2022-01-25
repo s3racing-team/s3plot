@@ -1,0 +1,41 @@
+name: Build
+
+on:
+  push:
+  pull_request:
+  schedule:
+  - cron:  '0 0 1 * *' # monthly
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+    - run: sudo apt-get install -y libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libspeechd-dev libxkbcommon-dev libssl-dev libpango1.0-dev libatk1.0-dev
+    - run: cargo build --release
+    - run: cargo test --release
+    - uses: actions/upload-artifact@v2
+      with:
+        name: s3plot-linux
+        path: target/release/s3plot
+  
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+    - run: cargo build --release
+    - run: cargo test --release
+    - uses: actions/upload-artifact@v2
+      with:
+        name: s3plot-windows.exe
+        path: target/release/s3plot.exe
