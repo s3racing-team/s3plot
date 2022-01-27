@@ -132,11 +132,11 @@ impl Data {
             data.speed_rl.push(reader.read_f32()?);
             data.torque_rl.push(reader.read_f32()?);
             data.speed_rr.push(reader.read_f32()?);
-            data.torque_rr.push(reader.read_f32()?);
+            data.torque_rr.push(-reader.read_f32()?);
             data.speed_fl.push(reader.read_f32()?);
             data.torque_fl.push(reader.read_f32()?);
             data.speed_fr.push(reader.read_f32()?);
-            data.torque_fr.push(reader.read_f32()?);
+            data.torque_fr.push(-reader.read_f32()?);
 
             data.accel_x.push(reader.read_i16()?);
             data.accel_y.push(reader.read_i16()?);
@@ -159,49 +159,133 @@ impl Data {
             data.torque_out_fl.push(reader.read_f32()?);
             data.torque_out_fr.push(reader.read_f32()?);
 
-            data.spring_fr.push(-(reader.read_f32()? - 1630.0 - 420.0));
+            data.spring_fr.push(reader.read_f32()? - 1630.0 - 420.0);
             data.spring_fl.push(reader.read_f32()? - 4750.0 + 400.0);
-            data.spring_rl.push(-(reader.read_f32()? - 3125.0 + 115.0));
+            data.spring_rl.push(reader.read_f32()? - 3125.0 + 115.0);
             data.spring_rr.push(reader.read_f32()? - 4005.0 - 200.0);
         }
 
         Ok(data)
     }
 
-    pub fn pmotor_fl(&self) -> impl Iterator<Item = Value> + '_ {
+    pub fn power_fl(&self) -> impl Iterator<Item = Value> + '_ {
         self.torque_fl
             .iter()
             .zip(self.speed_fl.iter())
             .map(|(&torque, &speed)| 2.0 * PI / 60.0 * torque * (19.7 / 1000.0) * speed)
             .enumerate()
-            .map(|(i, v)| Value::new(i as f64, v as f64))
+            .map(|(i, v)| Value::new(i as f64 * 0.02, v as f64))
     }
 
-    pub fn pmotor_fr(&self) -> impl Iterator<Item = Value> + '_ {
+    pub fn power_fr(&self) -> impl Iterator<Item = Value> + '_ {
         self.torque_fr
             .iter()
             .zip(self.speed_fr.iter())
-            .map(|(&torque, &speed)| 2.0 * PI / 60.0 * torque * (-19.7 / 1000.0) * speed)
+            .map(|(&torque, &speed)| 2.0 * PI / 60.0 * torque * (19.7 / 1000.0) * speed)
             .enumerate()
-            .map(|(i, v)| Value::new(i as f64, v as f64))
+            .map(|(i, v)| Value::new(i as f64 * 0.02, v as f64))
     }
 
-    pub fn pmotor_rl(&self) -> impl Iterator<Item = Value> + '_ {
+    pub fn power_rl(&self) -> impl Iterator<Item = Value> + '_ {
         self.torque_rl
             .iter()
             .zip(self.speed_rl.iter())
             .map(|(&torque, &speed)| 2.0 * PI / 60.0 * torque * (19.7 / 1000.0) * speed)
             .enumerate()
-            .map(|(i, v)| Value::new(i as f64, v as f64))
+            .map(|(i, v)| Value::new(i as f64 * 0.02, v as f64))
     }
 
-    pub fn pmotor_rr(&self) -> impl Iterator<Item = Value> + '_ {
+    pub fn power_rr(&self) -> impl Iterator<Item = Value> + '_ {
         self.torque_rr
             .iter()
             .zip(self.speed_rr.iter())
-            .map(|(&torque, &speed)| 2.0 * PI / 60.0 * torque * (-19.7 / 1000.0) * speed)
+            .map(|(&torque, &speed)| 2.0 * PI / 60.0 * torque * (19.7 / 1000.0) * speed)
             .enumerate()
-            .map(|(i, v)| Value::new(i as f64, v as f64))
+            .map(|(i, v)| Value::new(i as f64 * 0.02, v as f64))
+    }
+
+    pub fn speed_fl(&self) -> impl Iterator<Item = Value> + '_ {
+        self.speed_fl
+            .iter()
+            .enumerate()
+            .map(|(i, v)| Value::new(i as f64 * 0.02, *v as f64))
+    }
+
+    pub fn speed_fr(&self) -> impl Iterator<Item = Value> + '_ {
+        self.speed_fr
+            .iter()
+            .enumerate()
+            .map(|(i, v)| Value::new(i as f64 * 0.02, *v as f64))
+    }
+
+    pub fn speed_rl(&self) -> impl Iterator<Item = Value> + '_ {
+        self.speed_rl
+            .iter()
+            .enumerate()
+            .map(|(i, v)| Value::new(i as f64 * 0.02, *v as f64))
+    }
+
+    pub fn speed_rr(&self) -> impl Iterator<Item = Value> + '_ {
+        self.speed_rr
+            .iter()
+            .enumerate()
+            .map(|(i, v)| Value::new(i as f64 * 0.02, *v as f64))
+    }
+
+    pub fn torque_set_fl(&self) -> impl Iterator<Item = Value> + '_ {
+        self.torque_fl
+            .iter()
+            .enumerate()
+            .map(|(i, v)| Value::new(i as f64 * 0.02, *v as f64))
+    }
+
+    pub fn torque_set_fr(&self) -> impl Iterator<Item = Value> + '_ {
+        self.torque_fr
+            .iter()
+            .enumerate()
+            .map(|(i, v)| Value::new(i as f64 * 0.02, *v as f64))
+    }
+
+    pub fn torque_set_rl(&self) -> impl Iterator<Item = Value> + '_ {
+        self.torque_rl
+            .iter()
+            .enumerate()
+            .map(|(i, v)| Value::new(i as f64 * 0.02, *v as f64))
+    }
+
+    pub fn torque_set_rr(&self) -> impl Iterator<Item = Value> + '_ {
+        self.torque_rr
+            .iter()
+            .enumerate()
+            .map(|(i, v)| Value::new(i as f64 * 0.02, *v as f64))
+    }
+
+    pub fn torque_real_fl(&self) -> impl Iterator<Item = Value> + '_ {
+        self.torque_out_fl
+            .iter()
+            .enumerate()
+            .map(|(i, v)| Value::new(i as f64 * 0.02, *v as f64))
+    }
+
+    pub fn torque_real_fr(&self) -> impl Iterator<Item = Value> + '_ {
+        self.torque_out_fr
+            .iter()
+            .enumerate()
+            .map(|(i, v)| Value::new(i as f64 * 0.02, *v as f64))
+    }
+
+    pub fn torque_real_rl(&self) -> impl Iterator<Item = Value> + '_ {
+        self.torque_out_rl
+            .iter()
+            .enumerate()
+            .map(|(i, v)| Value::new(i as f64 * 0.02, *v as f64))
+    }
+
+    pub fn torque_real_rr(&self) -> impl Iterator<Item = Value> + '_ {
+        self.torque_out_rr
+            .iter()
+            .enumerate()
+            .map(|(i, v)| Value::new(i as f64 * 0.02, *v as f64))
     }
 }
 

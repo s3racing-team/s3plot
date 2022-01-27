@@ -2,22 +2,33 @@ use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
 
-use eframe::egui::plot::{Line, Plot, Values};
-use eframe::egui::{menu, CentralPanel, TopBottomPanel};
+use eframe::egui::plot::{Legend, Line, Plot, Values};
+use eframe::egui::{menu, CentralPanel, Slider, TopBottomPanel};
 use eframe::{egui, epi, NativeOptions};
 
 use s3plot::Data;
 
 struct PlotApp {
-    picked_path: Option<String>,
+    current_path: Option<String>,
     data: Option<Data>,
+    data_aspect: f32,
+    selected_mode: Mode,
+}
+
+#[derive(PartialEq, Eq)]
+enum Mode {
+    Power,
+    Speed,
+    Torque,
 }
 
 impl Default for PlotApp {
     fn default() -> Self {
         Self {
-            picked_path: None,
+            current_path: None,
             data: None,
+            selected_mode: Mode::Power,
+            data_aspect: 0.005,
         }
     }
 }
@@ -36,9 +47,9 @@ impl epi::App for PlotApp {
                             let path = Some(path.display().to_string());
                             if let Some(p) = path {
                                 if let Ok(_) = self.open(&p) {
-                                    self.picked_path = Some(p);
+                                    self.current_path = Some(p);
                                 } else {
-                                    self.picked_path = None;
+                                    self.current_path = None;
                                 }
                             }
                         }
@@ -49,42 +60,137 @@ impl epi::App for PlotApp {
 
         CentralPanel::default().show(ctx, |ui| {
             if let Some(d) = &self.data {
-                if let Some(p) = &self.picked_path {
-                    ui.label(p);
-                }
+                ui.horizontal(|ui| {
+                    ui.selectable_value(&mut self.selected_mode, Mode::Power, "Power");
+                    ui.selectable_value(&mut self.selected_mode, Mode::Speed, "Speed");
+                    ui.selectable_value(&mut self.selected_mode, Mode::Torque, "Torque");
+                    ui.add_space(40.0);
 
-                let h = ui.available_height() / 2.0 - ui.fonts().row_height(egui::TextStyle::Body);
+                    ui.add(Slider::new(&mut self.data_aspect, 0.00001..=1.0).logarithmic(true));
 
-                ui.columns(2, |uis| {
-                    let ui = &mut uis[0];
-                    let values = Values::from_values_iter(d.pmotor_fl());
-                    ui.label("fl motor");
-                    Plot::new("fl_motor")
-                        .height(h)
-                        .show(ui, |ui| ui.line(Line::new(values)));
-                    let values = Values::from_values_iter(d.pmotor_fr());
-                    ui.label("fr motor");
-                    Plot::new("fr_motor")
-                        .height(h)
-                        .show(ui, |ui| ui.line(Line::new(values)));
-
-                    let ui = &mut uis[1];
-                    let values = Values::from_values_iter(d.pmotor_rl());
-                    ui.label("hl motor");
-                    Plot::new("hl_motor")
-                        .height(h)
-                        .show(ui, |ui| ui.line(Line::new(values)));
-                    let values = Values::from_values_iter(d.pmotor_rr());
-                    ui.label("hr motor");
-                    Plot::new("hr_motor")
-                        .height(h)
-                        .show(ui, |ui| ui.line(Line::new(values)));
+                    if let Some(p) = &self.current_path {
+                        ui.label(p);
+                    }
                 });
+
+                match self.selected_mode {
+                    Mode::Power => {
+                        motor_plot(
+                            ui,
+                            [
+                                [Line::new(Values::from_values_iter(d.power_fl())).name("power")],
+                                [Line::new(Values::from_values_iter(d.power_fr())).name("power")],
+                                [Line::new(Values::from_values_iter(d.power_rl())).name("power")],
+                                [Line::new(Values::from_values_iter(d.power_rr())).name("power")],
+                            ],
+                            self.data_aspect,
+                        );
+                    }
+                    Mode::Speed => {
+                        motor_plot(
+                            ui,
+                            [
+                                [Line::new(Values::from_values_iter(d.speed_fl())).name("speed")],
+                                [Line::new(Values::from_values_iter(d.speed_fr())).name("speed")],
+                                [Line::new(Values::from_values_iter(d.speed_rl())).name("speed")],
+                                [Line::new(Values::from_values_iter(d.speed_rr())).name("speed")],
+                            ],
+                            self.data_aspect,
+                        );
+                    }
+                    Mode::Torque => {
+                        motor_plot(
+                            ui,
+                            [
+                                [
+                                    Line::new(Values::from_values_iter(d.torque_set_fl()))
+                                        .name("set"),
+                                    Line::new(Values::from_values_iter(d.torque_real_fl()))
+                                        .name("real"),
+                                ],
+                                [
+                                    Line::new(Values::from_values_iter(d.torque_set_fr()))
+                                        .name("set"),
+                                    Line::new(Values::from_values_iter(d.torque_real_fr()))
+                                        .name("real"),
+                                ],
+                                [
+                                    Line::new(Values::from_values_iter(d.torque_set_rl()))
+                                        .name("set"),
+                                    Line::new(Values::from_values_iter(d.torque_real_rl()))
+                                        .name("real"),
+                                ],
+                                [
+                                    Line::new(Values::from_values_iter(d.torque_set_rr()))
+                                        .name("set"),
+                                    Line::new(Values::from_values_iter(d.torque_real_rr()))
+                                        .name("real"),
+                                ],
+                            ],
+                            self.data_aspect,
+                        );
+                    }
+                }
             } else {
                 ui.label("Open or drag and drop a file");
             }
         });
     }
+}
+
+fn motor_plot<const COUNT: usize>(ui: &mut egui::Ui, lines: [[Line; COUNT]; 4], data_aspect: f32) {
+    let h = ui.available_height() / 2.0
+        - ui.fonts().row_height(egui::TextStyle::Body)
+        - ui.style().spacing.item_spacing.y;
+
+    let [fl, fr, rl, rr] = lines;
+
+    ui.columns(2, |uis| {
+        let ui = &mut uis[0];
+        ui.label("front left");
+        Plot::new("fl_motor")
+            .height(h)
+            .data_aspect(data_aspect)
+            .legend(Legend::default())
+            .show(ui, |ui| {
+                for l in fl {
+                    ui.line(l);
+                }
+            })
+            .response;
+        ui.label("rear left");
+        Plot::new("rl_motor")
+            .height(h)
+            .data_aspect(data_aspect)
+            .legend(Legend::default())
+            .show(ui, |ui| {
+                for l in rl {
+                    ui.line(l);
+                }
+            });
+
+        let ui = &mut uis[1];
+        ui.label("front right");
+        Plot::new("fr_motor")
+            .height(h)
+            .data_aspect(data_aspect)
+            .legend(Legend::default())
+            .show(ui, |ui| {
+                for l in fr {
+                    ui.line(l);
+                }
+            });
+        ui.label("rear right");
+        Plot::new("rr_motor")
+            .height(h)
+            .data_aspect(data_aspect)
+            .legend(Legend::default())
+            .show(ui, |ui| {
+                for l in rr {
+                    ui.line(l);
+                }
+            });
+    })
 }
 
 impl PlotApp {
