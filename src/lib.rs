@@ -179,26 +179,29 @@ impl Data {
 
     pub fn power_fr(&self) -> impl Iterator<Item = Value> + '_ {
         map_over_time(
-        self.torque_fr
-            .iter()
-            .zip(self.speed_fr.iter())
-            .map(|(&torque, &speed)| 2.0 * PI / 60.0 * torque * (19.7 / 1000.0) * speed)
+            self.torque_fr
+                .iter()
+                .zip(self.speed_fr.iter())
+                .map(|(&torque, &speed)| 2.0 * PI / 60.0 * torque * (19.7 / 1000.0) * speed),
         )
     }
 
     pub fn power_rl(&self) -> impl Iterator<Item = Value> + '_ {
-        map_over_time(self.torque_rl
-            .iter()
-            .zip(self.speed_rl.iter())
-            .map(|(&torque, &speed)| 2.0 * PI / 60.0 * torque * (19.7 / 1000.0) * speed)
+        map_over_time(
+            self.torque_rl
+                .iter()
+                .zip(self.speed_rl.iter())
+                .map(|(&torque, &speed)| 2.0 * PI / 60.0 * torque * (19.7 / 1000.0) * speed),
         )
     }
 
     pub fn power_rr(&self) -> impl Iterator<Item = Value> + '_ {
-        map_over_time(self.torque_rr
-            .iter()
-            .zip(self.speed_rr.iter())
-            .map(|(&torque, &speed)| 2.0 * PI / 60.0 * torque * (19.7 / 1000.0) * speed))
+        map_over_time(
+            self.torque_rr
+                .iter()
+                .zip(self.speed_rr.iter())
+                .map(|(&torque, &speed)| 2.0 * PI / 60.0 * torque * (19.7 / 1000.0) * speed),
+        )
     }
 
     pub fn speed_fl(&self) -> impl Iterator<Item = Value> + '_ {
