@@ -1,15 +1,15 @@
 use std::fs::File;
 use std::io::BufReader;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use eframe::egui::plot::{Legend, Line, Plot, Values};
-use eframe::egui::{menu, CentralPanel, Slider, TopBottomPanel};
-use eframe::{egui, epi, NativeOptions};
+use eframe::egui::{menu, CentralPanel, Slider, TopBottomPanel, LayerId, Order, Id, Color32, Align2, TextStyle, CtxRef, Ui};
+use eframe::{epi, NativeOptions};
 
 use s3plot::Data;
 
 struct PlotApp {
-    current_path: Option<String>,
+    current_path: Option<PathBuf>,
     data: Option<Data>,
     data_aspect: f32,
     selected_mode: Mode,
@@ -38,20 +38,13 @@ impl epi::App for PlotApp {
         "S3 Plot"
     }
 
-    fn update(&mut self, ctx: &egui::CtxRef, _: &epi::Frame) {
+    fn update(&mut self, ctx: &CtxRef, _: &epi::Frame) {
         TopBottomPanel::top("top_panel").show(ctx, |ui| {
             menu::bar(ui, |ui| {
                 menu::menu_button(ui, "File", |ui| {
                     if ui.button("Open").clicked() {
                         if let Some(path) = rfd::FileDialog::new().pick_file() {
-                            let path = Some(path.display().to_string());
-                            if let Some(p) = path {
-                                if let Ok(_) = self.open(&p) {
-                                    self.current_path = Some(p);
-                                } else {
-                                    self.current_path = None;
-                                }
-                            }
+                            self.try_open(path);
                         }
                     }
                 });
@@ -69,7 +62,7 @@ impl epi::App for PlotApp {
                     ui.add(Slider::new(&mut self.data_aspect, 0.00001..=1.0).logarithmic(true));
 
                     if let Some(p) = &self.current_path {
-                        ui.label(p);
+                        ui.label(format!("{}", p.display()));
                     }
                 });
 
@@ -135,12 +128,14 @@ impl epi::App for PlotApp {
                 ui.label("Open or drag and drop a file");
             }
         });
+
+        self.detect_files_being_dropped(ctx);
     }
 }
 
-fn motor_plot<const COUNT: usize>(ui: &mut egui::Ui, lines: [[Line; COUNT]; 4], data_aspect: f32) {
+fn motor_plot<const COUNT: usize>(ui: &mut Ui, lines: [[Line; COUNT]; 4], data_aspect: f32) {
     let h = ui.available_height() / 2.0
-        - ui.fonts().row_height(egui::TextStyle::Body)
+        - ui.fonts().row_height(TextStyle::Body)
         - ui.style().spacing.item_spacing.y;
 
     let [fl, fr, rl, rr] = lines;
@@ -194,10 +189,45 @@ fn motor_plot<const COUNT: usize>(ui: &mut egui::Ui, lines: [[Line; COUNT]; 4], 
 }
 
 impl PlotApp {
-    fn open(&mut self, path: impl AsRef<Path>) -> anyhow::Result<()> {
+    fn try_open(&mut self, path: PathBuf) {
+        match Self::open(&path) {
+            Ok(d) => {
+                self.current_path = Some(path);
+                self.data = Some(d);
+            }
+            Err(_) => {
+                self.current_path = None;
+                self.data = None;
+            }
+        }
+    }
+
+    fn open(path: &Path) -> anyhow::Result<Data> {
         let mut reader = BufReader::new(File::open(path)?);
-        self.data = Some(Data::read(&mut reader)?);
-        Ok(())
+        Ok(Data::read(&mut reader)?)
+    }
+
+    fn detect_files_being_dropped(&mut self, ctx: &CtxRef) {
+        // Preview hovering files:
+        if !ctx.input().raw.hovered_files.is_empty() {
+            let painter = ctx.layer_painter(LayerId::new(Order::Foreground, Id::new("file_drop_target")));
+            let screen_rect = ctx.input().screen_rect();
+            painter.rect_filled(screen_rect, 0.0, Color32::from_black_alpha(192));
+            painter.text(
+                screen_rect.center(),
+                Align2::CENTER_CENTER,
+                "Dropping files",
+                TextStyle::Body,
+                Color32::WHITE,
+            );
+        }
+
+        // Collect dropped files:
+        if !ctx.input().raw.dropped_files.is_empty() {
+            if let Some(p) = ctx.input().raw.dropped_files.first().and_then(|f| f.path.as_ref()) {
+                self.try_open(p.clone());
+            }
+        }
     }
 }
 
