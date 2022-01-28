@@ -169,124 +169,90 @@ impl Data {
     }
 
     pub fn power_fl(&self) -> impl Iterator<Item = Value> + '_ {
-        self.torque_fl
-            .iter()
-            .zip(self.speed_fl.iter())
-            .map(|(&torque, &speed)| 2.0 * PI / 60.0 * torque * (19.7 / 1000.0) * speed)
-            .enumerate()
-            .map(|(i, v)| Value::new(i as f64 * 0.02, v as f64))
+        map_over_time(
+            self.torque_fl
+                .iter()
+                .zip(self.speed_fl.iter())
+                .map(|(&torque, &speed)| 2.0 * PI / 60.0 * torque * (19.7 / 1000.0) * speed),
+        )
     }
 
     pub fn power_fr(&self) -> impl Iterator<Item = Value> + '_ {
+        map_over_time(
         self.torque_fr
             .iter()
             .zip(self.speed_fr.iter())
             .map(|(&torque, &speed)| 2.0 * PI / 60.0 * torque * (19.7 / 1000.0) * speed)
-            .enumerate()
-            .map(|(i, v)| Value::new(i as f64 * 0.02, v as f64))
+        )
     }
 
     pub fn power_rl(&self) -> impl Iterator<Item = Value> + '_ {
-        self.torque_rl
+        map_over_time(self.torque_rl
             .iter()
             .zip(self.speed_rl.iter())
             .map(|(&torque, &speed)| 2.0 * PI / 60.0 * torque * (19.7 / 1000.0) * speed)
-            .enumerate()
-            .map(|(i, v)| Value::new(i as f64 * 0.02, v as f64))
+        )
     }
 
     pub fn power_rr(&self) -> impl Iterator<Item = Value> + '_ {
-        self.torque_rr
+        map_over_time(self.torque_rr
             .iter()
             .zip(self.speed_rr.iter())
-            .map(|(&torque, &speed)| 2.0 * PI / 60.0 * torque * (19.7 / 1000.0) * speed)
-            .enumerate()
-            .map(|(i, v)| Value::new(i as f64 * 0.02, v as f64))
+            .map(|(&torque, &speed)| 2.0 * PI / 60.0 * torque * (19.7 / 1000.0) * speed))
     }
 
     pub fn speed_fl(&self) -> impl Iterator<Item = Value> + '_ {
-        self.speed_fl
-            .iter()
-            .enumerate()
-            .map(|(i, v)| Value::new(i as f64 * 0.02, *v as f64))
+        map_over_time(self.speed_fl.iter().copied())
     }
 
     pub fn speed_fr(&self) -> impl Iterator<Item = Value> + '_ {
-        self.speed_fr
-            .iter()
-            .enumerate()
-            .map(|(i, v)| Value::new(i as f64 * 0.02, *v as f64))
+        map_over_time(self.speed_fr.iter().copied())
     }
 
     pub fn speed_rl(&self) -> impl Iterator<Item = Value> + '_ {
-        self.speed_rl
-            .iter()
-            .enumerate()
-            .map(|(i, v)| Value::new(i as f64 * 0.02, *v as f64))
+        map_over_time(self.speed_rl.iter().copied())
     }
 
     pub fn speed_rr(&self) -> impl Iterator<Item = Value> + '_ {
-        self.speed_rr
-            .iter()
-            .enumerate()
-            .map(|(i, v)| Value::new(i as f64 * 0.02, *v as f64))
+        map_over_time(self.speed_rr.iter().copied())
     }
 
     pub fn torque_set_fl(&self) -> impl Iterator<Item = Value> + '_ {
-        self.torque_fl
-            .iter()
-            .enumerate()
-            .map(|(i, v)| Value::new(i as f64 * 0.02, *v as f64))
+        map_over_time(self.torque_fl.iter().copied())
     }
 
     pub fn torque_set_fr(&self) -> impl Iterator<Item = Value> + '_ {
-        self.torque_fr
-            .iter()
-            .enumerate()
-            .map(|(i, v)| Value::new(i as f64 * 0.02, *v as f64))
+        map_over_time(self.torque_fr.iter().copied())
     }
 
     pub fn torque_set_rl(&self) -> impl Iterator<Item = Value> + '_ {
-        self.torque_rl
-            .iter()
-            .enumerate()
-            .map(|(i, v)| Value::new(i as f64 * 0.02, *v as f64))
+        map_over_time(self.torque_rl.iter().copied())
     }
 
     pub fn torque_set_rr(&self) -> impl Iterator<Item = Value> + '_ {
-        self.torque_rr
-            .iter()
-            .enumerate()
-            .map(|(i, v)| Value::new(i as f64 * 0.02, *v as f64))
+        map_over_time(self.torque_rr.iter().copied())
     }
 
     pub fn torque_real_fl(&self) -> impl Iterator<Item = Value> + '_ {
-        self.torque_out_fl
-            .iter()
-            .enumerate()
-            .map(|(i, v)| Value::new(i as f64 * 0.02, *v as f64))
+        map_over_time(self.torque_out_fl.iter().copied())
     }
 
     pub fn torque_real_fr(&self) -> impl Iterator<Item = Value> + '_ {
-        self.torque_out_fr
-            .iter()
-            .enumerate()
-            .map(|(i, v)| Value::new(i as f64 * 0.02, *v as f64))
+        map_over_time(self.torque_out_fr.iter().copied())
     }
 
     pub fn torque_real_rl(&self) -> impl Iterator<Item = Value> + '_ {
-        self.torque_out_rl
-            .iter()
-            .enumerate()
-            .map(|(i, v)| Value::new(i as f64 * 0.02, *v as f64))
+        map_over_time(self.torque_out_rl.iter().copied())
     }
 
     pub fn torque_real_rr(&self) -> impl Iterator<Item = Value> + '_ {
-        self.torque_out_rr
-            .iter()
-            .enumerate()
-            .map(|(i, v)| Value::new(i as f64 * 0.02, *v as f64))
+        map_over_time(self.torque_out_rr.iter().copied())
     }
+}
+
+fn map_over_time<'a>(iter: impl Iterator<Item = f32> + 'a) -> impl Iterator<Item = Value> + 'a {
+    iter.enumerate()
+        .map(|(i, v)| Value::new(i as f64 * 0.02, v as f64))
 }
 
 impl<T: Read> ReadUtils for T {}

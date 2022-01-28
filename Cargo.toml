@@ -3,7 +3,13 @@ name = "s3plot"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+default = ["persistence"]
+persistence = ["eframe/persistence", "epi/persistence"]
+
 [dependencies]
-anyhow = "1.0.53"
+serde = { version = "1.0" }
+anyhow = "1.0"
 eframe = "0.16.0"
+epi = { version = "0.16.0" }
 rfd = "0.7.0"

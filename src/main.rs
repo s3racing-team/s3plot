@@ -7,19 +7,26 @@ use eframe::egui::{
     menu, Align2, CentralPanel, Color32, CtxRef, Id, LayerId, Order, Slider, TextStyle,
     TopBottomPanel, Ui,
 };
-use eframe::epi::{App, Frame};
+use eframe::epi::{self, App, Frame};
 use eframe::NativeOptions;
-
 use s3plot::Data;
+use serde::{Deserialize, Serialize};
 
+const APP_NAME: &str = "s3plot";
+
+#[cfg_attr(feature = "persistence", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "persistence", serde(default))]
 struct PlotApp {
     current_path: Option<PathBuf>,
+    #[cfg_attr(feature = "persistence", serde(skip))]
     data: Option<Data>,
-    data_aspect: f32,
     selected_mode: Mode,
+    power_aspect_ratio: f32,
+    speed_aspect_ratio: f32,
+    torque_aspect_ratio: f32,
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(Serialize, Deserialize, PartialEq, Eq)]
 enum Mode {
     Power,
     Speed,
@@ -32,14 +39,38 @@ impl Default for PlotApp {
             current_path: None,
             data: None,
             selected_mode: Mode::Power,
-            data_aspect: 0.005,
+            power_aspect_ratio: 0.005,
+            speed_aspect_ratio: 0.008,
+            torque_aspect_ratio: 0.03,
         }
     }
 }
 
 impl App for PlotApp {
     fn name(&self) -> &str {
-        "S3 Plot"
+        APP_NAME
+    }
+
+    fn setup(
+        &mut self,
+        _ctx: &eframe::egui::CtxRef,
+        _frame: &Frame,
+        _storage: Option<&dyn epi::Storage>,
+    ) {
+        #[cfg(feature = "persistence")]
+        if let Some(s) = _storage {
+            if let Some(app) = epi::get_value(s, epi::APP_KEY) {
+                *self = app;
+            }
+        }
+        if let Some(p) = self.current_path.clone() {
+            self.try_open(p);
+        }
+    }
+
+    #[cfg(feature = "persistence")]
+    fn save(&mut self, storage: &mut dyn eframe::epi::Storage) {
+        epi::set_value(storage, epi::APP_KEY, self);
     }
 
     fn update(&mut self, ctx: &CtxRef, _: &Frame) {
@@ -63,7 +94,29 @@ impl App for PlotApp {
                     ui.selectable_value(&mut self.selected_mode, Mode::Torque, "Torque");
                     ui.add_space(40.0);
 
-                    ui.add(Slider::new(&mut self.data_aspect, 0.00001..=1.0).logarithmic(true));
+                    match self.selected_mode {
+                        Mode::Power => {
+                            ui.add(
+                                Slider::new(&mut self.power_aspect_ratio, 0.001..=0.1)
+                                    .text("aspect ratio")
+                                    .logarithmic(true),
+                            );
+                        }
+                        Mode::Speed => {
+                            ui.add(
+                                Slider::new(&mut self.speed_aspect_ratio, 0.001..=0.1)
+                                    .text("aspect ratio")
+                                    .logarithmic(true),
+                            );
+                        }
+                        Mode::Torque => {
+                            ui.add(
+                                Slider::new(&mut self.torque_aspect_ratio, 0.001..=0.1)
+                                    .text("aspect ratio")
+                                    .logarithmic(true),
+                            );
+                        }
+                    }
 
                     if let Some(p) = &self.current_path {
                         ui.label(format!("{}", p.display()));
@@ -80,7 +133,7 @@ impl App for PlotApp {
                                 [Line::new(Values::from_values_iter(d.power_rl())).name("power")],
                                 [Line::new(Values::from_values_iter(d.power_rr())).name("power")],
                             ],
-                            self.data_aspect,
+                            self.power_aspect_ratio,
                         );
                     }
                     Mode::Speed => {
@@ -92,7 +145,7 @@ impl App for PlotApp {
                                 [Line::new(Values::from_values_iter(d.speed_rl())).name("speed")],
                                 [Line::new(Values::from_values_iter(d.speed_rr())).name("speed")],
                             ],
-                            self.data_aspect,
+                            self.speed_aspect_ratio,
                         );
                     }
                     Mode::Torque => {
@@ -124,7 +177,7 @@ impl App for PlotApp {
                                         .name("real"),
                                 ],
                             ],
-                            self.data_aspect,
+                            self.torque_aspect_ratio,
                         );
                     }
                 }
@@ -244,5 +297,9 @@ impl PlotApp {
 
 fn main() -> anyhow::Result<()> {
     let app = PlotApp::default();
-    eframe::run_native(Box::new(app), NativeOptions::default());
+    let options = NativeOptions {
+        drag_and_drop_support: true,
+        ..Default::default()
+    };
+    eframe::run_native(Box::new(app), options);
 }
