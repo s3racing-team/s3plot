@@ -3,8 +3,12 @@ use std::io::BufReader;
 use std::path::{Path, PathBuf};
 
 use eframe::egui::plot::{Legend, Line, Plot, Values};
-use eframe::egui::{menu, CentralPanel, Slider, TopBottomPanel, LayerId, Order, Id, Color32, Align2, TextStyle, CtxRef, Ui};
-use eframe::{epi, NativeOptions};
+use eframe::egui::{
+    menu, Align2, CentralPanel, Color32, CtxRef, Id, LayerId, Order, Slider, TextStyle,
+    TopBottomPanel, Ui,
+};
+use eframe::epi::{App, Frame};
+use eframe::NativeOptions;
 
 use s3plot::Data;
 
@@ -33,12 +37,12 @@ impl Default for PlotApp {
     }
 }
 
-impl epi::App for PlotApp {
+impl App for PlotApp {
     fn name(&self) -> &str {
         "S3 Plot"
     }
 
-    fn update(&mut self, ctx: &CtxRef, _: &epi::Frame) {
+    fn update(&mut self, ctx: &CtxRef, _: &Frame) {
         TopBottomPanel::top("top_panel").show(ctx, |ui| {
             menu::bar(ui, |ui| {
                 menu::menu_button(ui, "File", |ui| {
@@ -208,9 +212,10 @@ impl PlotApp {
     }
 
     fn detect_files_being_dropped(&mut self, ctx: &CtxRef) {
-        // Preview hovering files:
+        // Preview hovering files
         if !ctx.input().raw.hovered_files.is_empty() {
-            let painter = ctx.layer_painter(LayerId::new(Order::Foreground, Id::new("file_drop_target")));
+            let painter =
+                ctx.layer_painter(LayerId::new(Order::Foreground, Id::new("file_drop_target")));
             let screen_rect = ctx.input().screen_rect();
             painter.rect_filled(screen_rect, 0.0, Color32::from_black_alpha(192));
             painter.text(
@@ -222,9 +227,15 @@ impl PlotApp {
             );
         }
 
-        // Collect dropped files:
+        // Collect dropped files
         if !ctx.input().raw.dropped_files.is_empty() {
-            if let Some(p) = ctx.input().raw.dropped_files.first().and_then(|f| f.path.as_ref()) {
+            if let Some(p) = ctx
+                .input()
+                .raw
+                .dropped_files
+                .first()
+                .and_then(|f| f.path.as_ref())
+            {
                 self.try_open(p.clone());
             }
         }
