@@ -2,7 +2,7 @@ use std::fs::File;
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
 
-use eframe::egui::plot::{Legend, Line, Plot, Values};
+use eframe::egui::plot::{Legend, Line, Plot, Value, Values};
 use eframe::egui::{
     menu, Align2, CentralPanel, Color32, CtxRef, Id, Key, LayerId, Order, Slider, TextStyle,
     TopBottomPanel, Ui,
@@ -40,8 +40,8 @@ impl Default for PlotApp {
             data: None,
             selected_mode: Mode::Power,
             power_aspect_ratio: 0.005,
-            speed_aspect_ratio: 0.008,
-            torque_aspect_ratio: 0.03,
+            speed_aspect_ratio: 0.5,
+            torque_aspect_ratio: 0.04,
         }
     }
 }
@@ -96,29 +96,28 @@ impl App for PlotApp {
                     ui.selectable_value(&mut self.selected_mode, Mode::Torque, "Torque");
                     ui.add_space(40.0);
 
+                    ui.label("aspect ratio");
                     match self.selected_mode {
                         Mode::Power => {
                             ui.add(
-                                Slider::new(&mut self.power_aspect_ratio, 0.001..=0.1)
-                                    .text("aspect ratio")
+                                Slider::new(&mut self.power_aspect_ratio, 0.0005..=0.05)
                                     .logarithmic(true),
                             );
                         }
                         Mode::Speed => {
                             ui.add(
-                                Slider::new(&mut self.speed_aspect_ratio, 0.001..=0.1)
-                                    .text("aspect ratio")
+                                Slider::new(&mut self.speed_aspect_ratio, 0.05..=5.0)
                                     .logarithmic(true),
                             );
                         }
                         Mode::Torque => {
                             ui.add(
-                                Slider::new(&mut self.torque_aspect_ratio, 0.001..=0.1)
-                                    .text("aspect ratio")
+                                Slider::new(&mut self.torque_aspect_ratio, 0.004..=0.4)
                                     .logarithmic(true),
                             );
                         }
                     }
+                    ui.add_space(40.0);
 
                     if let Some(p) = &self.current_path {
                         ui.label(format!("{}", p.display()));
@@ -129,30 +128,34 @@ impl App for PlotApp {
                     Mode::Power => {
                         motor_plot(
                             ui,
+                            Power,
+                            self.power_aspect_ratio,
                             [
                                 [Line::new(Values::from_values_iter(d.power_fl())).name("power")],
                                 [Line::new(Values::from_values_iter(d.power_fr())).name("power")],
                                 [Line::new(Values::from_values_iter(d.power_rl())).name("power")],
                                 [Line::new(Values::from_values_iter(d.power_rr())).name("power")],
                             ],
-                            self.power_aspect_ratio,
                         );
                     }
                     Mode::Speed => {
                         motor_plot(
                             ui,
+                            Speed,
+                            self.speed_aspect_ratio,
                             [
                                 [Line::new(Values::from_values_iter(d.speed_fl())).name("speed")],
                                 [Line::new(Values::from_values_iter(d.speed_fr())).name("speed")],
                                 [Line::new(Values::from_values_iter(d.speed_rl())).name("speed")],
                                 [Line::new(Values::from_values_iter(d.speed_rr())).name("speed")],
                             ],
-                            self.speed_aspect_ratio,
                         );
                     }
                     Mode::Torque => {
                         motor_plot(
                             ui,
+                            Torque,
+                            self.torque_aspect_ratio,
                             [
                                 [
                                     Line::new(Values::from_values_iter(d.torque_set_fl()))
@@ -179,7 +182,6 @@ impl App for PlotApp {
                                         .name("real"),
                                 ],
                             ],
-                            self.torque_aspect_ratio,
                         );
                     }
                 }
@@ -192,7 +194,43 @@ impl App for PlotApp {
     }
 }
 
-fn motor_plot<const COUNT: usize>(ui: &mut Ui, lines: [[Line; COUNT]; 4], data_aspect: f32) {
+trait FormatLabel {
+    fn format_label(name: &str, value: &Value) -> String;
+}
+
+struct Power;
+impl FormatLabel for Power {
+    fn format_label(_name: &str, val: &Value) -> String {
+        let x = (val.x * 1000.0).round() / 1000.0;
+        let y = (val.y * 1000.0).round() / 1000.0;
+        format!("t = {x}s\np = {y}W")
+    }
+}
+
+struct Speed;
+impl FormatLabel for Speed {
+    fn format_label(_name: &str, val: &Value) -> String {
+        let x = (val.x * 1000.0).round() / 1000.0;
+        let y = (val.y * 1000.0).round() / 1000.0;
+        format!("t = {x}s\nv = {y}km/h")
+    }
+}
+
+struct Torque;
+impl FormatLabel for Torque {
+    fn format_label(name: &str, val: &Value) -> String {
+        let x = (val.x * 1000.0).round() / 1000.0;
+        let y = (val.y * 1000.0).round() / 1000.0;
+        format!("{name}\nt = {x}s\nM = {y}Nm")
+    }
+}
+
+fn motor_plot<T: FormatLabel, const COUNT: usize>(
+    ui: &mut Ui,
+    _: T,
+    data_aspect: f32,
+    lines: [[Line; COUNT]; 4],
+) {
     let h = ui.available_height() / 2.0
         - ui.fonts().row_height(TextStyle::Body)
         - ui.style().spacing.item_spacing.y;
@@ -205,6 +243,7 @@ fn motor_plot<const COUNT: usize>(ui: &mut Ui, lines: [[Line; COUNT]; 4], data_a
         Plot::new("fl_motor")
             .height(h)
             .data_aspect(data_aspect)
+            .custom_label_func(move |n, v| T::format_label(n, v))
             .legend(Legend::default())
             .show(ui, |ui| {
                 for l in fl {
@@ -216,6 +255,7 @@ fn motor_plot<const COUNT: usize>(ui: &mut Ui, lines: [[Line; COUNT]; 4], data_a
         Plot::new("rl_motor")
             .height(h)
             .data_aspect(data_aspect)
+            .custom_label_func(move |n, v| T::format_label(n, v))
             .legend(Legend::default())
             .show(ui, |ui| {
                 for l in rl {
@@ -228,6 +268,7 @@ fn motor_plot<const COUNT: usize>(ui: &mut Ui, lines: [[Line; COUNT]; 4], data_a
         Plot::new("fr_motor")
             .height(h)
             .data_aspect(data_aspect)
+            .custom_label_func(move |n, v| T::format_label(n, v))
             .legend(Legend::default())
             .show(ui, |ui| {
                 for l in fr {
@@ -238,6 +279,7 @@ fn motor_plot<const COUNT: usize>(ui: &mut Ui, lines: [[Line; COUNT]; 4], data_a
         Plot::new("rr_motor")
             .height(h)
             .data_aspect(data_aspect)
+            .custom_label_func(move |n, v| T::format_label(n, v))
             .legend(Legend::default())
             .show(ui, |ui| {
                 for l in rr {

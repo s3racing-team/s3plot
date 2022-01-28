@@ -173,7 +173,7 @@ impl Data {
             self.torque_fl
                 .iter()
                 .zip(self.speed_fl.iter())
-                .map(|(&torque, &speed)| 2.0 * PI / 60.0 * torque * (19.7 / 1000.0) * speed),
+                .map(|(&torque, &speed)| 2.0 * PI / 60.0 * torque * 0.0197 * speed),
         )
     }
 
@@ -182,7 +182,7 @@ impl Data {
             self.torque_fr
                 .iter()
                 .zip(self.speed_fr.iter())
-                .map(|(&torque, &speed)| 2.0 * PI / 60.0 * torque * (19.7 / 1000.0) * speed),
+                .map(|(&torque, &speed)| 2.0 * PI / 60.0 * torque * 0.0197 * speed),
         )
     }
 
@@ -191,7 +191,7 @@ impl Data {
             self.torque_rl
                 .iter()
                 .zip(self.speed_rl.iter())
-                .map(|(&torque, &speed)| 2.0 * PI / 60.0 * torque * (19.7 / 1000.0) * speed),
+                .map(|(&torque, &speed)| 2.0 * PI / 60.0 * torque * 0.0197 * speed),
         )
     }
 
@@ -200,24 +200,25 @@ impl Data {
             self.torque_rr
                 .iter()
                 .zip(self.speed_rr.iter())
-                .map(|(&torque, &speed)| 2.0 * PI / 60.0 * torque * (19.7 / 1000.0) * speed),
+                .map(|(&torque, &speed)| 2.0 * PI / 60.0 * torque * 0.0197 * speed),
         )
     }
 
+    const SPEED_FACTOR: f32 = 0.01155;
     pub fn speed_fl(&self) -> impl Iterator<Item = Value> + '_ {
-        map_over_time(self.speed_fl.iter().copied())
+        map_over_time(self.speed_fl.iter().map(|v| *v * Self::SPEED_FACTOR))
     }
 
     pub fn speed_fr(&self) -> impl Iterator<Item = Value> + '_ {
-        map_over_time(self.speed_fr.iter().copied())
+        map_over_time(self.speed_fr.iter().map(|v| *v * Self::SPEED_FACTOR))
     }
 
     pub fn speed_rl(&self) -> impl Iterator<Item = Value> + '_ {
-        map_over_time(self.speed_rl.iter().copied())
+        map_over_time(self.speed_rl.iter().map(|v| *v * Self::SPEED_FACTOR))
     }
 
     pub fn speed_rr(&self) -> impl Iterator<Item = Value> + '_ {
-        map_over_time(self.speed_rr.iter().copied())
+        map_over_time(self.speed_rr.iter().map(|v| *v * Self::SPEED_FACTOR))
     }
 
     pub fn torque_set_fl(&self) -> impl Iterator<Item = Value> + '_ {
