@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use eframe::egui::plot::{Legend, Line, Plot, Values};
 use eframe::egui::{
-    menu, Align2, CentralPanel, Color32, CtxRef, Id, LayerId, Order, Slider, TextStyle,
+    menu, Align2, CentralPanel, Color32, CtxRef, Id, Key, LayerId, Order, Slider, TextStyle,
     TopBottomPanel, Ui,
 };
 use eframe::epi::{self, App, Frame};
@@ -74,13 +74,15 @@ impl App for PlotApp {
     }
 
     fn update(&mut self, ctx: &CtxRef, _: &Frame) {
+        if ctx.input().modifiers.ctrl && ctx.input().key_pressed(Key::O) {
+            self.open_dialog();
+        }
+
         TopBottomPanel::top("top_panel").show(ctx, |ui| {
             menu::bar(ui, |ui| {
                 menu::menu_button(ui, "File", |ui| {
                     if ui.button("Open").clicked() {
-                        if let Some(path) = rfd::FileDialog::new().pick_file() {
-                            self.try_open(path);
-                        }
+                        self.open_dialog();
                     }
                 });
             });
@@ -246,6 +248,12 @@ fn motor_plot<const COUNT: usize>(ui: &mut Ui, lines: [[Line; COUNT]; 4], data_a
 }
 
 impl PlotApp {
+    fn open_dialog(&mut self) {
+        if let Some(path) = rfd::FileDialog::new().pick_file() {
+            self.try_open(path);
+        }
+    }
+
     fn try_open(&mut self, path: PathBuf) {
         match Self::open(&path) {
             Ok(d) => {
