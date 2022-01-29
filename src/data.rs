@@ -1,9 +1,20 @@
 use std::f32::consts::PI;
-use std::io::{self, Read, Seek, SeekFrom};
+use std::io::{Read, Seek, self, SeekFrom};
 
 use eframe::egui::plot::Value;
 
+pub const SAMPLE_RATE: f64 = 0.02;
+
 const SAMPLE_SIZE: usize = 132;
+
+impl<T: Iterator<Item = f32>> MapOverTime for T {}
+pub trait MapOverTime: Iterator<Item = f32> + Sized {
+    fn map_over_time(self) -> Vec<Value> {
+        self.enumerate()
+            .map(|(i, v)| Value::new(i as f64 * SAMPLE_RATE, v as f64))
+            .collect()
+    }
+}
 
 #[derive(Debug)]
 pub struct Data {
@@ -168,99 +179,86 @@ impl Data {
         Ok(data)
     }
 
-    pub fn power_fl(&self) -> impl Iterator<Item = Value> + '_ {
-        map_over_time(
-            self.torque_fl
-                .iter()
-                .zip(self.speed_fl.iter())
-                .map(|(&torque, &speed)| 2.0 * PI / 60.0 * torque * 0.0197 * speed),
-        )
+    pub fn power_fl(&self) -> impl Iterator<Item = f32> + '_ {
+        self.torque_fl
+            .iter()
+            .zip(self.speed_fl.iter())
+            .map(|(&torque, &speed)| 2.0 * PI / 60.0 * torque * 0.0197 * speed)
     }
 
-    pub fn power_fr(&self) -> impl Iterator<Item = Value> + '_ {
-        map_over_time(
-            self.torque_fr
-                .iter()
-                .zip(self.speed_fr.iter())
-                .map(|(&torque, &speed)| 2.0 * PI / 60.0 * torque * 0.0197 * speed),
-        )
+    pub fn power_fr(&self) -> impl Iterator<Item = f32> + '_ {
+        self.torque_fr
+            .iter()
+            .zip(self.speed_fr.iter())
+            .map(|(&torque, &speed)| 2.0 * PI / 60.0 * torque * 0.0197 * speed)
     }
 
-    pub fn power_rl(&self) -> impl Iterator<Item = Value> + '_ {
-        map_over_time(
-            self.torque_rl
-                .iter()
-                .zip(self.speed_rl.iter())
-                .map(|(&torque, &speed)| 2.0 * PI / 60.0 * torque * 0.0197 * speed),
-        )
+    pub fn power_rl(&self) -> impl Iterator<Item = f32> + '_ {
+        self.torque_rl
+            .iter()
+            .zip(self.speed_rl.iter())
+            .map(|(&torque, &speed)| 2.0 * PI / 60.0 * torque * 0.0197 * speed)
     }
 
-    pub fn power_rr(&self) -> impl Iterator<Item = Value> + '_ {
-        map_over_time(
-            self.torque_rr
-                .iter()
-                .zip(self.speed_rr.iter())
-                .map(|(&torque, &speed)| 2.0 * PI / 60.0 * torque * 0.0197 * speed),
-        )
+    pub fn power_rr(&self) -> impl Iterator<Item = f32> + '_ {
+        self.torque_rr
+            .iter()
+            .zip(self.speed_rr.iter())
+            .map(|(&torque, &speed)| 2.0 * PI / 60.0 * torque * 0.0197 * speed)
     }
 
-    const SPEED_FACTOR: f32 = 0.01155;
-    pub fn speed_fl(&self) -> impl Iterator<Item = Value> + '_ {
-        map_over_time(self.speed_fl.iter().map(|v| *v * Self::SPEED_FACTOR))
+    const VELOCITY_FACTOR: f32 = 0.01155;
+    pub fn velocity_fl(&self) -> impl Iterator<Item = f32> + '_ {
+        self.speed_fl.iter().map(|v| *v * Self::VELOCITY_FACTOR)
     }
 
-    pub fn speed_fr(&self) -> impl Iterator<Item = Value> + '_ {
-        map_over_time(self.speed_fr.iter().map(|v| *v * Self::SPEED_FACTOR))
+    pub fn velocity_fr(&self) -> impl Iterator<Item = f32> + '_ {
+        self.speed_fr.iter().map(|v| *v * Self::VELOCITY_FACTOR)
     }
 
-    pub fn speed_rl(&self) -> impl Iterator<Item = Value> + '_ {
-        map_over_time(self.speed_rl.iter().map(|v| *v * Self::SPEED_FACTOR))
+    pub fn velocity_rl(&self) -> impl Iterator<Item = f32> + '_ {
+        self.speed_rl.iter().map(|v| *v * Self::VELOCITY_FACTOR)
     }
 
-    pub fn speed_rr(&self) -> impl Iterator<Item = Value> + '_ {
-        map_over_time(self.speed_rr.iter().map(|v| *v * Self::SPEED_FACTOR))
+    pub fn velocity_rr(&self) -> impl Iterator<Item = f32> + '_ {
+        self.speed_rr.iter().map(|v| *v * Self::VELOCITY_FACTOR)
     }
 
-    pub fn torque_set_fl(&self) -> impl Iterator<Item = Value> + '_ {
-        map_over_time(self.torque_fl.iter().copied())
+    pub fn torque_set_fl(&self) -> impl Iterator<Item = f32> + '_ {
+        self.torque_fl.iter().copied()
     }
 
-    pub fn torque_set_fr(&self) -> impl Iterator<Item = Value> + '_ {
-        map_over_time(self.torque_fr.iter().copied())
+    pub fn torque_set_fr(&self) -> impl Iterator<Item = f32> + '_ {
+        self.torque_fr.iter().copied()
     }
 
-    pub fn torque_set_rl(&self) -> impl Iterator<Item = Value> + '_ {
-        map_over_time(self.torque_rl.iter().copied())
+    pub fn torque_set_rl(&self) -> impl Iterator<Item = f32> + '_ {
+        self.torque_rl.iter().copied()
     }
 
-    pub fn torque_set_rr(&self) -> impl Iterator<Item = Value> + '_ {
-        map_over_time(self.torque_rr.iter().copied())
+    pub fn torque_set_rr(&self) -> impl Iterator<Item = f32> + '_ {
+        self.torque_rr.iter().copied()
     }
 
-    pub fn torque_real_fl(&self) -> impl Iterator<Item = Value> + '_ {
-        map_over_time(self.torque_out_fl.iter().copied())
+    pub fn torque_real_fl(&self) -> impl Iterator<Item = f32> + '_ {
+        self.torque_out_fl.iter().copied()
     }
 
-    pub fn torque_real_fr(&self) -> impl Iterator<Item = Value> + '_ {
-        map_over_time(self.torque_out_fr.iter().copied())
+    pub fn torque_real_fr(&self) -> impl Iterator<Item = f32> + '_ {
+        self.torque_out_fr.iter().copied()
     }
 
-    pub fn torque_real_rl(&self) -> impl Iterator<Item = Value> + '_ {
-        map_over_time(self.torque_out_rl.iter().copied())
+    pub fn torque_real_rl(&self) -> impl Iterator<Item = f32> + '_ {
+        self.torque_out_rl.iter().copied()
     }
 
-    pub fn torque_real_rr(&self) -> impl Iterator<Item = Value> + '_ {
-        map_over_time(self.torque_out_rr.iter().copied())
+    pub fn torque_real_rr(&self) -> impl Iterator<Item = f32> + '_ {
+        self.torque_out_rr.iter().copied()
     }
-}
-
-fn map_over_time<'a>(iter: impl Iterator<Item = f32> + 'a) -> impl Iterator<Item = Value> + 'a {
-    iter.enumerate()
-        .map(|(i, v)| Value::new(i as f64 * 0.02, v as f64))
 }
 
 impl<T: Read> ReadUtils for T {}
-trait ReadUtils: Read {
+pub trait ReadUtils: Read {
     fn read_i16(&mut self) -> io::Result<i16> {
         let mut buf = [0; 2];
         self.read_exact(&mut buf)?;
@@ -281,7 +279,7 @@ trait ReadUtils: Read {
 }
 
 impl<T: Seek> SeekUtils for T {}
-trait SeekUtils: Seek {
+pub trait SeekUtils: Seek {
     fn len(&mut self) -> io::Result<u64> {
         let pos = self.seek(SeekFrom::Current(0))?;
         let len = self.seek(SeekFrom::End(0))?;

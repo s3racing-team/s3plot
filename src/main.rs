@@ -4,19 +4,26 @@ use std::path::{Path, PathBuf};
 
 use eframe::egui::plot::{Legend, Line, Plot, Value, Values};
 use eframe::egui::{
-    menu, Align2, CentralPanel, Color32, CtxRef, Id, Key, LayerId, Order, Slider, TextStyle,
-    TopBottomPanel, Ui,
+    menu, Align2, CentralPanel, Color32, CtxRef, Id, Key, Label, LayerId, Order, RichText, Slider,
+    TextStyle, TopBottomPanel, Ui,
 };
 use eframe::epi::{self, App, Frame};
 use eframe::NativeOptions;
-use s3plot::Data;
 use serde::{Deserialize, Serialize};
+use strum::IntoEnumIterator;
+
+use data::{Data, MapOverTime};
+use eval::Var;
+
+mod data;
+mod eval;
 
 const APP_NAME: &str = "s3plot";
 
 const POWER_ASPECT_RATIO: f32 = 0.005;
 const SPEED_ASPECT_RATIO: f32 = 0.5;
 const TORQUE_ASPECT_RATIO: f32 = 0.04;
+const CUSTOM_ASPECT_RATIO: f32 = 0.1;
 
 #[derive(Serialize, Deserialize)]
 #[serde(default)]
@@ -26,6 +33,8 @@ struct PlotApp {
     power_aspect_ratio: f32,
     speed_aspect_ratio: f32,
     torque_aspect_ratio: f32,
+    custom_aspect_ratio: f32,
+    custom_expr: String,
     #[serde(skip)]
     data: Option<PlotData>,
 }
@@ -36,6 +45,7 @@ struct PlotData {
     speed: QuadValues,
     torque_set: QuadValues,
     torque_real: QuadValues,
+    custom: Vec<Value>,
 }
 
 struct QuadValues {
@@ -50,6 +60,7 @@ enum Tab {
     Power,
     Speed,
     Torque,
+    Custom,
 }
 
 impl Default for PlotApp {
@@ -61,6 +72,8 @@ impl Default for PlotApp {
             power_aspect_ratio: POWER_ASPECT_RATIO,
             speed_aspect_ratio: SPEED_ASPECT_RATIO,
             torque_aspect_ratio: TORQUE_ASPECT_RATIO,
+            custom_aspect_ratio: CUSTOM_ASPECT_RATIO,
+            custom_expr: String::new(),
         }
     }
 }
@@ -106,23 +119,47 @@ impl App for PlotApp {
         });
 
         CentralPanel::default().show(ctx, |ui| {
-            if let Some(d) = &self.data {
+            if let Some(d) = &mut self.data {
                 ui.horizontal(|ui| {
                     ui.selectable_value(&mut self.selected_tab, Tab::Power, "Power");
                     ui.selectable_value(&mut self.selected_tab, Tab::Speed, "Speed");
                     ui.selectable_value(&mut self.selected_tab, Tab::Torque, "Torque");
+                    ui.selectable_value(&mut self.selected_tab, Tab::Custom, "Custom");
                     ui.add_space(40.0);
 
                     ui.label("aspect ratio");
                     match self.selected_tab {
                         Tab::Power => {
-                            ratio_slider(ui, &mut self.power_aspect_ratio, POWER_ASPECT_RATIO);
+                            ratio_slider(
+                                ui,
+                                &mut self.power_aspect_ratio,
+                                POWER_ASPECT_RATIO,
+                                100.0,
+                            );
                         }
                         Tab::Speed => {
-                            ratio_slider(ui, &mut self.speed_aspect_ratio, SPEED_ASPECT_RATIO);
+                            ratio_slider(
+                                ui,
+                                &mut self.speed_aspect_ratio,
+                                SPEED_ASPECT_RATIO,
+                                100.0,
+                            );
                         }
                         Tab::Torque => {
-                            ratio_slider(ui, &mut self.torque_aspect_ratio, TORQUE_ASPECT_RATIO);
+                            ratio_slider(
+                                ui,
+                                &mut self.torque_aspect_ratio,
+                                TORQUE_ASPECT_RATIO,
+                                100.0,
+                            );
+                        }
+                        Tab::Custom => {
+                            ratio_slider(
+                                ui,
+                                &mut self.custom_aspect_ratio,
+                                CUSTOM_ASPECT_RATIO,
+                                1000.0,
+                            );
                         }
                     }
                     ui.add_space(40.0);
@@ -182,6 +219,41 @@ impl App for PlotApp {
                             ],
                         );
                     }
+                    Tab::Custom => {
+                        let h = ui.available_height();
+                        ui.horizontal_top(|ui| {
+                            ui.set_height(h);
+
+                            ui.vertical(|ui| {
+                                if ui.text_edit_multiline(&mut self.custom_expr).changed() {
+                                    d.custom =
+                                        eval::eval(&self.custom_expr, &d.raw).unwrap_or_default();
+                                }
+
+                                ui.add(Label::new(
+                                    RichText::new("Variables").text_style(TextStyle::Heading),
+                                ));
+
+                                for v in Var::iter() {
+                                    ui.label(v.to_string());
+                                }
+                            });
+
+                            let h = ui.available_height();
+                            Plot::new("rr_motor")
+                                .height(h)
+                                .data_aspect(self.custom_aspect_ratio)
+                                .custom_label_func(|_, v| {
+                                    let x = (v.x * 1000.0).round() / 1000.0;
+                                    let y = (v.y * 1000.0).round() / 1000.0;
+                                    format!("t = {x}s\ny = {y}")
+                                })
+                                .legend(Legend::default())
+                                .show(ui, |ui| {
+                                    ui.line(Line::new(Values::from_values(d.custom.clone())));
+                                });
+                        });
+                    }
                 }
             } else {
                 ui.label("Open or drag and drop a file");
@@ -223,9 +295,9 @@ impl FormatLabel for Torque {
     }
 }
 
-fn ratio_slider(ui: &mut Ui, value: &mut f32, default_ratio: f32) {
-    let min = default_ratio / 100.0;
-    let max = default_ratio * 100.0;
+fn ratio_slider(ui: &mut Ui, value: &mut f32, default_ratio: f32, range: f32) {
+    let min = default_ratio / range;
+    let max = default_ratio * range;
     ui.add(Slider::new(value, min..=max).logarithmic(true));
 }
 
@@ -254,8 +326,7 @@ fn motor_plot<T: FormatLabel, const COUNT: usize>(
                 for l in lines_fl {
                     ui.line(l);
                 }
-            })
-            .response;
+            });
         ui.label("rear left");
         Plot::new("rl_motor")
             .height(h)
@@ -306,35 +377,37 @@ impl PlotApp {
             Ok(d) => {
                 self.current_path = Some(path);
                 let power = QuadValues {
-                    fl: d.power_fl().collect(),
-                    fr: d.power_fr().collect(),
-                    rl: d.power_rl().collect(),
-                    rr: d.power_rr().collect(),
+                    fl: d.power_fl().map_over_time(),
+                    fr: d.power_fr().map_over_time(),
+                    rl: d.power_rl().map_over_time(),
+                    rr: d.power_rr().map_over_time(),
                 };
                 let speed = QuadValues {
-                    fl: d.speed_fl().collect(),
-                    fr: d.speed_fr().collect(),
-                    rl: d.speed_rl().collect(),
-                    rr: d.speed_rr().collect(),
+                    fl: d.velocity_fl().map_over_time(),
+                    fr: d.velocity_fr().map_over_time(),
+                    rl: d.velocity_rl().map_over_time(),
+                    rr: d.velocity_rr().map_over_time(),
                 };
                 let torque_set = QuadValues {
-                    fl: d.torque_set_fl().collect(),
-                    fr: d.torque_set_fr().collect(),
-                    rl: d.torque_set_rl().collect(),
-                    rr: d.torque_set_rr().collect(),
+                    fl: d.torque_set_fl().map_over_time(),
+                    fr: d.torque_set_fr().map_over_time(),
+                    rl: d.torque_set_rl().map_over_time(),
+                    rr: d.torque_set_rr().map_over_time(),
                 };
                 let torque_real = QuadValues {
-                    fl: d.torque_real_fl().collect(),
-                    fr: d.torque_real_fr().collect(),
-                    rl: d.torque_real_rl().collect(),
-                    rr: d.torque_real_rr().collect(),
+                    fl: d.torque_real_fl().map_over_time(),
+                    fr: d.torque_real_fr().map_over_time(),
+                    rl: d.torque_real_rl().map_over_time(),
+                    rr: d.torque_real_rr().map_over_time(),
                 };
+                let custom = eval::eval(&self.custom_expr, &d).unwrap_or_default();
                 self.data = Some(PlotData {
                     raw: d,
                     power,
                     speed,
                     torque_set,
                     torque_real,
+                    custom,
                 });
             }
             Err(_) => {
@@ -346,7 +419,7 @@ impl PlotApp {
 
     fn open(path: &Path) -> anyhow::Result<Data> {
         let mut reader = BufReader::new(File::open(path)?);
-        Ok(Data::read(&mut reader)?)
+        Data::read(&mut reader)
     }
 
     fn detect_files_being_dropped(&mut self, ctx: &CtxRef) {
