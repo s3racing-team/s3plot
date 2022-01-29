@@ -34,7 +34,8 @@ struct PlotApp {
     speed_aspect_ratio: f32,
     torque_aspect_ratio: f32,
     custom_aspect_ratio: f32,
-    custom_expr: String,
+    custom_expr_x: String,
+    custom_expr_y: String,
     #[serde(skip)]
     data: Option<PlotData>,
 }
@@ -73,7 +74,8 @@ impl Default for PlotApp {
             speed_aspect_ratio: SPEED_ASPECT_RATIO,
             torque_aspect_ratio: TORQUE_ASPECT_RATIO,
             custom_aspect_ratio: CUSTOM_ASPECT_RATIO,
-            custom_expr: String::new(),
+            custom_expr_x: String::from("t"),
+            custom_expr_y: String::from("sin(t / PI) *  sqrt(P_fl) * 2^3"),
         }
     }
 }
@@ -225,9 +227,23 @@ impl App for PlotApp {
                             ui.set_height(h);
 
                             ui.vertical(|ui| {
-                                if ui.text_edit_multiline(&mut self.custom_expr).changed() {
-                                    d.custom =
-                                        eval::eval(&self.custom_expr, &d.raw).unwrap_or_default();
+                                ui.label("X-Axis");
+                                let x_changed =
+                                    ui.text_edit_multiline(&mut self.custom_expr_x).changed();
+
+                                ui.label("Y-Axis");
+                                let y_changed =
+                                    ui.text_edit_multiline(&mut self.custom_expr_y).changed();
+
+                                ui.add_space(20.0);
+
+                                if x_changed || y_changed {
+                                    d.custom = eval::eval(
+                                        &self.custom_expr_x,
+                                        &self.custom_expr_y,
+                                        &d.raw,
+                                    )
+                                    .unwrap_or_default();
                                 }
 
                                 ui.add(Label::new(
@@ -400,7 +416,8 @@ impl PlotApp {
                     rl: d.torque_real_rl().map_over_time(),
                     rr: d.torque_real_rr().map_over_time(),
                 };
-                let custom = eval::eval(&self.custom_expr, &d).unwrap_or_default();
+                let custom =
+                    eval::eval(&self.custom_expr_x, &self.custom_expr_y, &d).unwrap_or_default();
                 self.data = Some(PlotData {
                     raw: d,
                     power,

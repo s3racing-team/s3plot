@@ -1,6 +1,7 @@
 use std::fmt;
 use std::str::FromStr;
 
+use cods::Calc;
 use cods::Provider;
 use eframe::egui::plot::Value;
 use strum_macros::EnumIter;
@@ -130,24 +131,31 @@ impl fmt::Display for Var {
 
 impl cods::Var for Var {}
 
-pub fn eval(input: &str, data: &Data) -> anyhow::Result<Vec<Value>, ()> {
-    let (calc, ctx) = cods::parse::<Var>(input);
-    let calc = calc?;
-    if !ctx.errors.is_empty() {
-        return Err(());
-    }
+pub fn eval(input_x: &str, input_y: &str, data: &Data) -> anyhow::Result<Vec<Value>, ()> {
+    let calc_x = parse(input_x)?;
+    let calc_y = parse(input_y)?;
 
     let mut plotter = Plotter { index: 0, data };
     let mut values = Vec::with_capacity(data.len);
     for i in 0..data.len {
         plotter.index = i;
-        let y = match calc.eval(&plotter) {
-            Ok(v) => plotter.val_to_f64(v),
-            Err(_) => 0.0, //TODO: use last value
+        let x = calc_x.eval(&plotter);
+        let y = calc_y.eval(&plotter);
+        if let (Ok(x), Ok(y)) = (x, y) {
+            let x = plotter.val_to_f64(x);
+            let y = plotter.val_to_f64(y);
+            values.push(Value::new(x, y));
         };
-
-        values.push(Value::new(i as f64 * SAMPLE_RATE, y));
     }
 
     Ok(values)
+}
+
+fn parse(input: &str) -> anyhow::Result<Calc<Var>, ()> {
+    let (calc_x, ctx) = cods::parse::<Var>(input);
+    let calc = calc_x?;
+    if !ctx.errors.is_empty() {
+        return Err(());
+    }
+    Ok(calc)
 }

@@ -1,5 +1,5 @@
 use std::f32::consts::PI;
-use std::io::{Read, Seek, self, SeekFrom};
+use std::io::{self, Read, Seek, SeekFrom};
 
 use eframe::egui::plot::Value;
 
