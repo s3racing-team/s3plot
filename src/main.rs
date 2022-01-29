@@ -14,20 +14,39 @@ use serde::{Deserialize, Serialize};
 
 const APP_NAME: &str = "s3plot";
 
-#[cfg_attr(feature = "persistence", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "persistence", serde(default))]
+const POWER_ASPECT_RATIO: f32 = 0.005;
+const SPEED_ASPECT_RATIO: f32 = 0.5;
+const TORQUE_ASPECT_RATIO: f32 = 0.04;
+
+#[derive(Serialize, Deserialize)]
+#[serde(default)]
 struct PlotApp {
     current_path: Option<PathBuf>,
-    #[cfg_attr(feature = "persistence", serde(skip))]
-    data: Option<Data>,
-    selected_mode: Mode,
+    selected_tab: Tab,
     power_aspect_ratio: f32,
     speed_aspect_ratio: f32,
     torque_aspect_ratio: f32,
+    #[serde(skip)]
+    data: Option<PlotData>,
+}
+
+struct PlotData {
+    raw: Data,
+    power: QuadValues,
+    speed: QuadValues,
+    torque_set: QuadValues,
+    torque_real: QuadValues,
+}
+
+struct QuadValues {
+    fl: Vec<Value>,
+    fr: Vec<Value>,
+    rl: Vec<Value>,
+    rr: Vec<Value>,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq)]
-enum Mode {
+enum Tab {
     Power,
     Speed,
     Torque,
@@ -38,10 +57,10 @@ impl Default for PlotApp {
         Self {
             current_path: None,
             data: None,
-            selected_mode: Mode::Power,
-            power_aspect_ratio: 0.005,
-            speed_aspect_ratio: 0.5,
-            torque_aspect_ratio: 0.04,
+            selected_tab: Tab::Power,
+            power_aspect_ratio: POWER_ASPECT_RATIO,
+            speed_aspect_ratio: SPEED_ASPECT_RATIO,
+            torque_aspect_ratio: TORQUE_ASPECT_RATIO,
         }
     }
 }
@@ -55,10 +74,9 @@ impl App for PlotApp {
         &mut self,
         _ctx: &eframe::egui::CtxRef,
         _frame: &Frame,
-        _storage: Option<&dyn epi::Storage>,
+        storage: Option<&dyn epi::Storage>,
     ) {
-        #[cfg(feature = "persistence")]
-        if let Some(s) = _storage {
+        if let Some(s) = storage {
             if let Some(app) = epi::get_value(s, epi::APP_KEY) {
                 *self = app;
             }
@@ -68,7 +86,6 @@ impl App for PlotApp {
         }
     }
 
-    #[cfg(feature = "persistence")]
     fn save(&mut self, storage: &mut dyn eframe::epi::Storage) {
         epi::set_value(storage, epi::APP_KEY, self);
     }
@@ -91,30 +108,21 @@ impl App for PlotApp {
         CentralPanel::default().show(ctx, |ui| {
             if let Some(d) = &self.data {
                 ui.horizontal(|ui| {
-                    ui.selectable_value(&mut self.selected_mode, Mode::Power, "Power");
-                    ui.selectable_value(&mut self.selected_mode, Mode::Speed, "Speed");
-                    ui.selectable_value(&mut self.selected_mode, Mode::Torque, "Torque");
+                    ui.selectable_value(&mut self.selected_tab, Tab::Power, "Power");
+                    ui.selectable_value(&mut self.selected_tab, Tab::Speed, "Speed");
+                    ui.selectable_value(&mut self.selected_tab, Tab::Torque, "Torque");
                     ui.add_space(40.0);
 
                     ui.label("aspect ratio");
-                    match self.selected_mode {
-                        Mode::Power => {
-                            ui.add(
-                                Slider::new(&mut self.power_aspect_ratio, 0.0005..=0.05)
-                                    .logarithmic(true),
-                            );
+                    match self.selected_tab {
+                        Tab::Power => {
+                            ratio_slider(ui, &mut self.power_aspect_ratio, POWER_ASPECT_RATIO);
                         }
-                        Mode::Speed => {
-                            ui.add(
-                                Slider::new(&mut self.speed_aspect_ratio, 0.05..=5.0)
-                                    .logarithmic(true),
-                            );
+                        Tab::Speed => {
+                            ratio_slider(ui, &mut self.speed_aspect_ratio, SPEED_ASPECT_RATIO);
                         }
-                        Mode::Torque => {
-                            ui.add(
-                                Slider::new(&mut self.torque_aspect_ratio, 0.004..=0.4)
-                                    .logarithmic(true),
-                            );
+                        Tab::Torque => {
+                            ratio_slider(ui, &mut self.torque_aspect_ratio, TORQUE_ASPECT_RATIO);
                         }
                     }
                     ui.add_space(40.0);
@@ -124,63 +132,53 @@ impl App for PlotApp {
                     }
                 });
 
-                match self.selected_mode {
-                    Mode::Power => {
+                match self.selected_tab {
+                    Tab::Power => {
                         motor_plot(
                             ui,
                             Power,
                             self.power_aspect_ratio,
-                            [
-                                [Line::new(Values::from_values_iter(d.power_fl())).name("power")],
-                                [Line::new(Values::from_values_iter(d.power_fr())).name("power")],
-                                [Line::new(Values::from_values_iter(d.power_rl())).name("power")],
-                                [Line::new(Values::from_values_iter(d.power_rr())).name("power")],
-                            ],
+                            [Line::new(Values::from_values(d.power.fl.clone())).name("power")],
+                            [Line::new(Values::from_values(d.power.fr.clone())).name("power")],
+                            [Line::new(Values::from_values(d.power.rl.clone())).name("power")],
+                            [Line::new(Values::from_values(d.power.rr.clone())).name("power")],
                         );
                     }
-                    Mode::Speed => {
+                    Tab::Speed => {
                         motor_plot(
                             ui,
                             Speed,
                             self.speed_aspect_ratio,
-                            [
-                                [Line::new(Values::from_values_iter(d.speed_fl())).name("speed")],
-                                [Line::new(Values::from_values_iter(d.speed_fr())).name("speed")],
-                                [Line::new(Values::from_values_iter(d.speed_rl())).name("speed")],
-                                [Line::new(Values::from_values_iter(d.speed_rr())).name("speed")],
-                            ],
+                            [Line::new(Values::from_values(d.speed.fl.clone())).name("speed")],
+                            [Line::new(Values::from_values(d.speed.fr.clone())).name("speed")],
+                            [Line::new(Values::from_values(d.speed.rl.clone())).name("speed")],
+                            [Line::new(Values::from_values(d.speed.rr.clone())).name("speed")],
                         );
                     }
-                    Mode::Torque => {
+                    Tab::Torque => {
                         motor_plot(
                             ui,
                             Torque,
                             self.torque_aspect_ratio,
                             [
-                                [
-                                    Line::new(Values::from_values_iter(d.torque_set_fl()))
-                                        .name("set"),
-                                    Line::new(Values::from_values_iter(d.torque_real_fl()))
-                                        .name("real"),
-                                ],
-                                [
-                                    Line::new(Values::from_values_iter(d.torque_set_fr()))
-                                        .name("set"),
-                                    Line::new(Values::from_values_iter(d.torque_real_fr()))
-                                        .name("real"),
-                                ],
-                                [
-                                    Line::new(Values::from_values_iter(d.torque_set_rl()))
-                                        .name("set"),
-                                    Line::new(Values::from_values_iter(d.torque_real_rl()))
-                                        .name("real"),
-                                ],
-                                [
-                                    Line::new(Values::from_values_iter(d.torque_set_rr()))
-                                        .name("set"),
-                                    Line::new(Values::from_values_iter(d.torque_real_rr()))
-                                        .name("real"),
-                                ],
+                                Line::new(Values::from_values(d.torque_set.fl.clone())).name("set"),
+                                Line::new(Values::from_values(d.torque_real.fl.clone()))
+                                    .name("real"),
+                            ],
+                            [
+                                Line::new(Values::from_values(d.torque_set.fr.clone())).name("set"),
+                                Line::new(Values::from_values(d.torque_real.fr.clone()))
+                                    .name("real"),
+                            ],
+                            [
+                                Line::new(Values::from_values(d.torque_set.rl.clone())).name("set"),
+                                Line::new(Values::from_values(d.torque_real.rl.clone()))
+                                    .name("real"),
+                            ],
+                            [
+                                Line::new(Values::from_values(d.torque_set.rr.clone())).name("set"),
+                                Line::new(Values::from_values(d.torque_real.rr.clone()))
+                                    .name("real"),
                             ],
                         );
                     }
@@ -225,17 +223,24 @@ impl FormatLabel for Torque {
     }
 }
 
+fn ratio_slider(ui: &mut Ui, value: &mut f32, default_ratio: f32) {
+    let min = default_ratio / 100.0;
+    let max = default_ratio * 100.0;
+    ui.add(Slider::new(value, min..=max).logarithmic(true));
+}
+
 fn motor_plot<T: FormatLabel, const COUNT: usize>(
     ui: &mut Ui,
     _: T,
     data_aspect: f32,
-    lines: [[Line; COUNT]; 4],
+    lines_fl: [Line; COUNT],
+    lines_fr: [Line; COUNT],
+    lines_rl: [Line; COUNT],
+    lines_rr: [Line; COUNT],
 ) {
     let h = ui.available_height() / 2.0
         - ui.fonts().row_height(TextStyle::Body)
         - ui.style().spacing.item_spacing.y;
-
-    let [fl, fr, rl, rr] = lines;
 
     ui.columns(2, |uis| {
         let ui = &mut uis[0];
@@ -246,7 +251,7 @@ fn motor_plot<T: FormatLabel, const COUNT: usize>(
             .custom_label_func(move |n, v| T::format_label(n, v))
             .legend(Legend::default())
             .show(ui, |ui| {
-                for l in fl {
+                for l in lines_fl {
                     ui.line(l);
                 }
             })
@@ -258,7 +263,7 @@ fn motor_plot<T: FormatLabel, const COUNT: usize>(
             .custom_label_func(move |n, v| T::format_label(n, v))
             .legend(Legend::default())
             .show(ui, |ui| {
-                for l in rl {
+                for l in lines_rl {
                     ui.line(l);
                 }
             });
@@ -271,7 +276,7 @@ fn motor_plot<T: FormatLabel, const COUNT: usize>(
             .custom_label_func(move |n, v| T::format_label(n, v))
             .legend(Legend::default())
             .show(ui, |ui| {
-                for l in fr {
+                for l in lines_fr {
                     ui.line(l);
                 }
             });
@@ -282,7 +287,7 @@ fn motor_plot<T: FormatLabel, const COUNT: usize>(
             .custom_label_func(move |n, v| T::format_label(n, v))
             .legend(Legend::default())
             .show(ui, |ui| {
-                for l in rr {
+                for l in lines_rr {
                     ui.line(l);
                 }
             });
@@ -300,7 +305,37 @@ impl PlotApp {
         match Self::open(&path) {
             Ok(d) => {
                 self.current_path = Some(path);
-                self.data = Some(d);
+                let power = QuadValues {
+                    fl: d.power_fl().collect(),
+                    fr: d.power_fr().collect(),
+                    rl: d.power_rl().collect(),
+                    rr: d.power_rr().collect(),
+                };
+                let speed = QuadValues {
+                    fl: d.speed_fl().collect(),
+                    fr: d.speed_fr().collect(),
+                    rl: d.speed_rl().collect(),
+                    rr: d.speed_rr().collect(),
+                };
+                let torque_set = QuadValues {
+                    fl: d.torque_set_fl().collect(),
+                    fr: d.torque_set_fr().collect(),
+                    rl: d.torque_set_rl().collect(),
+                    rr: d.torque_set_rr().collect(),
+                };
+                let torque_real = QuadValues {
+                    fl: d.torque_real_fl().collect(),
+                    fr: d.torque_real_fr().collect(),
+                    rl: d.torque_real_rl().collect(),
+                    rr: d.torque_real_rr().collect(),
+                };
+                self.data = Some(PlotData {
+                    raw: d,
+                    power,
+                    speed,
+                    torque_set,
+                    torque_real,
+                });
             }
             Err(_) => {
                 self.current_path = None;
