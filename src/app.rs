@@ -5,25 +5,21 @@ use eframe::egui::{menu, CentralPanel, CtxRef, Key, TopBottomPanel};
 use eframe::epi::{self, App, Frame};
 use serde::{Deserialize, Serialize};
 
-use crate::{util, custom};
+use crate::custom;
 use crate::custom::CustomConfig;
 use crate::data::Data;
-use crate::motor::{self, QuadValues};
+use crate::motor::{self, PowerConfig, TorqueConfig, VelocityConfig};
 
 const APP_NAME: &str = "s3plot";
-
-const POWER_ASPECT_RATIO: f32 = 0.005;
-const VELOCITY_ASPECT_RATIO: f32 = 0.5;
-const TORQUE_ASPECT_RATIO: f32 = 0.04;
 
 #[derive(Serialize, Deserialize)]
 #[serde(default)]
 pub struct PlotApp {
     pub current_path: Option<PathBuf>,
     selected_tab: Tab,
-    pub power_aspect_ratio: f32,
-    pub velocity_aspect_ratio: f32,
-    pub torque_aspect_ratio: f32,
+    pub power: PowerConfig,
+    pub velocity: VelocityConfig,
+    pub torque: TorqueConfig,
     pub custom: CustomConfig,
     #[serde(skip)]
     pub data: Option<PlotData>,
@@ -32,7 +28,7 @@ pub struct PlotApp {
 #[derive(Serialize, Deserialize, PartialEq, Eq)]
 enum Tab {
     Power,
-    Speed,
+    Velocity,
     Torque,
     Custom,
 }
@@ -46,15 +42,22 @@ pub struct PlotData {
     pub custom: Vec<Value>,
 }
 
+pub struct QuadValues {
+    pub fl: Vec<Value>,
+    pub fr: Vec<Value>,
+    pub rl: Vec<Value>,
+    pub rr: Vec<Value>,
+}
+
 impl Default for PlotApp {
     fn default() -> Self {
         Self {
             current_path: None,
             data: None,
             selected_tab: Tab::Power,
-            power_aspect_ratio: POWER_ASPECT_RATIO,
-            velocity_aspect_ratio: VELOCITY_ASPECT_RATIO,
-            torque_aspect_ratio: TORQUE_ASPECT_RATIO,
+            power: Default::default(),
+            velocity: Default::default(),
+            torque: Default::default(),
             custom: Default::default(),
         }
     }
@@ -97,6 +100,11 @@ impl App for PlotApp {
                         self.open_dialog();
                     }
                 });
+                ui.add_space(40.0);
+
+                if let Some(p) = &self.current_path {
+                    ui.label(format!("{}", p.display()));
+                }
             });
         });
 
@@ -104,57 +112,36 @@ impl App for PlotApp {
             if let Some(d) = &mut self.data {
                 ui.horizontal(|ui| {
                     ui.selectable_value(&mut self.selected_tab, Tab::Power, "Power");
-                    ui.selectable_value(&mut self.selected_tab, Tab::Speed, "Speed");
+                    ui.selectable_value(&mut self.selected_tab, Tab::Velocity, "Speed");
                     ui.selectable_value(&mut self.selected_tab, Tab::Torque, "Torque");
                     ui.selectable_value(&mut self.selected_tab, Tab::Custom, "Custom");
                     ui.add_space(40.0);
 
-                    ui.label("aspect ratio");
                     match self.selected_tab {
                         Tab::Power => {
-                            util::ratio_slider(
-                                ui,
-                                &mut self.power_aspect_ratio,
-                                POWER_ASPECT_RATIO,
-                                100.0,
-                            );
+                            motor::power_config(ui, &mut self.power);
                         }
-                        Tab::Speed => {
-                            util::ratio_slider(
-                                ui,
-                                &mut self.velocity_aspect_ratio,
-                                VELOCITY_ASPECT_RATIO,
-                                100.0,
-                            );
+                        Tab::Velocity => {
+                            motor::velocity_config(ui, &mut self.velocity);
                         }
                         Tab::Torque => {
-                            util::ratio_slider(
-                                ui,
-                                &mut self.torque_aspect_ratio,
-                                TORQUE_ASPECT_RATIO,
-                                100.0,
-                            );
+                            motor::torque_config(ui, &mut self.torque);
                         }
                         Tab::Custom => {
                             custom::ratio_slider(ui, &mut self.custom);
                         }
                     }
-                    ui.add_space(40.0);
-
-                    if let Some(p) = &self.current_path {
-                        ui.label(format!("{}", p.display()));
-                    }
                 });
 
                 match self.selected_tab {
                     Tab::Power => {
-                        motor::plot_power(ui, d, self.power_aspect_ratio);
+                        motor::power_plot(ui, d, &self.power);
                     }
-                    Tab::Speed => {
-                        motor::plot_velocity(ui, d, self.velocity_aspect_ratio);
+                    Tab::Velocity => {
+                        motor::velocity_plot(ui, d, &self.velocity);
                     }
                     Tab::Torque => {
-                        motor::plot_torque(ui, d, self.torque_aspect_ratio);
+                        motor::torque_plot(ui, d, &self.torque);
                     }
                     Tab::Custom => {
                         custom::plot(ui, d, &mut self.custom);

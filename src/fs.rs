@@ -4,9 +4,8 @@ use std::path::{Path, PathBuf};
 
 use eframe::egui::{Align2, Color32, CtxRef, Id, LayerId, Order, TextStyle};
 
-use crate::app::PlotData;
+use crate::app::{PlotData, QuadValues};
 use crate::data::{Data, MapOverTime};
-use crate::motor::QuadValues;
 use crate::{eval, PlotApp};
 
 impl PlotApp {
