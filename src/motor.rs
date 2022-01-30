@@ -11,6 +11,7 @@ const TORQUE_ASPECT_RATIO: f32 = 0.08;
 
 trait MotorConfig {
     fn format_label(name: &str, value: &Value) -> String;
+    fn name() -> &'static str;
     fn aspect_ratio(&self) -> f32;
     fn mode(&self) -> Mode;
 }
@@ -67,6 +68,10 @@ impl MotorConfig for PowerConfig {
         format!("t = {x}s\nP = {y}W")
     }
 
+    fn name() -> &'static str {
+        "power"
+    }
+
     fn aspect_ratio(&self) -> f32 {
         self.aspect_ratio
     }
@@ -98,6 +103,10 @@ impl MotorConfig for VelocityConfig {
         format!("t = {x}s\nv = {y}km/h")
     }
 
+    fn name() -> &'static str {
+        "velocity"
+    }
+
     fn aspect_ratio(&self) -> f32 {
         self.aspect_ratio
     }
@@ -127,6 +136,10 @@ impl MotorConfig for TorqueConfig {
         let x = (val.x * 1000.0).round() / 1000.0;
         let y = (val.y * 1000.0).round() / 1000.0;
         format!("{name}\nt = {x}s\nM = {y}Nm")
+    }
+
+    fn name() -> &'static str {
+        "torque"
     }
 
     fn aspect_ratio(&self) -> f32 {
@@ -221,7 +234,7 @@ fn plot<T: MotorConfig, const COUNT: usize>(
         Mode::Split => ui.columns(2, |uis| {
             let ui = &mut uis[0];
             ui.label("front left");
-            Plot::new("fl_motor")
+            Plot::new(format!("fl_{}", T::name()))
                 .height(h)
                 .data_aspect(cfg.aspect_ratio())
                 .custom_label_func(move |n, v| T::format_label(n, v))
@@ -232,7 +245,7 @@ fn plot<T: MotorConfig, const COUNT: usize>(
                     }
                 });
             ui.label("rear left");
-            Plot::new("rl_motor")
+            Plot::new(format!("rl_{}", T::name()))
                 .height(h)
                 .data_aspect(cfg.aspect_ratio())
                 .custom_label_func(move |n, v| T::format_label(n, v))
@@ -245,7 +258,7 @@ fn plot<T: MotorConfig, const COUNT: usize>(
 
             let ui = &mut uis[1];
             ui.label("front right");
-            Plot::new("fr_motor")
+            Plot::new(format!("fr_{}", T::name()))
                 .height(h)
                 .data_aspect(cfg.aspect_ratio())
                 .custom_label_func(move |n, v| T::format_label(n, v))
@@ -256,7 +269,7 @@ fn plot<T: MotorConfig, const COUNT: usize>(
                     }
                 });
             ui.label("rear right");
-            Plot::new("rr_motor")
+            Plot::new(format!("rr_{}", T::name()))
                 .height(h)
                 .data_aspect(cfg.aspect_ratio())
                 .custom_label_func(move |n, v| T::format_label(n, v))
@@ -268,7 +281,7 @@ fn plot<T: MotorConfig, const COUNT: usize>(
                 });
         }),
         Mode::Single => {
-            Plot::new("motor")
+            Plot::new(T::name())
                 .data_aspect(cfg.aspect_ratio())
                 .custom_label_func(move |n, v| T::format_label(n, v))
                 .legend(Legend::default())
