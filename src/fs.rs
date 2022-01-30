@@ -60,7 +60,7 @@ impl PlotApp {
                     rl: d.power_rl().map_over_time(),
                     rr: d.power_rr().map_over_time(),
                 };
-                let speed = QuadValues {
+                let velocity = QuadValues {
                     fl: d.velocity_fl().map_over_time(),
                     fr: d.velocity_fr().map_over_time(),
                     rl: d.velocity_rl().map_over_time(),
@@ -80,14 +80,14 @@ impl PlotApp {
                 };
                 let custom = self
                     .custom
-                    .exprs
+                    .plots
                     .iter()
-                    .map(|e| eval::eval(e, &d).unwrap_or_default())
+                    .map(|p| eval::eval(&p.expr, &d).unwrap_or_default())
                     .collect();
                 self.data = Some(PlotData {
                     raw: d,
                     power,
-                    velocity: speed,
+                    velocity,
                     torque_set,
                     torque_real,
                     custom,

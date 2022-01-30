@@ -112,7 +112,7 @@ impl App for PlotApp {
             if let Some(d) = &mut self.data {
                 ui.horizontal(|ui| {
                     ui.selectable_value(&mut self.selected_tab, Tab::Power, "Power");
-                    ui.selectable_value(&mut self.selected_tab, Tab::Velocity, "Speed");
+                    ui.selectable_value(&mut self.selected_tab, Tab::Velocity, "Velocity");
                     ui.selectable_value(&mut self.selected_tab, Tab::Torque, "Torque");
                     ui.selectable_value(&mut self.selected_tab, Tab::Custom, "Custom");
                     ui.add_space(40.0);
