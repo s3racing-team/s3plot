@@ -64,7 +64,7 @@ impl MotorConfig for PowerConfig {
     fn format_label(_name: &str, val: &Value) -> String {
         let x = (val.x * 1000.0).round() / 1000.0;
         let y = (val.y * 1000.0).round() / 1000.0;
-        format!("t = {x}s\np = {y}W")
+        format!("t = {x}s\nP = {y}W")
     }
 
     fn aspect_ratio(&self) -> f32 {
@@ -274,16 +274,16 @@ fn plot<T: MotorConfig, const COUNT: usize>(
                 .legend(Legend::default())
                 .show(ui, |ui| {
                     for (l, n) in fl {
-                        ui.line(l.name(format!("{n} fl")));
+                        ui.line(l.name(format!("{n} front left")));
                     }
                     for (l, n) in fr {
-                        ui.line(l.name(format!("{n} fr")));
+                        ui.line(l.name(format!("{n} front right")));
                     }
                     for (l, n) in rl {
-                        ui.line(l.name(format!("{n} rl")));
+                        ui.line(l.name(format!("{n} rear left")));
                     }
                     for (l, n) in rr {
-                        ui.line(l.name(format!("{n} rr")));
+                        ui.line(l.name(format!("{n} rear right")));
                     }
                 });
         }
