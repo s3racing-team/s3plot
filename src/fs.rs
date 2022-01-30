@@ -78,8 +78,12 @@ impl PlotApp {
                     rl: d.torque_real_rl().map_over_time(),
                     rr: d.torque_real_rr().map_over_time(),
                 };
-                let custom =
-                    eval::eval(&self.custom.expr_x, &self.custom.expr_y, &d).unwrap_or_default();
+                let custom = self
+                    .custom
+                    .exprs
+                    .iter()
+                    .map(|e| eval::eval(e, &d).unwrap_or_default())
+                    .collect();
                 self.data = Some(PlotData {
                     raw: d,
                     power,

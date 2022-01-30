@@ -1,38 +1,34 @@
 use eframe::egui::plot::{Legend, Line, Plot, Values};
-use eframe::egui::{Label, RichText, TextStyle, Ui};
+use eframe::egui::{Label, RichText, ScrollArea, TextEdit, TextStyle, Ui};
 use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
 
 use crate::app::PlotData;
+use crate::eval::{self, Expr, Var};
 use crate::util;
-use crate::eval::{self, Var};
 
 const CUSTOM_ASPECT_RATIO: f32 = 0.1;
 
 #[derive(Serialize, Deserialize)]
 pub struct CustomConfig {
     pub aspect_ratio: f32,
-    pub expr_x: String,
-    pub expr_y: String,
+    pub exprs: Vec<Expr>,
 }
 
 impl Default for CustomConfig {
     fn default() -> Self {
         Self {
             aspect_ratio: CUSTOM_ASPECT_RATIO,
-            expr_x: String::from("t"),
-            expr_y: String::from("sin(t / PI) *  sqrt(P_fl) * 2^3"),
+            exprs: vec![Expr {
+                x: "t".into(),
+                y: "sin(t / PI) *  sqrt(P_fl) * 2^3".into(),
+            }],
         }
     }
 }
 
 pub fn ratio_slider(ui: &mut Ui, cfg: &mut CustomConfig) {
-    util::ratio_slider(
-        ui,
-        &mut cfg.aspect_ratio,
-        CUSTOM_ASPECT_RATIO,
-        1000.0,
-    );
+    util::ratio_slider(ui, &mut cfg.aspect_ratio, CUSTOM_ASPECT_RATIO, 1000.0);
 }
 
 pub fn plot(ui: &mut Ui, data: &mut PlotData, cfg: &mut CustomConfig) {
@@ -41,25 +37,54 @@ pub fn plot(ui: &mut Ui, data: &mut PlotData, cfg: &mut CustomConfig) {
         ui.set_height(h);
 
         ui.vertical(|ui| {
-            ui.label("X-Axis");
-            let x_changed = ui.text_edit_multiline(&mut cfg.expr_x).changed();
+            ui.add_space(ui.style().spacing.window_padding.y);
 
-            ui.label("Y-Axis");
-            let y_changed = ui.text_edit_multiline(&mut cfg.expr_y).changed();
+            ScrollArea::vertical().show(ui, |ui| {
+                let mut i = 0;
+                while i < cfg.exprs.len() {
+                    let e = &mut cfg.exprs[i];
+                    let removed = ui.horizontal(|ui| {
+                        ui.label(format!("{}", i + 1));
+                        ui.button(" − ").clicked()
+                    });
 
-            ui.add_space(20.0);
+                    let x_changed = ui.horizontal(|ui| {
+                        ui.label("X");
+                        ui.add(TextEdit::multiline(&mut e.x).desired_rows(1))
+                            .changed()
+                    });
+                    let y_changed = ui.horizontal(|ui| {
+                        ui.label("Y");
+                        ui.add(TextEdit::multiline(&mut e.y).desired_rows(1))
+                            .changed()
+                    });
+                    ui.add_space(10.0);
 
-            if x_changed || y_changed {
-                data.custom = eval::eval(&cfg.expr_x, &cfg.expr_y, &data.raw).unwrap_or_default();
-            }
+                    if removed.inner {
+                        cfg.exprs.remove(i);
+                        data.custom.remove(i);
+                    } else {
+                        if x_changed.inner || y_changed.inner {
+                            data.custom[i] = eval::eval(&e, &data.raw).unwrap_or_default();
+                        }
+                        i += 1;
+                    }
+                }
 
-            ui.add(Label::new(
-                RichText::new("Variables").text_style(TextStyle::Heading),
-            ));
+                if ui.button(" + ").clicked() {
+                    cfg.exprs.push(Expr::default());
+                    data.custom.push(Vec::new());
+                }
+                ui.add_space(10.0);
 
-            for v in Var::iter() {
-                ui.label(v.to_string());
-            }
+                ui.add(Label::new(
+                    RichText::new("Variables").text_style(TextStyle::Heading),
+                ));
+
+                for v in Var::iter() {
+                    ui.label(v.to_string());
+                }
+            });
         });
 
         let h = ui.available_height();
@@ -73,7 +98,9 @@ pub fn plot(ui: &mut Ui, data: &mut PlotData, cfg: &mut CustomConfig) {
             })
             .legend(Legend::default())
             .show(ui, |ui| {
-                ui.line(Line::new(Values::from_values(data.custom.clone())));
+                for (i, d) in data.custom.iter().enumerate() {
+                    ui.line(Line::new(Values::from_values(d.clone())).name(format!("{}", i + 1)));
+                }
             });
     });
 }

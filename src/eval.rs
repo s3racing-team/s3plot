@@ -4,6 +4,8 @@ use std::str::FromStr;
 use cods::Calc;
 use cods::Provider;
 use eframe::egui::plot::Value;
+use serde::Deserialize;
+use serde::Serialize;
 use strum_macros::EnumIter;
 
 use crate::data::Data;
@@ -131,9 +133,15 @@ impl fmt::Display for Var {
 
 impl cods::Var for Var {}
 
-pub fn eval(input_x: &str, input_y: &str, data: &Data) -> anyhow::Result<Vec<Value>, ()> {
-    let calc_x = parse(input_x)?;
-    let calc_y = parse(input_y)?;
+#[derive(Default, Serialize, Deserialize)]
+pub struct Expr {
+    pub x: String,
+    pub y: String,
+}
+
+pub fn eval(expr: &Expr, data: &Data) -> anyhow::Result<Vec<Value>, ()> {
+    let calc_x = parse(&expr.x)?;
+    let calc_y = parse(&expr.y)?;
 
     let mut plotter = Plotter { index: 0, data };
     let mut values = Vec::with_capacity(data.len);

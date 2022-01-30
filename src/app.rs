@@ -39,7 +39,7 @@ pub struct PlotData {
     pub velocity: QuadValues,
     pub torque_set: QuadValues,
     pub torque_real: QuadValues,
-    pub custom: Vec<Value>,
+    pub custom: Vec<Vec<Value>>,
 }
 
 pub struct QuadValues {
@@ -55,10 +55,10 @@ impl Default for PlotApp {
             current_path: None,
             data: None,
             selected_tab: Tab::Power,
-            power: Default::default(),
-            velocity: Default::default(),
-            torque: Default::default(),
-            custom: Default::default(),
+            power: PowerConfig::default(),
+            velocity: VelocityConfig::default(),
+            torque: TorqueConfig::default(),
+            custom: CustomConfig::default(),
         }
     }
 }
