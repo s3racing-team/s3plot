@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
-use eframe::egui::plot::Value;
-use eframe::egui::{menu, CentralPanel, CtxRef, Key, TopBottomPanel};
-use eframe::epi::{self, App, Frame};
+use egui::plot::Value;
+use egui::{menu, CentralPanel, Context, Key, TopBottomPanel};
+use epi::{self, App, Frame};
 use serde::{Deserialize, Serialize};
 
 use crate::custom;
@@ -68,12 +68,7 @@ impl App for PlotApp {
         APP_NAME
     }
 
-    fn setup(
-        &mut self,
-        _ctx: &eframe::egui::CtxRef,
-        _frame: &Frame,
-        storage: Option<&dyn epi::Storage>,
-    ) {
+    fn setup(&mut self, _ctx: &egui::Context, _frame: &Frame, storage: Option<&dyn epi::Storage>) {
         if let Some(s) = storage {
             if let Some(app) = epi::get_value(s, epi::APP_KEY) {
                 *self = app;
@@ -88,7 +83,7 @@ impl App for PlotApp {
         epi::set_value(storage, epi::APP_KEY, self);
     }
 
-    fn update(&mut self, ctx: &CtxRef, _: &Frame) {
+    fn update(&mut self, ctx: &Context, _: &Frame) {
         if ctx.input().modifiers.ctrl && ctx.input().key_pressed(Key::O) {
             self.open_dialog();
         }

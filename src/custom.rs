@@ -1,5 +1,5 @@
-use eframe::egui::plot::{Legend, Line, Plot, Values};
-use eframe::egui::{
+use egui::plot::{Legend, Line, Plot, Values};
+use egui::{
     CentralPanel, Color32, Frame, Label, RichText, ScrollArea, SidePanel, TextEdit, TextStyle, Ui,
     Vec2,
 };
@@ -106,7 +106,7 @@ fn sidebar(ui: &mut Ui, data: &mut PlotData, cfg: &mut CustomConfig) {
                 TextEdit::multiline(&mut p.expr.x)
                     .desired_width(ui.available_width())
                     .desired_rows(1)
-                    .text_style(TextStyle::Monospace),
+                    .font(TextStyle::Monospace),
             )
             .changed()
         });
@@ -116,7 +116,7 @@ fn sidebar(ui: &mut Ui, data: &mut PlotData, cfg: &mut CustomConfig) {
                 TextEdit::multiline(&mut p.expr.y)
                     .desired_width(ui.available_width())
                     .desired_rows(1)
-                    .text_style(TextStyle::Monospace),
+                    .font(TextStyle::Monospace),
             )
             .changed()
         });

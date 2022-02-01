@@ -4,11 +4,12 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-cods = { git = "https://github.com/saecki/comeondosomething", package = "cods" }
+cods = { git = "https://github.com/saecki/comeondosomething" }
 serde = { version = "1.0" }
 anyhow = "1.0"
-eframe = { version = "0.16.0", features = ["persistence"] }
-epi = { version = "0.16.0", features = ["persistence"] }
+epi = { git = "https://github.com/emilk/egui", features = ["persistence"] }
+eframe = { git = "https://github.com/emilk/egui", features = ["persistence"] }
+egui = { git = "https://github.com/emilk/egui", features = ["persistence"] }
 rfd = "0.7.0"
 strum = { version = "0.23.0", features = ["strum_macros"] }
 strum_macros = "0.23.1"

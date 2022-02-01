@@ -1,5 +1,5 @@
-use eframe::egui::plot::{Legend, Line, Plot, Value, Values};
-use eframe::egui::{TextStyle, Ui};
+use egui::plot::{Legend, Line, Plot, Value, Values};
+use egui::{TextStyle, Ui};
 use serde::{Deserialize, Serialize};
 
 use crate::app::PlotData;
@@ -227,7 +227,7 @@ fn plot<T: MotorConfig, const COUNT: usize>(
     rr: [(Line, &str); COUNT],
 ) {
     let h = ui.available_height() / 2.0
-        - ui.fonts().row_height(TextStyle::Body)
+        - ui.fonts().row_height(&TextStyle::Body.resolve(ui.style()))
         - ui.style().spacing.item_spacing.y;
 
     match cfg.mode() {

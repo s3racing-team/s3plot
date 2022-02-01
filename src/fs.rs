@@ -2,7 +2,7 @@ use std::fs::File;
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
 
-use eframe::egui::{Align2, Color32, CtxRef, Id, LayerId, Order, TextStyle};
+use egui::{Align2, Color32, Context, Id, LayerId, Order, TextStyle};
 
 use crate::app::{PlotData, QuadValues};
 use crate::data::{Data, MapOverTime};
@@ -15,7 +15,7 @@ impl PlotApp {
         }
     }
 
-    pub fn detect_files_being_dropped(&mut self, ctx: &CtxRef) {
+    pub fn detect_files_being_dropped(&mut self, ctx: &Context) {
         // Preview hovering files
         if !ctx.input().raw.hovered_files.is_empty() {
             let painter =
@@ -26,7 +26,7 @@ impl PlotApp {
                 screen_rect.center(),
                 Align2::CENTER_CENTER,
                 "Dropping files",
-                TextStyle::Body,
+                TextStyle::Body.resolve(&ctx.style()),
                 Color32::WHITE,
             );
         }

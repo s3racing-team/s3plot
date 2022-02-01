@@ -1,7 +1,7 @@
 use std::f32::consts::PI;
 use std::io::{self, Read, Seek, SeekFrom};
 
-use eframe::egui::plot::Value;
+use egui::plot::Value;
 
 pub const SAMPLE_RATE: f64 = 0.02;
 

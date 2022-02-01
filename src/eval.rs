@@ -3,7 +3,7 @@ use std::str::FromStr;
 
 use cods::Calc;
 use cods::Provider;
-use eframe::egui::plot::Value;
+use egui::plot::Value;
 use serde::Deserialize;
 use serde::Serialize;
 use strum_macros::EnumIter;
