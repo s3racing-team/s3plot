@@ -13,3 +13,4 @@ egui = { git = "https://github.com/emilk/egui", features = ["persistence"] }
 rfd = "0.7.0"
 strum = { version = "0.23.0", features = ["strum_macros"] }
 strum_macros = "0.23.1"
+derive_more = "0.99"

@@ -1,5 +1,6 @@
 use std::ops::{Deref, DerefMut};
 
+use derive_more::{Deref, DerefMut};
 use egui::plot::{Legend, Line, LinkedAxisGroup, Plot, Value, Values};
 use egui::{TextStyle, Ui};
 use serde::{Deserialize, Serialize};
@@ -30,7 +31,7 @@ pub struct MotorConfig {
     axis_group: LinkedAxisGroup,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Deref, DerefMut)]
 pub struct PowerConfig(MotorConfig);
 
 impl Default for PowerConfig {
@@ -41,20 +42,6 @@ impl Default for PowerConfig {
             linked: DEFAULT_LINKED,
             axis_group: LinkedAxisGroup::both(),
         })
-    }
-}
-
-impl Deref for PowerConfig {
-    type Target = MotorConfig;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl DerefMut for PowerConfig {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
     }
 }
 
@@ -69,7 +56,7 @@ impl MotorPlotConfig for PowerConfig {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Deref, DerefMut)]
 pub struct VelocityConfig(MotorConfig);
 
 impl Default for VelocityConfig {
@@ -80,20 +67,6 @@ impl Default for VelocityConfig {
             linked: DEFAULT_LINKED,
             axis_group: LinkedAxisGroup::both(),
         })
-    }
-}
-
-impl Deref for VelocityConfig {
-    type Target = MotorConfig;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl DerefMut for VelocityConfig {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
     }
 }
 
@@ -108,7 +81,7 @@ impl MotorPlotConfig for VelocityConfig {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Deref, DerefMut)]
 pub struct TorqueConfig(MotorConfig);
 
 impl Default for TorqueConfig {
@@ -119,20 +92,6 @@ impl Default for TorqueConfig {
             linked: DEFAULT_LINKED,
             axis_group: LinkedAxisGroup::both(),
         })
-    }
-}
-
-impl Deref for TorqueConfig {
-    type Target = MotorConfig;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl DerefMut for TorqueConfig {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
     }
 }
 
