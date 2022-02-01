@@ -110,17 +110,17 @@ impl App for PlotApp {
                     ui.selectable_value(&mut self.selected_tab, Tab::Velocity, "Velocity");
                     ui.selectable_value(&mut self.selected_tab, Tab::Torque, "Torque");
                     ui.selectable_value(&mut self.selected_tab, Tab::Custom, "Custom");
-                    ui.add_space(40.0);
+                    ui.add_space(30.0);
 
                     match self.selected_tab {
                         Tab::Power => {
-                            motor::power_config(ui, &mut self.power);
+                            motor::config(ui, &mut self.power);
                         }
                         Tab::Velocity => {
-                            motor::velocity_config(ui, &mut self.velocity);
+                            motor::config(ui, &mut self.velocity);
                         }
                         Tab::Torque => {
-                            motor::torque_config(ui, &mut self.torque);
+                            motor::config(ui, &mut self.torque);
                         }
                         Tab::Custom => {
                             custom::ratio_slider(ui, &mut self.custom);

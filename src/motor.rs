@@ -1,4 +1,6 @@
-use egui::plot::{Legend, Line, Plot, Value, Values, LinkedAxisGroup};
+use std::ops::{Deref, DerefMut};
+
+use egui::plot::{Legend, Line, LinkedAxisGroup, Plot, Value, Values};
 use egui::{TextStyle, Ui};
 use serde::{Deserialize, Serialize};
 
@@ -9,209 +11,153 @@ const POWER_ASPECT_RATIO: f32 = 0.006;
 const VELOCITY_ASPECT_RATIO: f32 = 1.0;
 const TORQUE_ASPECT_RATIO: f32 = 0.08;
 
+const DEFAULT_GRID_MODE: bool = true;
 const DEFAULT_LINKED: bool = true;
 
-trait MotorConfig {
-    fn format_label(name: &str, value: &Value) -> String;
-    fn name() -> &'static str;
-    fn aspect_ratio(&self) -> f32;
-    fn mode(&self) -> Mode;
-    fn axis_group(&self) -> LinkedAxisGroup;
-}
-
-#[derive(Clone, Copy, Serialize, Deserialize)]
-pub enum Mode {
-    Split,
-    Single,
-}
-
-impl Default for Mode {
-    fn default() -> Self {
-        Self::Split
-    }
-}
-
-impl From<bool> for Mode {
-    fn from(checked: bool) -> Self {
-        match checked {
-            true => Self::Split,
-            false => Self::Single,
-        }
-    }
-}
-
-impl Mode {
-    /// Returns `true` if the mode is [`Split`].
-    ///
-    /// [`Split`]: Mode::Split
-    pub fn is_split(&self) -> bool {
-        matches!(self, Self::Split)
-    }
+pub trait MotorPlotConfig: Deref<Target = MotorConfig> + DerefMut {
+    const NAME: &'static str;
+    const ASPECT_RATIO: f32;
+    fn format_label(name: &str, val: &Value) -> String;
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct PowerConfig {
+pub struct MotorConfig {
     aspect_ratio: f32,
-    mode: Mode,
+    grid_mode: bool,
     linked: bool,
     #[serde(skip)]
     #[serde(default = "LinkedAxisGroup::both")]
     axis_group: LinkedAxisGroup,
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct PowerConfig(MotorConfig);
+
 impl Default for PowerConfig {
     fn default() -> Self {
-        Self {
+        Self(MotorConfig {
             aspect_ratio: POWER_ASPECT_RATIO,
-            mode: Mode::default(),
+            grid_mode: DEFAULT_GRID_MODE,
             linked: DEFAULT_LINKED,
             axis_group: LinkedAxisGroup::both(),
-        }
+        })
     }
 }
 
-impl MotorConfig for PowerConfig {
+impl Deref for PowerConfig {
+    type Target = MotorConfig;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for PowerConfig {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl MotorPlotConfig for PowerConfig {
+    const NAME: &'static str = "power";
+    const ASPECT_RATIO: f32 = POWER_ASPECT_RATIO;
+
     fn format_label(_name: &str, val: &Value) -> String {
         let x = (val.x * 1000.0).round() / 1000.0;
         let y = (val.y * 1000.0).round() / 1000.0;
         format!("t = {x}s\nP = {y}W")
     }
-
-    fn name() -> &'static str {
-        "power"
-    }
-
-    fn aspect_ratio(&self) -> f32 {
-        self.aspect_ratio
-    }
-
-    fn mode(&self) -> Mode {
-        self.mode
-    }
-    
-    fn axis_group(&self) -> LinkedAxisGroup {
-        self.axis_group.clone()
-    }
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct VelocityConfig {
-    aspect_ratio: f32,
-    mode: Mode,
-    linked: bool,
-    #[serde(skip)]
-    #[serde(default = "LinkedAxisGroup::both")]
-    axis_group: LinkedAxisGroup,
-}
+pub struct VelocityConfig(MotorConfig);
 
 impl Default for VelocityConfig {
     fn default() -> Self {
-        Self {
+        Self(MotorConfig {
             aspect_ratio: VELOCITY_ASPECT_RATIO,
-            mode: Mode::default(),
+            grid_mode: DEFAULT_GRID_MODE,
             linked: DEFAULT_LINKED,
             axis_group: LinkedAxisGroup::both(),
-        }
+        })
     }
 }
 
-impl MotorConfig for VelocityConfig {
+impl Deref for VelocityConfig {
+    type Target = MotorConfig;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for VelocityConfig {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl MotorPlotConfig for VelocityConfig {
+    const NAME: &'static str = "velocity";
+    const ASPECT_RATIO: f32 = VELOCITY_ASPECT_RATIO;
+
     fn format_label(_name: &str, val: &Value) -> String {
         let x = (val.x * 1000.0).round() / 1000.0;
         let y = (val.y * 1000.0).round() / 1000.0;
         format!("t = {x}s\nv = {y}km/h")
     }
-
-    fn name() -> &'static str {
-        "velocity"
-    }
-
-    fn aspect_ratio(&self) -> f32 {
-        self.aspect_ratio
-    }
-
-    fn mode(&self) -> Mode {
-        self.mode
-    }
-    
-    fn axis_group(&self) -> LinkedAxisGroup {
-        self.axis_group.clone()
-    }
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct TorqueConfig {
-    aspect_ratio: f32,
-    mode: Mode,
-    linked: bool,
-    #[serde(skip)]
-    #[serde(default = "LinkedAxisGroup::both")]
-    axis_group: LinkedAxisGroup,
-}
+pub struct TorqueConfig(MotorConfig);
 
 impl Default for TorqueConfig {
     fn default() -> Self {
-        Self {
+        Self(MotorConfig {
             aspect_ratio: TORQUE_ASPECT_RATIO,
-            mode: Mode::default(),
+            grid_mode: DEFAULT_GRID_MODE,
             linked: DEFAULT_LINKED,
             axis_group: LinkedAxisGroup::both(),
-        }
+        })
     }
 }
 
-impl MotorConfig for TorqueConfig {
+impl Deref for TorqueConfig {
+    type Target = MotorConfig;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for TorqueConfig {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl MotorPlotConfig for TorqueConfig {
+    const NAME: &'static str = "torque";
+    const ASPECT_RATIO: f32 = TORQUE_ASPECT_RATIO;
+
     fn format_label(name: &str, val: &Value) -> String {
         let x = (val.x * 1000.0).round() / 1000.0;
         let y = (val.y * 1000.0).round() / 1000.0;
         format!("{name}\nt = {x}s\nM = {y}Nm")
     }
-
-    fn name() -> &'static str {
-        "torque"
-    }
-
-    fn aspect_ratio(&self) -> f32 {
-        self.aspect_ratio
-    }
-
-    fn mode(&self) -> Mode {
-        self.mode
-    }
-    
-    fn axis_group(&self) -> LinkedAxisGroup {
-        self.axis_group.clone()
-    }
 }
 
-pub fn power_config(ui: &mut Ui, cfg: &mut PowerConfig) {
-    util::ratio_slider(ui, &mut cfg.aspect_ratio, POWER_ASPECT_RATIO, 100.0);
-    ui.add_space(40.0);
-    util::mode_toggle(ui, &mut cfg.mode);
-    ui.add_space(40.0);
-    util::linked_toggle(ui, &mut cfg.linked);
-    cfg.axis_group.set_link_x(cfg.linked);
-    cfg.axis_group.set_link_y(cfg.linked);
-}
+pub fn config<T: MotorPlotConfig>(ui: &mut Ui, cfg: &mut T) {
+    util::ratio_slider(ui, &mut cfg.aspect_ratio, T::ASPECT_RATIO, 100.0);
+    ui.add_space(30.0);
 
-pub fn velocity_config(ui: &mut Ui, cfg: &mut VelocityConfig) {
-    util::ratio_slider(ui, &mut cfg.aspect_ratio, VELOCITY_ASPECT_RATIO, 100.0);
-    ui.add_space(40.0);
-    util::mode_toggle(ui, &mut cfg.mode);
-    ui.add_space(40.0);
-    util::linked_toggle(ui, &mut cfg.linked);
-    cfg.axis_group.set_link_x(cfg.linked);
-    cfg.axis_group.set_link_y(cfg.linked);
-}
+    ui.checkbox(&mut cfg.grid_mode, "grid mode");
+    ui.add_space(30.0);
 
-pub fn torque_config(ui: &mut Ui, cfg: &mut TorqueConfig) {
-    util::ratio_slider(ui, &mut cfg.aspect_ratio, TORQUE_ASPECT_RATIO, 100.0);
-    ui.add_space(40.0);
-    util::mode_toggle(ui, &mut cfg.mode);
-    ui.add_space(40.0);
-    util::linked_toggle(ui, &mut cfg.linked);
-    cfg.axis_group.set_link_x(cfg.linked);
-    cfg.axis_group.set_link_y(cfg.linked);
+    ui.checkbox(&mut cfg.linked, "linked");
+    let linked = cfg.linked;
+    cfg.axis_group.set_link_x(linked);
+    cfg.axis_group.set_link_y(linked);
 }
 
 pub fn power_plot(ui: &mut Ui, data: &PlotData, cfg: &PowerConfig) {
@@ -263,7 +209,7 @@ fn line(values: Vec<Value>, name: &str) -> (Line, &str) {
     (Line::new(Values::from_values(values)), name)
 }
 
-fn plot<T: MotorConfig, const COUNT: usize>(
+fn plot<T: MotorPlotConfig, const COUNT: usize>(
     ui: &mut Ui,
     cfg: &T,
     fl: [(Line, &str); COUNT],
@@ -275,14 +221,14 @@ fn plot<T: MotorConfig, const COUNT: usize>(
         - ui.fonts().row_height(&TextStyle::Body.resolve(ui.style()))
         - ui.style().spacing.item_spacing.y;
 
-    match cfg.mode() {
-        Mode::Split => ui.columns(2, |uis| {
+    if cfg.grid_mode {
+        ui.columns(2, |uis| {
             let ui = &mut uis[0];
             ui.label("front left");
-            Plot::new(format!("fl_{}", T::name()))
+            Plot::new(format!("fl_{}", T::NAME))
                 .height(h)
-                .data_aspect(cfg.aspect_ratio())
-                .link_axis(cfg.axis_group())
+                .data_aspect(cfg.aspect_ratio)
+                .link_axis(cfg.axis_group.clone())
                 .custom_label_func(move |n, v| T::format_label(n, v))
                 .legend(Legend::default())
                 .show(ui, |ui| {
@@ -291,10 +237,10 @@ fn plot<T: MotorConfig, const COUNT: usize>(
                     }
                 });
             ui.label("rear left");
-            Plot::new(format!("rl_{}", T::name()))
+            Plot::new(format!("rl_{}", T::NAME))
                 .height(h)
-                .data_aspect(cfg.aspect_ratio())
-                .link_axis(cfg.axis_group())
+                .data_aspect(cfg.aspect_ratio)
+                .link_axis(cfg.axis_group.clone())
                 .custom_label_func(move |n, v| T::format_label(n, v))
                 .legend(Legend::default())
                 .show(ui, |ui| {
@@ -305,10 +251,10 @@ fn plot<T: MotorConfig, const COUNT: usize>(
 
             let ui = &mut uis[1];
             ui.label("front right");
-            Plot::new(format!("fr_{}", T::name()))
+            Plot::new(format!("fr_{}", T::NAME))
                 .height(h)
-                .data_aspect(cfg.aspect_ratio())
-                .link_axis(cfg.axis_group())
+                .data_aspect(cfg.aspect_ratio)
+                .link_axis(cfg.axis_group.clone())
                 .custom_label_func(move |n, v| T::format_label(n, v))
                 .legend(Legend::default())
                 .show(ui, |ui| {
@@ -317,10 +263,10 @@ fn plot<T: MotorConfig, const COUNT: usize>(
                     }
                 });
             ui.label("rear right");
-            Plot::new(format!("rr_{}", T::name()))
+            Plot::new(format!("rr_{}", T::NAME))
                 .height(h)
-                .data_aspect(cfg.aspect_ratio())
-                .link_axis(cfg.axis_group())
+                .data_aspect(cfg.aspect_ratio)
+                .link_axis(cfg.axis_group.clone())
                 .custom_label_func(move |n, v| T::format_label(n, v))
                 .legend(Legend::default())
                 .show(ui, |ui| {
@@ -328,26 +274,25 @@ fn plot<T: MotorConfig, const COUNT: usize>(
                         ui.line(l.name(n));
                     }
                 });
-        }),
-        Mode::Single => {
-            Plot::new(T::name())
-                .data_aspect(cfg.aspect_ratio())
-                .custom_label_func(move |n, v| T::format_label(n, v))
-                .legend(Legend::default())
-                .show(ui, |ui| {
-                    for (l, n) in fl {
-                        ui.line(l.name(format!("{n} front left")));
-                    }
-                    for (l, n) in fr {
-                        ui.line(l.name(format!("{n} front right")));
-                    }
-                    for (l, n) in rl {
-                        ui.line(l.name(format!("{n} rear left")));
-                    }
-                    for (l, n) in rr {
-                        ui.line(l.name(format!("{n} rear right")));
-                    }
-                });
-        }
+        })
+    } else {
+        Plot::new(T::NAME)
+            .data_aspect(cfg.aspect_ratio)
+            .custom_label_func(move |n, v| T::format_label(n, v))
+            .legend(Legend::default())
+            .show(ui, |ui| {
+                for (l, n) in fl {
+                    ui.line(l.name(format!("{n} front left")));
+                }
+                for (l, n) in fr {
+                    ui.line(l.name(format!("{n} front right")));
+                }
+                for (l, n) in rl {
+                    ui.line(l.name(format!("{n} rear left")));
+                }
+                for (l, n) in rr {
+                    ui.line(l.name(format!("{n} rear right")));
+                }
+            });
     }
 }
