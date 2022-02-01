@@ -237,6 +237,7 @@ fn plot<T: MotorPlotConfig, const COUNT: usize>(
     } else {
         Plot::new(T::NAME)
             .data_aspect(cfg.aspect_ratio)
+            .link_axis(cfg.axis_group.clone())
             .custom_label_func(move |n, v| T::format_label(n, v))
             .legend(Legend::default())
             .show(ui, |ui| {
