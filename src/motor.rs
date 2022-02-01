@@ -1,4 +1,4 @@
-use egui::plot::{Legend, Line, Plot, Value, Values};
+use egui::plot::{Legend, Line, Plot, Value, Values, LinkedAxisGroup};
 use egui::{TextStyle, Ui};
 use serde::{Deserialize, Serialize};
 
@@ -9,11 +9,14 @@ const POWER_ASPECT_RATIO: f32 = 0.006;
 const VELOCITY_ASPECT_RATIO: f32 = 1.0;
 const TORQUE_ASPECT_RATIO: f32 = 0.08;
 
+const DEFAULT_LINKED: bool = true;
+
 trait MotorConfig {
     fn format_label(name: &str, value: &Value) -> String;
     fn name() -> &'static str;
     fn aspect_ratio(&self) -> f32;
     fn mode(&self) -> Mode;
+    fn axis_group(&self) -> LinkedAxisGroup;
 }
 
 #[derive(Clone, Copy, Serialize, Deserialize)]
@@ -50,6 +53,10 @@ impl Mode {
 pub struct PowerConfig {
     aspect_ratio: f32,
     mode: Mode,
+    linked: bool,
+    #[serde(skip)]
+    #[serde(default = "LinkedAxisGroup::both")]
+    axis_group: LinkedAxisGroup,
 }
 
 impl Default for PowerConfig {
@@ -57,6 +64,8 @@ impl Default for PowerConfig {
         Self {
             aspect_ratio: POWER_ASPECT_RATIO,
             mode: Mode::default(),
+            linked: DEFAULT_LINKED,
+            axis_group: LinkedAxisGroup::both(),
         }
     }
 }
@@ -79,12 +88,20 @@ impl MotorConfig for PowerConfig {
     fn mode(&self) -> Mode {
         self.mode
     }
+    
+    fn axis_group(&self) -> LinkedAxisGroup {
+        self.axis_group.clone()
+    }
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct VelocityConfig {
     aspect_ratio: f32,
     mode: Mode,
+    linked: bool,
+    #[serde(skip)]
+    #[serde(default = "LinkedAxisGroup::both")]
+    axis_group: LinkedAxisGroup,
 }
 
 impl Default for VelocityConfig {
@@ -92,6 +109,8 @@ impl Default for VelocityConfig {
         Self {
             aspect_ratio: VELOCITY_ASPECT_RATIO,
             mode: Mode::default(),
+            linked: DEFAULT_LINKED,
+            axis_group: LinkedAxisGroup::both(),
         }
     }
 }
@@ -114,12 +133,20 @@ impl MotorConfig for VelocityConfig {
     fn mode(&self) -> Mode {
         self.mode
     }
+    
+    fn axis_group(&self) -> LinkedAxisGroup {
+        self.axis_group.clone()
+    }
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct TorqueConfig {
     aspect_ratio: f32,
     mode: Mode,
+    linked: bool,
+    #[serde(skip)]
+    #[serde(default = "LinkedAxisGroup::both")]
+    axis_group: LinkedAxisGroup,
 }
 
 impl Default for TorqueConfig {
@@ -127,6 +154,8 @@ impl Default for TorqueConfig {
         Self {
             aspect_ratio: TORQUE_ASPECT_RATIO,
             mode: Mode::default(),
+            linked: DEFAULT_LINKED,
+            axis_group: LinkedAxisGroup::both(),
         }
     }
 }
@@ -149,24 +178,40 @@ impl MotorConfig for TorqueConfig {
     fn mode(&self) -> Mode {
         self.mode
     }
+    
+    fn axis_group(&self) -> LinkedAxisGroup {
+        self.axis_group.clone()
+    }
 }
 
 pub fn power_config(ui: &mut Ui, cfg: &mut PowerConfig) {
     util::ratio_slider(ui, &mut cfg.aspect_ratio, POWER_ASPECT_RATIO, 100.0);
     ui.add_space(40.0);
     util::mode_toggle(ui, &mut cfg.mode);
+    ui.add_space(40.0);
+    util::linked_toggle(ui, &mut cfg.linked);
+    cfg.axis_group.set_link_x(cfg.linked);
+    cfg.axis_group.set_link_y(cfg.linked);
 }
 
 pub fn velocity_config(ui: &mut Ui, cfg: &mut VelocityConfig) {
     util::ratio_slider(ui, &mut cfg.aspect_ratio, VELOCITY_ASPECT_RATIO, 100.0);
     ui.add_space(40.0);
     util::mode_toggle(ui, &mut cfg.mode);
+    ui.add_space(40.0);
+    util::linked_toggle(ui, &mut cfg.linked);
+    cfg.axis_group.set_link_x(cfg.linked);
+    cfg.axis_group.set_link_y(cfg.linked);
 }
 
 pub fn torque_config(ui: &mut Ui, cfg: &mut TorqueConfig) {
     util::ratio_slider(ui, &mut cfg.aspect_ratio, TORQUE_ASPECT_RATIO, 100.0);
     ui.add_space(40.0);
     util::mode_toggle(ui, &mut cfg.mode);
+    ui.add_space(40.0);
+    util::linked_toggle(ui, &mut cfg.linked);
+    cfg.axis_group.set_link_x(cfg.linked);
+    cfg.axis_group.set_link_y(cfg.linked);
 }
 
 pub fn power_plot(ui: &mut Ui, data: &PlotData, cfg: &PowerConfig) {
@@ -237,6 +282,7 @@ fn plot<T: MotorConfig, const COUNT: usize>(
             Plot::new(format!("fl_{}", T::name()))
                 .height(h)
                 .data_aspect(cfg.aspect_ratio())
+                .link_axis(cfg.axis_group())
                 .custom_label_func(move |n, v| T::format_label(n, v))
                 .legend(Legend::default())
                 .show(ui, |ui| {
@@ -248,6 +294,7 @@ fn plot<T: MotorConfig, const COUNT: usize>(
             Plot::new(format!("rl_{}", T::name()))
                 .height(h)
                 .data_aspect(cfg.aspect_ratio())
+                .link_axis(cfg.axis_group())
                 .custom_label_func(move |n, v| T::format_label(n, v))
                 .legend(Legend::default())
                 .show(ui, |ui| {
@@ -261,6 +308,7 @@ fn plot<T: MotorConfig, const COUNT: usize>(
             Plot::new(format!("fr_{}", T::name()))
                 .height(h)
                 .data_aspect(cfg.aspect_ratio())
+                .link_axis(cfg.axis_group())
                 .custom_label_func(move |n, v| T::format_label(n, v))
                 .legend(Legend::default())
                 .show(ui, |ui| {
@@ -272,6 +320,7 @@ fn plot<T: MotorConfig, const COUNT: usize>(
             Plot::new(format!("rr_{}", T::name()))
                 .height(h)
                 .data_aspect(cfg.aspect_ratio())
+                .link_axis(cfg.axis_group())
                 .custom_label_func(move |n, v| T::format_label(n, v))
                 .legend(Legend::default())
                 .show(ui, |ui| {

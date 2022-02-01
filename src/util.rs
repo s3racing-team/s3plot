@@ -17,3 +17,8 @@ pub fn mode_toggle(ui: &mut Ui, mode: &mut Mode) {
     ui.checkbox(&mut checked, "");
     *mode = Mode::from(checked);
 }
+
+pub fn linked_toggle(ui: &mut Ui, linked: &mut bool) {
+    ui.label("linked");
+    ui.checkbox(linked, "");
+}
