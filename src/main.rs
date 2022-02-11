@@ -1,3 +1,4 @@
+#![windows_subsystem = "windows"]
 use app::PlotApp;
 
 use eframe::NativeOptions;
