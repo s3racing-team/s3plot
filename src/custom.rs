@@ -1,7 +1,8 @@
 use egui::plot::{Legend, Line, Plot, Values};
+use egui::style::Margin;
 use egui::{
-    CentralPanel, Color32, Frame, Label, RichText, ScrollArea, SidePanel, TextEdit, TextStyle, Ui,
-    Vec2,
+    CentralPanel, Color32, Frame, Label, RichText, Rounding, ScrollArea, SidePanel, TextEdit,
+    TextStyle, Ui,
 };
 use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
@@ -65,8 +66,8 @@ pub fn plot(ui: &mut Ui, data: &mut PlotData, cfg: &mut CustomConfig) {
     SidePanel::left("side_panel")
         .resizable(true)
         .frame(Frame {
-            margin: Vec2::splat(6.0),
-            corner_radius: 5.0,
+            margin: Margin::same(6.0),
+            rounding: Rounding::same(5.0),
             fill: Color32::from_rgb(0x20, 0x20, 0x20),
             ..Default::default()
         })
@@ -81,7 +82,7 @@ pub fn plot(ui: &mut Ui, data: &mut PlotData, cfg: &mut CustomConfig) {
         .show_inside(ui, |ui| {
             Plot::new("rr_motor")
                 .data_aspect(cfg.aspect_ratio)
-                .custom_label_func(|_, v| {
+                .label_formatter(|_, v| {
                     let x = (v.x * 1000.0).round() / 1000.0;
                     let y = (v.y * 1000.0).round() / 1000.0;
                     format!("t = {x}s\ny = {y}")

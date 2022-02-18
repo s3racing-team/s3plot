@@ -188,7 +188,7 @@ fn plot<T: MotorPlotConfig, const COUNT: usize>(
                 .height(h)
                 .data_aspect(cfg.aspect_ratio)
                 .link_axis(cfg.axis_group.clone())
-                .custom_label_func(move |n, v| T::format_label(n, v))
+                .label_formatter(move |n, v| T::format_label(n, v))
                 .legend(Legend::default())
                 .show(ui, |ui| {
                     for (l, n) in fl {
@@ -200,7 +200,7 @@ fn plot<T: MotorPlotConfig, const COUNT: usize>(
                 .height(h)
                 .data_aspect(cfg.aspect_ratio)
                 .link_axis(cfg.axis_group.clone())
-                .custom_label_func(move |n, v| T::format_label(n, v))
+                .label_formatter(move |n, v| T::format_label(n, v))
                 .legend(Legend::default())
                 .show(ui, |ui| {
                     for (l, n) in rl {
@@ -214,7 +214,7 @@ fn plot<T: MotorPlotConfig, const COUNT: usize>(
                 .height(h)
                 .data_aspect(cfg.aspect_ratio)
                 .link_axis(cfg.axis_group.clone())
-                .custom_label_func(move |n, v| T::format_label(n, v))
+                .label_formatter(move |n, v| T::format_label(n, v))
                 .legend(Legend::default())
                 .show(ui, |ui| {
                     for (l, n) in fr {
@@ -226,7 +226,7 @@ fn plot<T: MotorPlotConfig, const COUNT: usize>(
                 .height(h)
                 .data_aspect(cfg.aspect_ratio)
                 .link_axis(cfg.axis_group.clone())
-                .custom_label_func(move |n, v| T::format_label(n, v))
+                .label_formatter(move |n, v| T::format_label(n, v))
                 .legend(Legend::default())
                 .show(ui, |ui| {
                     for (l, n) in rr {
@@ -238,7 +238,7 @@ fn plot<T: MotorPlotConfig, const COUNT: usize>(
         Plot::new(T::NAME)
             .data_aspect(cfg.aspect_ratio)
             .link_axis(cfg.axis_group.clone())
-            .custom_label_func(move |n, v| T::format_label(n, v))
+            .label_formatter(move |n, v| T::format_label(n, v))
             .legend(Legend::default())
             .show(ui, |ui| {
                 for (l, n) in fl {
