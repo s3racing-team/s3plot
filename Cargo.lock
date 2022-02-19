@@ -53,9 +53,9 @@ checksum = "000444226fcff248f2bc4c7625be32c63caccfecc2723a2b9f78a7487a49c407"
 
 [[package]]
 name = "anyhow"
-version = "1.0.53"
+version = "1.0.54"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "94a45b455c14666b85fc40a019e8ab9eb75e3a124e05494f5397122bc9eb06e0"
+checksum = "7a99269dff3bc004caa411f38845c20303f1e393ca2bd6581576fa3a7f59577d"
 
 [[package]]
 name = "async-broadcast"
@@ -114,9 +114,9 @@ dependencies = [
 
 [[package]]
 name = "async-lock"
-version = "2.4.0"
+version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e6a8ea61bf9947a1007c5cada31e647dbc77b103c679858150003ba697ea798b"
+checksum = "e97a171d191782fba31bb902b14ad94e24a68145032b7eedf871ab0bc0d077b6"
 dependencies = [
  "event-listener",
 ]
@@ -329,7 +329,7 @@ dependencies = [
 [[package]]
 name = "cods"
 version = "0.1.0"
-source = "git+https://github.com/saecki/comeondosomething#827e413618ceb6ae7223e6ba32f9c4ba96a8ff20"
+source = "git+https://github.com/saecki/comeondosomething#fbde66e4ea038af9ac49b3ed3cc0297be4c25d33"
 dependencies = [
  "unicode-width",
 ]
@@ -618,7 +618,7 @@ checksum = "6907e25393cdcc1f4f3f513d9aac1e840eb1cc341a0fccb01171f7d14d10b946"
 [[package]]
 name = "eframe"
 version = "0.16.0"
-source = "git+https://github.com/emilk/egui?rev=6abdde0#6abdde0334e9300ebe11f970a870a79cd3010835"
+source = "git+https://github.com/emilk/egui#8e62b382fd1ac325fe7d4bc1777330ccb0e705e8"
 dependencies = [
  "egui",
  "egui-winit",
@@ -630,7 +630,7 @@ dependencies = [
 [[package]]
 name = "egui"
 version = "0.16.1"
-source = "git+https://github.com/emilk/egui?rev=6abdde0#6abdde0334e9300ebe11f970a870a79cd3010835"
+source = "git+https://github.com/emilk/egui#8e62b382fd1ac325fe7d4bc1777330ccb0e705e8"
 dependencies = [
  "ahash 0.7.6",
  "epaint",
@@ -643,7 +643,7 @@ dependencies = [
 [[package]]
 name = "egui-winit"
 version = "0.16.0"
-source = "git+https://github.com/emilk/egui?rev=6abdde0#6abdde0334e9300ebe11f970a870a79cd3010835"
+source = "git+https://github.com/emilk/egui#8e62b382fd1ac325fe7d4bc1777330ccb0e705e8"
 dependencies = [
  "copypasta",
  "dark-light",
@@ -659,7 +659,7 @@ dependencies = [
 [[package]]
 name = "egui_glow"
 version = "0.16.0"
-source = "git+https://github.com/emilk/egui?rev=6abdde0#6abdde0334e9300ebe11f970a870a79cd3010835"
+source = "git+https://github.com/emilk/egui#8e62b382fd1ac325fe7d4bc1777330ccb0e705e8"
 dependencies = [
  "bytemuck",
  "egui",
@@ -676,7 +676,7 @@ dependencies = [
 [[package]]
 name = "egui_web"
 version = "0.16.0"
-source = "git+https://github.com/emilk/egui?rev=6abdde0#6abdde0334e9300ebe11f970a870a79cd3010835"
+source = "git+https://github.com/emilk/egui#8e62b382fd1ac325fe7d4bc1777330ccb0e705e8"
 dependencies = [
  "bytemuck",
  "egui",
@@ -693,7 +693,7 @@ dependencies = [
 [[package]]
 name = "emath"
 version = "0.16.0"
-source = "git+https://github.com/emilk/egui?rev=6abdde0#6abdde0334e9300ebe11f970a870a79cd3010835"
+source = "git+https://github.com/emilk/egui#8e62b382fd1ac325fe7d4bc1777330ccb0e705e8"
 dependencies = [
  "bytemuck",
  "serde",
@@ -723,7 +723,7 @@ dependencies = [
 [[package]]
 name = "epaint"
 version = "0.16.0"
-source = "git+https://github.com/emilk/egui?rev=6abdde0#6abdde0334e9300ebe11f970a870a79cd3010835"
+source = "git+https://github.com/emilk/egui#8e62b382fd1ac325fe7d4bc1777330ccb0e705e8"
 dependencies = [
  "ab_glyph",
  "ahash 0.7.6",
@@ -737,7 +737,7 @@ dependencies = [
 [[package]]
 name = "epi"
 version = "0.16.0"
-source = "git+https://github.com/emilk/egui?rev=6abdde0#6abdde0334e9300ebe11f970a870a79cd3010835"
+source = "git+https://github.com/emilk/egui#8e62b382fd1ac325fe7d4bc1777330ccb0e705e8"
 dependencies = [
  "directories-next",
  "egui",
