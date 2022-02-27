@@ -1,7 +1,7 @@
 use std::fmt;
 use std::str::FromStr;
 
-use cods::Calc;
+use cods::{Calc, PlainVal};
 use cods::Provider;
 use egui::plot::Value;
 use serde::Deserialize;
@@ -35,9 +35,9 @@ struct Plotter<'a> {
 }
 
 impl Provider<Var> for Plotter<'_> {
-    fn var_to_f64(&self, var: Var) -> f64 {
+    fn ext_to_plain_val(&self, var: Var) -> PlainVal {
         let i = self.index;
-        match var {
+        let val = match var {
             Var::Time => self.index as f64 * SAMPLE_RATE,
             Var::PowerFl => self.data.power_fl().nth(i).unwrap() as f64,
             Var::PowerFr => self.data.power_fr().nth(i).unwrap() as f64,
@@ -55,7 +55,9 @@ impl Provider<Var> for Plotter<'_> {
             Var::TorqueRealFr => self.data.torque_real_fr().nth(i).unwrap() as f64,
             Var::TorqueRealRl => self.data.torque_real_rl().nth(i).unwrap() as f64,
             Var::TorqueRealRr => self.data.torque_real_rr().nth(i).unwrap() as f64,
-        }
+        };
+
+        PlainVal::Float(val)
     }
 }
 
@@ -131,7 +133,7 @@ impl fmt::Display for Var {
     }
 }
 
-impl cods::Var for Var {}
+impl cods::Ext for Var {}
 
 #[derive(Default, Serialize, Deserialize)]
 pub struct Expr {
@@ -150,8 +152,8 @@ pub fn eval(expr: &Expr, data: &Data) -> anyhow::Result<Vec<Value>, ()> {
         let x = calc_x.eval(&plotter);
         let y = calc_y.eval(&plotter);
         if let (Ok(x), Ok(y)) = (x, y) {
-            let x = plotter.val_to_f64(x);
-            let y = plotter.val_to_f64(y);
+            let x = plotter.to_f64(x);
+            let y = plotter.to_f64(y);
             values.push(Value::new(x, y));
         };
     }
