@@ -1,11 +1,10 @@
-use std::fmt;
 use std::str::FromStr;
 
-use cods::{Calc, PlainVal};
-use cods::Provider;
+use cods::{Ast, Context, Val, VarId};
 use egui::plot::Value;
 use serde::Deserialize;
 use serde::Serialize;
+use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
 use crate::data::Data;
@@ -29,36 +28,29 @@ const TORQUE_REAL_FR: &str = "M_real_fr";
 const TORQUE_REAL_RL: &str = "M_real_rl";
 const TORQUE_REAL_RR: &str = "M_real_rr";
 
-struct Plotter<'a> {
-    index: usize,
-    data: &'a Data,
-}
+fn get_value(data: &Data, index: usize, var: Var) -> Val {
+    let i = index;
+    let val = match var {
+        Var::Time => index as f64 * SAMPLE_RATE,
+        Var::PowerFl => data.power_fl().nth(i).unwrap() as f64,
+        Var::PowerFr => data.power_fr().nth(i).unwrap() as f64,
+        Var::PowerRl => data.power_rl().nth(i).unwrap() as f64,
+        Var::PowerRr => data.power_rr().nth(i).unwrap() as f64,
+        Var::VelocityFl => data.velocity_fl().nth(i).unwrap() as f64,
+        Var::VelocityFr => data.velocity_fr().nth(i).unwrap() as f64,
+        Var::VelocityRl => data.velocity_rl().nth(i).unwrap() as f64,
+        Var::VelocityRr => data.velocity_rr().nth(i).unwrap() as f64,
+        Var::TorqueSetFl => data.torque_set_fl().nth(i).unwrap() as f64,
+        Var::TorqueSetFr => data.torque_set_fr().nth(i).unwrap() as f64,
+        Var::TorqueSetRl => data.torque_set_rl().nth(i).unwrap() as f64,
+        Var::TorqueSetRr => data.torque_set_rr().nth(i).unwrap() as f64,
+        Var::TorqueRealFl => data.torque_real_fl().nth(i).unwrap() as f64,
+        Var::TorqueRealFr => data.torque_real_fr().nth(i).unwrap() as f64,
+        Var::TorqueRealRl => data.torque_real_rl().nth(i).unwrap() as f64,
+        Var::TorqueRealRr => data.torque_real_rr().nth(i).unwrap() as f64,
+    };
 
-impl Provider<Var> for Plotter<'_> {
-    fn ext_to_plain_val(&self, var: Var) -> PlainVal {
-        let i = self.index;
-        let val = match var {
-            Var::Time => self.index as f64 * SAMPLE_RATE,
-            Var::PowerFl => self.data.power_fl().nth(i).unwrap() as f64,
-            Var::PowerFr => self.data.power_fr().nth(i).unwrap() as f64,
-            Var::PowerRl => self.data.power_rl().nth(i).unwrap() as f64,
-            Var::PowerRr => self.data.power_rr().nth(i).unwrap() as f64,
-            Var::VelocityFl => self.data.velocity_fl().nth(i).unwrap() as f64,
-            Var::VelocityFr => self.data.velocity_fr().nth(i).unwrap() as f64,
-            Var::VelocityRl => self.data.velocity_rl().nth(i).unwrap() as f64,
-            Var::VelocityRr => self.data.velocity_rr().nth(i).unwrap() as f64,
-            Var::TorqueSetFl => self.data.torque_set_fl().nth(i).unwrap() as f64,
-            Var::TorqueSetFr => self.data.torque_set_fr().nth(i).unwrap() as f64,
-            Var::TorqueSetRl => self.data.torque_set_rl().nth(i).unwrap() as f64,
-            Var::TorqueSetRr => self.data.torque_set_rr().nth(i).unwrap() as f64,
-            Var::TorqueRealFl => self.data.torque_real_fl().nth(i).unwrap() as f64,
-            Var::TorqueRealFr => self.data.torque_real_fr().nth(i).unwrap() as f64,
-            Var::TorqueRealRl => self.data.torque_real_rl().nth(i).unwrap() as f64,
-            Var::TorqueRealRr => self.data.torque_real_rr().nth(i).unwrap() as f64,
-        };
-
-        PlainVal::Float(val)
-    }
+    Val::Float(val)
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, EnumIter)]
@@ -109,31 +101,29 @@ impl FromStr for Var {
     }
 }
 
-impl fmt::Display for Var {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl Var {
+    pub fn name(&self) -> &'static str {
         match self {
-            Self::Time => f.write_str(TIME),
-            Self::PowerFl => f.write_str(POWER_FL),
-            Self::PowerFr => f.write_str(POWER_FR),
-            Self::PowerRl => f.write_str(POWER_RL),
-            Self::PowerRr => f.write_str(POWER_RR),
-            Self::VelocityFl => f.write_str(VELOCITY_FL),
-            Self::VelocityFr => f.write_str(VELOCITY_FR),
-            Self::VelocityRl => f.write_str(VELOCITY_RL),
-            Self::VelocityRr => f.write_str(VELOCITY_RR),
-            Self::TorqueSetFl => f.write_str(TORQUE_SET_FL),
-            Self::TorqueSetFr => f.write_str(TORQUE_SET_FR),
-            Self::TorqueSetRl => f.write_str(TORQUE_SET_RL),
-            Self::TorqueSetRr => f.write_str(TORQUE_SET_RR),
-            Self::TorqueRealFl => f.write_str(TORQUE_REAL_FL),
-            Self::TorqueRealFr => f.write_str(TORQUE_REAL_FR),
-            Self::TorqueRealRl => f.write_str(TORQUE_REAL_RL),
-            Self::TorqueRealRr => f.write_str(TORQUE_REAL_RR),
+            Self::Time => TIME,
+            Self::PowerFl => POWER_FL,
+            Self::PowerFr => POWER_FR,
+            Self::PowerRl => POWER_RL,
+            Self::PowerRr => POWER_RR,
+            Self::VelocityFl => VELOCITY_FL,
+            Self::VelocityFr => VELOCITY_FR,
+            Self::VelocityRl => VELOCITY_RL,
+            Self::VelocityRr => VELOCITY_RR,
+            Self::TorqueSetFl => TORQUE_SET_FL,
+            Self::TorqueSetFr => TORQUE_SET_FR,
+            Self::TorqueSetRl => TORQUE_SET_RL,
+            Self::TorqueSetRr => TORQUE_SET_RR,
+            Self::TorqueRealFl => TORQUE_REAL_FL,
+            Self::TorqueRealFr => TORQUE_REAL_FR,
+            Self::TorqueRealRl => TORQUE_REAL_RL,
+            Self::TorqueRealRr => TORQUE_REAL_RR,
         }
     }
 }
-
-impl cods::Ext for Var {}
 
 #[derive(Default, Serialize, Deserialize)]
 pub struct Expr {
@@ -141,31 +131,42 @@ pub struct Expr {
     pub y: String,
 }
 
-pub fn eval(expr: &Expr, data: &Data) -> anyhow::Result<Vec<Value>, ()> {
-    let calc_x = parse(&expr.x)?;
-    let calc_y = parse(&expr.y)?;
+pub fn eval(expr: &Expr, data: &Data) -> anyhow::Result<Vec<Value>> {
+    let mut ctx = Context::default();
 
-    let mut plotter = Plotter { index: 0, data };
+    let calc_x = parse(&mut ctx, &expr.x)?;
+    let calc_y = parse(&mut ctx, &expr.y)?;
+
+    let len = Var::iter().count();
     let mut values = Vec::with_capacity(data.len);
+    for v in Var::iter() {
+        ctx.push_var(v.name());
+    }
+
     for i in 0..data.len {
-        plotter.index = i;
-        let x = calc_x.eval(&plotter);
-        let y = calc_y.eval(&plotter);
-        if let (Ok(x), Ok(y)) = (x, y) {
-            let x = plotter.to_f64(x);
-            let y = plotter.to_f64(y);
-            values.push(Value::new(x, y));
+        ctx.clear_errors();
+        ctx.vars.shrink_to(len);
+        for (id, v) in Var::iter().enumerate() {
+            let val = get_value(data, i, v);
+            ctx.set_var(VarId(id), Some(val));
+        }
+
+        let x = ctx.eval_all(&calc_x);
+        let y = ctx.eval_all(&calc_y);
+        if let (Ok(Some(x)), Ok(Some(y))) = (x, y) {
+            if let (Some(x), Some(y)) = (x.to_f64(), y.to_f64()) {
+                values.push(Value::new(x, y));
+            }
         };
     }
 
     Ok(values)
 }
 
-fn parse(input: &str) -> anyhow::Result<Calc<Var>, ()> {
-    let (calc_x, ctx) = cods::parse::<Var>(input);
-    let calc = calc_x?;
+fn parse(ctx: &mut Context, input: &str) -> anyhow::Result<Vec<Ast>> {
+    let ast = ctx.parse_str(input)?;
     if !ctx.errors.is_empty() {
-        return Err(());
+        Err(ctx.errors.remove(0))?;
     }
-    Ok(calc)
+    Ok(ast)
 }

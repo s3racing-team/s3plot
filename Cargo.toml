@@ -10,7 +10,7 @@ anyhow = "1.0"
 epi = { git = "https://github.com/emilk/egui", features = ["persistence"] }
 eframe = { git = "https://github.com/emilk/egui", features = ["persistence"] }
 egui = { git = "https://github.com/emilk/egui", features = ["persistence"] }
-rfd = "0.8.0"
+rfd = "0.8.1"
 strum = { version = "0.24.0", features = ["strum_macros"] }
 strum_macros = "0.24.0"
 derive_more = "0.99"
