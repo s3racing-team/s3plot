@@ -133,19 +133,18 @@ pub struct Expr {
 
 pub fn eval(expr: &Expr, data: &Data) -> anyhow::Result<Vec<Value>> {
     let mut ctx = Context::default();
-
-    let calc_x = parse(&mut ctx, &expr.x)?;
-    let calc_y = parse(&mut ctx, &expr.y)?;
-
-    let len = Var::iter().count();
-    let mut values = Vec::with_capacity(data.len);
     for v in Var::iter() {
         ctx.push_var(v.name());
     }
 
+    let calc_x = parse(&mut ctx, &expr.x)?;
+    let calc_y = parse(&mut ctx, &expr.y)?;
+
+    let var_count = Var::iter().count();
+    let mut values = Vec::with_capacity(data.len);
     for i in 0..data.len {
         ctx.clear_errors();
-        ctx.vars.shrink_to(len);
+        ctx.vars.shrink_to(var_count);
         for (id, v) in Var::iter().enumerate() {
             let val = get_value(data, i, v);
             ctx.set_var(VarId(id), Some(val));
