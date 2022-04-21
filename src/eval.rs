@@ -1,6 +1,7 @@
+use std::rc::Rc;
 use std::str::FromStr;
 
-use cods::{Ast, Context, Val, VarId};
+use cods::{Context, Cst, Ident, IdentSpan, Scopes, Span, Val};
 use egui::plot::Value;
 use serde::Deserialize;
 use serde::Serialize;
@@ -134,26 +135,37 @@ pub struct Expr {
 pub fn eval(expr: &Expr, data: &Data) -> anyhow::Result<Vec<Value>> {
     let mut ctx = Context::default();
     for v in Var::iter() {
-        ctx.push_var(v.name());
+        ctx.idents.push(v.name());
     }
 
-    let calc_x = parse(&mut ctx, &expr.x)?;
-    let calc_y = parse(&mut ctx, &expr.y)?;
+    let csts_x = parse(&mut ctx, &expr.x)?;
+    let csts_y = parse(&mut ctx, &expr.y)?;
 
     let var_count = Var::iter().count();
+    let mut vars = Vec::with_capacity(var_count);
+    let mut scopes = Scopes::default();
+    for (id, _) in Var::iter().enumerate() {
+        let ident = IdentSpan::new(Ident(id), Span::pos(0));
+        let inner = Rc::new(cods::ast::Var::new(None));
+        let var = cods::Var::new(ident, cods::DataType::Float, true, false, Rc::clone(&inner));
+        ctx.def_var(&mut scopes, var);
+        vars.push(inner);
+    }
+    let asts_x = ctx.check_with(csts_x, &mut scopes)?;
+    let asts_y = ctx.check_with(csts_y, &mut scopes)?;
+
     let mut values = Vec::with_capacity(data.len);
     for i in 0..data.len {
-        ctx.clear_errors();
-        ctx.vars.shrink_to(var_count);
         for (id, v) in Var::iter().enumerate() {
             let val = get_value(data, i, v);
-            ctx.set_var(VarId(id), Some(val));
+            vars[id].set(val)
         }
 
-        let x = ctx.eval_all(&calc_x);
-        let y = ctx.eval_all(&calc_y);
-        if let (Ok(Some(x)), Ok(Some(y))) = (x, y) {
-            if let (Some(x), Some(y)) = (x.to_f64(), y.to_f64()) {
+        let x = cods::eval_all(&asts_x);
+        let y = cods::eval_all(&asts_y);
+
+        if let (Ok(x), Ok(y)) = (x, y) {
+            if let (Some(x), Some(y)) = (cast_float(x), cast_float(y)) {
                 values.push(Value::new(x, y));
             }
         };
@@ -162,10 +174,20 @@ pub fn eval(expr: &Expr, data: &Data) -> anyhow::Result<Vec<Value>> {
     Ok(values)
 }
 
-fn parse(ctx: &mut Context, input: &str) -> anyhow::Result<Vec<Ast>> {
-    let ast = ctx.parse_str(input)?;
+fn parse(ctx: &mut Context, input: &str) -> anyhow::Result<Vec<Cst>> {
+    let tokens = ctx.lex(input)?;
+    let items = ctx.group(tokens)?;
+    let csts = ctx.parse(items)?;
     if !ctx.errors.is_empty() {
         Err(ctx.errors.remove(0))?;
     }
-    Ok(ast)
+    Ok(csts)
+}
+
+fn cast_float(val: Val) -> Option<f64> {
+    match val {
+        Val::Int(i) => Some(i as f64),
+        Val::Float(f) => Some(f),
+        _ => None,
+    }
 }

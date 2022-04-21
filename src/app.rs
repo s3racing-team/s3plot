@@ -68,13 +68,7 @@ impl App for PlotApp {
         APP_NAME
     }
 
-    fn setup(
-        &mut self,
-        _ctx: &egui::Context,
-        _frame: &Frame,
-        storage: Option<&dyn epi::Storage>,
-        _gl: &std::rc::Rc<epi::glow::Context>,
-    ) {
+    fn setup(&mut self, _ctx: &egui::Context, _frame: &Frame, storage: Option<&dyn epi::Storage>) {
         if let Some(s) = storage {
             if let Some(app) = epi::get_value(s, epi::APP_KEY) {
                 *self = app;
