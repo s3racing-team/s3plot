@@ -11,11 +11,12 @@ mod fs;
 mod motor;
 mod util;
 
+const APP_NAME: &str = "s3plot";
+
 fn main() -> anyhow::Result<()> {
-    let app = PlotApp::default();
     let options = NativeOptions {
         drag_and_drop_support: true,
         ..Default::default()
     };
-    eframe::run_native(Box::new(app), options);
+    eframe::run_native(APP_NAME, options, Box::new(|c| Box::new(PlotApp::new(c))));
 }

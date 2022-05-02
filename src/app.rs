@@ -1,16 +1,13 @@
 use std::path::PathBuf;
 
 use egui::plot::Value;
-use egui::{menu, CentralPanel, Context, Key, TopBottomPanel};
-use epi::{self, App, Frame};
+use egui::{menu, CentralPanel, Key, TopBottomPanel};
 use serde::{Deserialize, Serialize};
 
 use crate::custom;
 use crate::custom::CustomConfig;
 use crate::data::Data;
 use crate::motor::{self, PowerConfig, TorqueConfig, VelocityConfig};
-
-const APP_NAME: &str = "s3plot";
 
 #[derive(Serialize, Deserialize)]
 #[serde(default)]
@@ -63,27 +60,26 @@ impl Default for PlotApp {
     }
 }
 
-impl App for PlotApp {
-    fn name(&self) -> &str {
-        APP_NAME
-    }
+impl PlotApp {
+    pub fn new(context: &eframe::CreationContext) -> Self {
+        let mut app = context
+            .storage
+            .and_then(|s| eframe::get_value::<PlotApp>(s, eframe::APP_KEY))
+            .unwrap_or_default();
 
-    fn setup(&mut self, _ctx: &egui::Context, _frame: &Frame, storage: Option<&dyn epi::Storage>) {
-        if let Some(s) = storage {
-            if let Some(app) = epi::get_value(s, epi::APP_KEY) {
-                *self = app;
-            }
+        if let Some(p) = app.current_path.clone() {
+            app.try_open(p);
         }
-        if let Some(p) = self.current_path.clone() {
-            self.try_open(p);
-        }
+        app
+    }
+}
+
+impl eframe::App for PlotApp {
+    fn save(&mut self, storage: &mut dyn eframe::Storage) {
+        eframe::set_value(storage, eframe::APP_KEY, self);
     }
 
-    fn save(&mut self, storage: &mut dyn eframe::epi::Storage) {
-        epi::set_value(storage, epi::APP_KEY, self);
-    }
-
-    fn update(&mut self, ctx: &Context, _: &Frame) {
+    fn update(&mut self, ctx: &egui::Context, _: &mut eframe::Frame) {
         if ctx.input().modifiers.ctrl && ctx.input().key_pressed(Key::O) {
             self.open_dialog();
         }

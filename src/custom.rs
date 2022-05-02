@@ -66,7 +66,7 @@ pub fn plot(ui: &mut Ui, data: &mut PlotData, cfg: &mut CustomConfig) {
     SidePanel::left("side_panel")
         .resizable(true)
         .frame(Frame {
-            margin: Margin::same(6.0),
+            outer_margin: Margin::same(6.0),
             rounding: Rounding::same(5.0),
             fill: Color32::from_rgb(0x20, 0x20, 0x20),
             ..Default::default()

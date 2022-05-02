@@ -179,7 +179,7 @@ fn parse(ctx: &mut Context, input: &str) -> anyhow::Result<Vec<Cst>> {
     let items = ctx.group(tokens)?;
     let csts = ctx.parse(items)?;
     if !ctx.errors.is_empty() {
-        Err(ctx.errors.remove(0))?;
+        return Err(ctx.errors.remove(0).into());
     }
     Ok(csts)
 }
