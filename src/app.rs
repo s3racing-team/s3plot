@@ -1,18 +1,17 @@
-use std::path::PathBuf;
-
 use egui::plot::Value;
-use egui::{menu, CentralPanel, Key, TopBottomPanel};
+use egui::{menu, CentralPanel, Key, TopBottomPanel, Visuals};
 use serde::{Deserialize, Serialize};
 
 use crate::custom;
 use crate::custom::CustomConfig;
-use crate::data::Data;
+use crate::data::{Data, Temp};
+use crate::fs::Files;
 use crate::motor::{self, PowerConfig, TorqueConfig, VelocityConfig};
 
 #[derive(Serialize, Deserialize)]
 #[serde(default)]
 pub struct PlotApp {
-    pub current_path: Option<PathBuf>,
+    pub files: Option<Files>,
     selected_tab: Tab,
     pub power: PowerConfig,
     pub velocity: VelocityConfig,
@@ -31,7 +30,8 @@ enum Tab {
 }
 
 pub struct PlotData {
-    pub raw: Data,
+    pub raw_data: Data,
+    pub raw_temp: Temp,
     pub power: WheelValues,
     pub velocity: WheelValues,
     pub torque_set: WheelValues,
@@ -49,7 +49,7 @@ pub struct WheelValues {
 impl Default for PlotApp {
     fn default() -> Self {
         Self {
-            current_path: None,
+            files: None,
             data: None,
             selected_tab: Tab::Power,
             power: PowerConfig::default(),
@@ -60,20 +60,6 @@ impl Default for PlotApp {
     }
 }
 
-impl PlotApp {
-    pub fn new(context: &eframe::CreationContext) -> Self {
-        let mut app = context
-            .storage
-            .and_then(|s| eframe::get_value::<PlotApp>(s, eframe::APP_KEY))
-            .unwrap_or_default();
-
-        if let Some(p) = app.current_path.clone() {
-            app.try_open(p);
-        }
-        app
-    }
-}
-
 impl eframe::App for PlotApp {
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
         eframe::set_value(storage, eframe::APP_KEY, self);
@@ -81,20 +67,26 @@ impl eframe::App for PlotApp {
 
     fn update(&mut self, ctx: &egui::Context, _: &mut eframe::Frame) {
         if ctx.input().modifiers.ctrl && ctx.input().key_pressed(Key::O) {
-            self.open_dialog();
+            self.open_dir_dialog();
         }
 
         TopBottomPanel::top("top_panel").show(ctx, |ui| {
             menu::bar(ui, |ui| {
                 menu::menu_button(ui, "File", |ui| {
                     if ui.button("Open").clicked() {
-                        self.open_dialog();
+                        self.open_dir_dialog();
                     }
                 });
                 ui.add_space(40.0);
 
-                if let Some(p) = &self.current_path {
-                    ui.label(format!("{}", p.display()));
+                if let Some(files) = &self.files {
+                    // TODO: strip common components
+                    for p in files.data.iter() {
+                        ui.label(format!("{}", p.display()));
+                    }
+                    if let Some(p) = &files.temp {
+                        ui.label(format!("{}", p.display()));
+                    }
                 }
             });
         });
@@ -144,5 +136,21 @@ impl eframe::App for PlotApp {
         });
 
         self.detect_files_being_dropped(ctx);
+    }
+}
+
+impl PlotApp {
+    pub fn new(context: &eframe::CreationContext) -> Self {
+        context.egui_ctx.set_visuals(Visuals::dark());
+
+        let mut app = context
+            .storage
+            .and_then(|s| eframe::get_value::<PlotApp>(s, eframe::APP_KEY))
+            .unwrap_or_default();
+
+        if let Some(f) = app.files.clone() {
+            app.try_open(f);
+        }
+        app
     }
 }

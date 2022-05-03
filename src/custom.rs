@@ -66,7 +66,7 @@ pub fn plot(ui: &mut Ui, data: &mut PlotData, cfg: &mut CustomConfig) {
     SidePanel::left("side_panel")
         .resizable(true)
         .frame(Frame {
-            outer_margin: Margin::same(6.0),
+            inner_margin: Margin::same(6.0),
             rounding: Rounding::same(5.0),
             fill: Color32::from_rgb(0x20, 0x20, 0x20),
             ..Default::default()
@@ -137,7 +137,7 @@ fn sidebar(ui: &mut Ui, data: &mut PlotData, cfg: &mut CustomConfig) {
             data.custom.remove(i);
         } else {
             if x_changed.inner || y_changed.inner {
-                data.custom[i] = eval::eval(&p.expr, &data.raw).unwrap_or_default();
+                data.custom[i] = eval::eval(&p.expr, &data.raw_data).unwrap_or_default();
             }
             i += 1;
         }

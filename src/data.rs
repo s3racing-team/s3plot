@@ -5,7 +5,8 @@ use egui::plot::Value;
 
 pub const SAMPLE_RATE: f64 = 0.02;
 
-const SAMPLE_SIZE: usize = 132;
+const DATA_SAMPLE_SIZE: usize = 132;
+const TEMP_SAMPLE_SIZE: usize = 132;
 
 impl<T: Iterator<Item = f32>> MapOverTime for T {}
 pub trait MapOverTime: Iterator<Item = f32> + Sized {
@@ -16,10 +17,11 @@ pub trait MapOverTime: Iterator<Item = f32> + Sized {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Data {
     pub len: usize,
     pub time: Vec<f32>, // 20ms steps
+
     pub power: Vec<f32>,
 
     pub driven: Vec<f32>,
@@ -69,114 +71,115 @@ pub struct Data {
 }
 
 impl Data {
-    fn with_capacity(cap: usize) -> Self {
-        Self {
-            len: cap,
-            time: Vec::with_capacity(cap),
-            power: Vec::with_capacity(cap),
+    fn extend_capacity(&mut self, cap: usize) {
+        self.len += cap;
+        self.time.reserve(cap);
 
-            driven: Vec::with_capacity(cap),
-            energy_to_finish_factor: Vec::with_capacity(cap),
-            energy_total: Vec::with_capacity(cap),
+        self.power.reserve(cap);
 
-            gas: Vec::with_capacity(cap),
+        self.driven.reserve(cap);
+        self.energy_to_finish_factor.reserve(cap);
+        self.energy_total.reserve(cap);
 
-            ams_umin: Vec::with_capacity(cap),
-            ams_umin_true: Vec::with_capacity(cap),
+        self.gas.reserve(cap);
 
-            l_uzk: Vec::with_capacity(cap),
-            speed_rl: Vec::with_capacity(cap),
-            torque_rl: Vec::with_capacity(cap),
-            speed_rr: Vec::with_capacity(cap),
-            torque_rr: Vec::with_capacity(cap),
-            speed_fl: Vec::with_capacity(cap),
-            torque_fl: Vec::with_capacity(cap),
-            speed_fr: Vec::with_capacity(cap),
-            torque_fr: Vec::with_capacity(cap),
+        self.ams_umin.reserve(cap);
+        self.ams_umin_true.reserve(cap);
 
-            accel_x: Vec::with_capacity(cap),
-            accel_y: Vec::with_capacity(cap),
-            accel_z: Vec::with_capacity(cap),
+        self.l_uzk.reserve(cap);
+        self.speed_rl.reserve(cap);
+        self.torque_rl.reserve(cap);
+        self.speed_rr.reserve(cap);
+        self.torque_rr.reserve(cap);
+        self.speed_fl.reserve(cap);
+        self.torque_fl.reserve(cap);
+        self.speed_fr.reserve(cap);
+        self.torque_fr.reserve(cap);
 
-            gyro_x: Vec::with_capacity(cap),
-            gyro_y: Vec::with_capacity(cap),
-            gyro_z: Vec::with_capacity(cap),
+        self.accel_x.reserve(cap);
+        self.accel_y.reserve(cap);
+        self.accel_z.reserve(cap);
 
-            steering: Vec::with_capacity(cap),
-            break_fron: Vec::with_capacity(cap),
-            break_rear: Vec::with_capacity(cap),
-            break_pedal: Vec::with_capacity(cap),
+        self.gyro_x.reserve(cap);
+        self.gyro_y.reserve(cap);
+        self.gyro_z.reserve(cap);
 
-            current: Vec::with_capacity(cap),
-            power_reduce: Vec::with_capacity(cap),
+        self.steering.reserve(cap);
+        self.break_fron.reserve(cap);
+        self.break_rear.reserve(cap);
+        self.break_pedal.reserve(cap);
 
-            torque_out_rl: Vec::with_capacity(cap),
-            torque_out_rr: Vec::with_capacity(cap),
-            torque_out_fl: Vec::with_capacity(cap),
-            torque_out_fr: Vec::with_capacity(cap),
+        self.current.reserve(cap);
+        self.power_reduce.reserve(cap);
 
-            spring_fr: Vec::with_capacity(cap),
-            spring_fl: Vec::with_capacity(cap),
-            spring_rl: Vec::with_capacity(cap),
-            spring_rr: Vec::with_capacity(cap),
-        }
+        self.torque_out_rl.reserve(cap);
+        self.torque_out_rr.reserve(cap);
+        self.torque_out_fl.reserve(cap);
+        self.torque_out_fr.reserve(cap);
+
+        self.spring_fr.reserve(cap);
+        self.spring_fl.reserve(cap);
+        self.spring_rl.reserve(cap);
+        self.spring_rr.reserve(cap);
     }
 
-    pub fn read(reader: &mut (impl Read + Seek)) -> anyhow::Result<Self> {
+    pub fn read_extend(&mut self, reader: &mut (impl Read + Seek)) -> anyhow::Result<()> {
         let len = reader.len()?;
-        let samples = len as usize / SAMPLE_SIZE;
-        let mut data = Self::with_capacity(samples);
+        let samples = len as usize / DATA_SAMPLE_SIZE;
+        self.extend_capacity(samples);
+
         for _ in 0..samples {
-            data.time.push(reader.read_f32()?);
-            data.power.push(reader.read_f32()?);
+            self.time.push(reader.read_f32()?);
 
-            data.driven.push(reader.read_f32()?);
-            data.energy_to_finish_factor.push(reader.read_f32()?);
-            data.energy_total.push(reader.read_f32()?);
+            self.power.push(reader.read_f32()?);
 
-            data.gas.push(reader.read_f32()?);
+            self.driven.push(reader.read_f32()?);
+            self.energy_to_finish_factor.push(reader.read_f32()?);
+            self.energy_total.push(reader.read_f32()?);
 
-            data.ams_umin.push(reader.read_i16()?);
-            data.ams_umin_true.push(reader.read_i16()?);
+            self.gas.push(reader.read_f32()?);
 
-            data.l_uzk.push(reader.read_f32()?);
-            data.speed_rl.push(reader.read_f32()?);
-            data.torque_rl.push(reader.read_f32()?);
-            data.speed_rr.push(reader.read_f32()?);
-            data.torque_rr.push(-reader.read_f32()?);
-            data.speed_fl.push(reader.read_f32()?);
-            data.torque_fl.push(reader.read_f32()?);
-            data.speed_fr.push(reader.read_f32()?);
-            data.torque_fr.push(-reader.read_f32()?);
+            self.ams_umin.push(reader.read_i16()?);
+            self.ams_umin_true.push(reader.read_i16()?);
 
-            data.accel_x.push(reader.read_i16()?);
-            data.accel_y.push(reader.read_i16()?);
-            data.accel_z.push(reader.read_i16()?);
+            self.l_uzk.push(reader.read_f32()?);
+            self.speed_rl.push(reader.read_f32()?);
+            self.torque_rl.push(reader.read_f32()?);
+            self.speed_rr.push(reader.read_f32()?);
+            self.torque_rr.push(-reader.read_f32()?);
+            self.speed_fl.push(reader.read_f32()?);
+            self.torque_fl.push(reader.read_f32()?);
+            self.speed_fr.push(reader.read_f32()?);
+            self.torque_fr.push(-reader.read_f32()?);
 
-            data.gyro_x.push(reader.read_i16()?);
-            data.gyro_y.push(reader.read_i16()?);
-            data.gyro_z.push(reader.read_i16()?);
+            self.accel_x.push(reader.read_i16()?);
+            self.accel_y.push(reader.read_i16()?);
+            self.accel_z.push(reader.read_i16()?);
 
-            data.steering.push(reader.read_i16()?);
-            data.break_fron.push(reader.read_f32()?);
-            data.break_rear.push(reader.read_f32()?);
-            data.break_pedal.push(reader.read_f32()?);
+            self.gyro_x.push(reader.read_i16()?);
+            self.gyro_y.push(reader.read_i16()?);
+            self.gyro_z.push(reader.read_i16()?);
 
-            data.current.push(reader.read_i32()? / 1000);
-            data.power_reduce.push(reader.read_f32()?);
+            self.steering.push(reader.read_i16()?);
+            self.break_fron.push(reader.read_f32()?);
+            self.break_rear.push(reader.read_f32()?);
+            self.break_pedal.push(reader.read_f32()?);
 
-            data.torque_out_rl.push(reader.read_f32()?);
-            data.torque_out_rr.push(reader.read_f32()?);
-            data.torque_out_fl.push(reader.read_f32()?);
-            data.torque_out_fr.push(reader.read_f32()?);
+            self.current.push(reader.read_i32()? / 1000);
+            self.power_reduce.push(reader.read_f32()?);
 
-            data.spring_fr.push(reader.read_f32()? - 1630.0 - 420.0);
-            data.spring_fl.push(reader.read_f32()? - 4750.0 + 400.0);
-            data.spring_rl.push(reader.read_f32()? - 3125.0 + 115.0);
-            data.spring_rr.push(reader.read_f32()? - 4005.0 - 200.0);
+            self.torque_out_rl.push(reader.read_f32()?);
+            self.torque_out_rr.push(reader.read_f32()?);
+            self.torque_out_fl.push(reader.read_f32()?);
+            self.torque_out_fr.push(reader.read_f32()?);
+
+            self.spring_fr.push(reader.read_f32()? - 1630.0 - 420.0);
+            self.spring_fl.push(reader.read_f32()? - 4750.0 + 400.0);
+            self.spring_rl.push(reader.read_f32()? - 3125.0 + 115.0);
+            self.spring_rr.push(reader.read_f32()? - 4005.0 - 200.0);
         }
 
-        Ok(data)
+        Ok(())
     }
 
     pub fn power_fl(&self) -> impl Iterator<Item = f32> + '_ {
@@ -254,6 +257,92 @@ impl Data {
 
     pub fn torque_real_rr(&self) -> impl Iterator<Item = f32> + '_ {
         self.torque_out_rr.iter().copied()
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct Temp {
+    pub len: usize,
+    pub time: Vec<f32>,
+
+    pub ams_temp_max: Vec<i16>,
+
+    pub water_temp_converter: Vec<i16>,
+    pub water_temp_motor: Vec<i16>,
+
+    pub temp_rl: Vec<f32>,
+    pub temp_rr: Vec<f32>,
+    pub temp_fl: Vec<f32>,
+    pub temp_fr: Vec<f32>,
+
+    pub room_temp_rl: Vec<i16>,
+    pub room_temp_rr: Vec<i16>,
+    pub room_temp_fl: Vec<i16>,
+    pub room_temp_fr: Vec<i16>,
+
+    pub kk_temp_rl: Vec<i16>,
+    pub kk_temp_rr: Vec<i16>,
+    pub kk_temp_fl: Vec<i16>,
+    pub kk_temp_fr: Vec<i16>,
+}
+
+impl Temp {
+    fn extend_capacity(&mut self, cap: usize) {
+        self.len += cap;
+        self.time.reserve(cap);
+        self.time.reserve(cap);
+
+        self.ams_temp_max.reserve(cap);
+
+        self.water_temp_converter.reserve(cap);
+        self.water_temp_motor.reserve(cap);
+
+        self.temp_rl.reserve(cap);
+        self.temp_rr.reserve(cap);
+        self.temp_fl.reserve(cap);
+        self.temp_fr.reserve(cap);
+
+        self.room_temp_rl.reserve(cap);
+        self.room_temp_rr.reserve(cap);
+        self.room_temp_fl.reserve(cap);
+        self.room_temp_fr.reserve(cap);
+
+        self.kk_temp_rl.reserve(cap);
+        self.kk_temp_rr.reserve(cap);
+        self.kk_temp_fl.reserve(cap);
+        self.kk_temp_fr.reserve(cap);
+    }
+
+    pub fn read_extend(&mut self, reader: &mut (impl Read + Seek)) -> anyhow::Result<()> {
+        let len = reader.len()?;
+        let samples = len as usize / TEMP_SAMPLE_SIZE;
+        self.extend_capacity(samples);
+
+        for _ in 0..samples {
+            self.time.push(reader.read_f32()?);
+
+            self.ams_temp_max.push(reader.read_i16()?);
+
+            self.water_temp_converter.push(reader.read_i16()?);
+            self.water_temp_motor.push(reader.read_i16()?);
+
+            self.temp_rl.push(reader.read_f32()?);
+            self.temp_rr.push(reader.read_f32()?);
+            self.temp_fl.push(reader.read_f32()?);
+            self.temp_fr.push(reader.read_f32()?);
+
+            self.room_temp_rl.push(reader.read_i16()?);
+            self.room_temp_rr.push(reader.read_i16()?);
+            self.room_temp_fl.push(reader.read_i16()?);
+            self.room_temp_fr.push(reader.read_i16()?);
+
+            self.kk_temp_rl.push(reader.read_i16()?);
+            self.kk_temp_rr.push(reader.read_i16()?);
+            self.kk_temp_fl.push(reader.read_i16()?);
+            self.kk_temp_fr.push(reader.read_i16()?);
+        }
+
+        Ok(())
     }
 }
 
