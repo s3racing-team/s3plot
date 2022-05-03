@@ -8,7 +8,7 @@ use serde::Serialize;
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
-use crate::data::Data;
+use crate::data::{Data, self};
 use crate::data::SAMPLE_RATE;
 
 const TIME: &str = "t";
@@ -33,22 +33,22 @@ fn get_value(data: &Data, index: usize, var: Var) -> Val {
     let i = index;
     let val = match var {
         Var::Time => index as f64 * SAMPLE_RATE,
-        Var::PowerFl => data.power_fl().nth(i).unwrap() as f64,
-        Var::PowerFr => data.power_fr().nth(i).unwrap() as f64,
-        Var::PowerRl => data.power_rl().nth(i).unwrap() as f64,
-        Var::PowerRr => data.power_rr().nth(i).unwrap() as f64,
-        Var::VelocityFl => data.velocity_fl().nth(i).unwrap() as f64,
-        Var::VelocityFr => data.velocity_fr().nth(i).unwrap() as f64,
-        Var::VelocityRl => data.velocity_rl().nth(i).unwrap() as f64,
-        Var::VelocityRr => data.velocity_rr().nth(i).unwrap() as f64,
-        Var::TorqueSetFl => data.torque_set_fl().nth(i).unwrap() as f64,
-        Var::TorqueSetFr => data.torque_set_fr().nth(i).unwrap() as f64,
-        Var::TorqueSetRl => data.torque_set_rl().nth(i).unwrap() as f64,
-        Var::TorqueSetRr => data.torque_set_rr().nth(i).unwrap() as f64,
-        Var::TorqueRealFl => data.torque_real_fl().nth(i).unwrap() as f64,
-        Var::TorqueRealFr => data.torque_real_fr().nth(i).unwrap() as f64,
-        Var::TorqueRealRl => data.torque_real_rl().nth(i).unwrap() as f64,
-        Var::TorqueRealRr => data.torque_real_rr().nth(i).unwrap() as f64,
+        Var::PowerFl => data::power_fl(&data[i]) as f64,
+        Var::PowerFr => data::power_fr(&data[i]) as f64,
+        Var::PowerRl => data::power_rl(&data[i]) as f64,
+        Var::PowerRr => data::power_rr(&data[i]) as f64,
+        Var::VelocityFl => data::velocity_fl(&data[i]) as f64,
+        Var::VelocityFr => data::velocity_fr(&data[i]) as f64,
+        Var::VelocityRl => data::velocity_rl(&data[i]) as f64,
+        Var::VelocityRr => data::velocity_rr(&data[i]) as f64,
+        Var::TorqueSetFl => data::torque_set_fl(&data[i]) as f64,
+        Var::TorqueSetFr => data::torque_set_fr(&data[i]) as f64,
+        Var::TorqueSetRl => data::torque_set_rl(&data[i]) as f64,
+        Var::TorqueSetRr => data::torque_set_rr(&data[i]) as f64,
+        Var::TorqueRealFl => data::torque_real_fl(&data[i]) as f64,
+        Var::TorqueRealFr => data::torque_real_fr(&data[i]) as f64,
+        Var::TorqueRealRl => data::torque_real_rl(&data[i]) as f64,
+        Var::TorqueRealRr => data::torque_real_rr(&data[i]) as f64,
     };
 
     Val::Float(val)
@@ -154,8 +154,8 @@ pub fn eval(expr: &Expr, data: &Data) -> anyhow::Result<Vec<Value>> {
     let asts_x = ctx.check_with(csts_x, &mut scopes)?;
     let asts_y = ctx.check_with(csts_y, &mut scopes)?;
 
-    let mut values = Vec::with_capacity(data.len);
-    for i in 0..data.len {
+    let mut values = Vec::with_capacity(data.len());
+    for i in 0..data.len() {
         for (id, v) in Var::iter().enumerate() {
             let val = get_value(data, i, v);
             vars[id].set(val)

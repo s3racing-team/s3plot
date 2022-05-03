@@ -1,12 +1,14 @@
 use std::f32::consts::PI;
 use std::io::{self, Read, Seek, SeekFrom};
+use std::mem::size_of;
 
+use derive_more::{Deref, DerefMut};
 use egui::plot::Value;
 
 pub const SAMPLE_RATE: f64 = 0.02;
 
-const DATA_SAMPLE_SIZE: usize = 132;
-const TEMP_SAMPLE_SIZE: usize = 132;
+const DATA_SAMPLE_SIZE: usize = size_of::<DataEntry>();
+const TEMP_SAMPLE_SIZE: usize = size_of::<TempEntry>();
 
 impl<T: Iterator<Item = f32>> MapOverTime for T {}
 pub trait MapOverTime: Iterator<Item = f32> + Sized {
@@ -17,110 +19,66 @@ pub trait MapOverTime: Iterator<Item = f32> + Sized {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Deref, DerefMut)]
 pub struct Data {
-    pub len: usize,
-    pub time: Vec<f32>, // 20ms steps
+    entries: Vec<DataEntry>,
+}
 
-    pub power: Vec<f32>,
+#[derive(Debug)]
+pub struct DataEntry {
+    pub time: f32, // 20ms steps
 
-    pub driven: Vec<f32>,
-    pub energy_to_finish_factor: Vec<f32>,
-    pub energy_total: Vec<f32>,
+    pub power: f32,
 
-    pub gas: Vec<f32>,
+    pub driven: f32,
+    pub energy_to_finish_factor: f32,
+    pub energy_total: f32,
 
-    pub ams_umin: Vec<i16>,
-    pub ams_umin_true: Vec<i16>,
+    pub gas: f32,
 
-    pub l_uzk: Vec<f32>,
-    pub speed_rl: Vec<f32>,
-    pub torque_rl: Vec<f32>,
-    pub speed_rr: Vec<f32>,
-    pub torque_rr: Vec<f32>,
-    pub speed_fl: Vec<f32>,
-    pub torque_fl: Vec<f32>,
-    pub speed_fr: Vec<f32>,
-    pub torque_fr: Vec<f32>,
+    pub ams_umin: i16,
+    pub ams_umin_true: i16,
 
-    pub accel_x: Vec<i16>,
-    pub accel_y: Vec<i16>,
-    pub accel_z: Vec<i16>,
+    pub l_uzk: f32,
+    pub speed_rl: f32,
+    pub torque_rl: f32,
+    pub speed_rr: f32,
+    pub torque_rr: f32,
+    pub speed_fl: f32,
+    pub torque_fl: f32,
+    pub speed_fr: f32,
+    pub torque_fr: f32,
 
-    pub gyro_x: Vec<i16>,
-    pub gyro_y: Vec<i16>,
-    pub gyro_z: Vec<i16>,
+    pub accel_x: i16,
+    pub accel_y: i16,
+    pub accel_z: i16,
 
-    pub steering: Vec<i16>,
-    pub break_fron: Vec<f32>,
-    pub break_rear: Vec<f32>,
-    pub break_pedal: Vec<f32>,
+    pub gyro_x: i16,
+    pub gyro_y: i16,
+    pub gyro_z: i16,
 
-    pub current: Vec<i32>,
-    pub power_reduce: Vec<f32>,
+    pub steering: i16,
+    pub break_fron: f32,
+    pub break_rear: f32,
+    pub break_pedal: f32,
 
-    pub torque_out_rl: Vec<f32>,
-    pub torque_out_rr: Vec<f32>,
-    pub torque_out_fl: Vec<f32>,
-    pub torque_out_fr: Vec<f32>,
+    pub current: i32,
+    pub power_reduce: f32,
 
-    pub spring_fr: Vec<f32>,
-    pub spring_fl: Vec<f32>,
-    pub spring_rl: Vec<f32>,
-    pub spring_rr: Vec<f32>,
+    pub torque_out_rl: f32,
+    pub torque_out_rr: f32,
+    pub torque_out_fl: f32,
+    pub torque_out_fr: f32,
+
+    pub spring_fr: f32,
+    pub spring_fl: f32,
+    pub spring_rl: f32,
+    pub spring_rr: f32,
 }
 
 impl Data {
     fn extend_capacity(&mut self, cap: usize) {
-        self.len += cap;
-        self.time.reserve(cap);
-
-        self.power.reserve(cap);
-
-        self.driven.reserve(cap);
-        self.energy_to_finish_factor.reserve(cap);
-        self.energy_total.reserve(cap);
-
-        self.gas.reserve(cap);
-
-        self.ams_umin.reserve(cap);
-        self.ams_umin_true.reserve(cap);
-
-        self.l_uzk.reserve(cap);
-        self.speed_rl.reserve(cap);
-        self.torque_rl.reserve(cap);
-        self.speed_rr.reserve(cap);
-        self.torque_rr.reserve(cap);
-        self.speed_fl.reserve(cap);
-        self.torque_fl.reserve(cap);
-        self.speed_fr.reserve(cap);
-        self.torque_fr.reserve(cap);
-
-        self.accel_x.reserve(cap);
-        self.accel_y.reserve(cap);
-        self.accel_z.reserve(cap);
-
-        self.gyro_x.reserve(cap);
-        self.gyro_y.reserve(cap);
-        self.gyro_z.reserve(cap);
-
-        self.steering.reserve(cap);
-        self.break_fron.reserve(cap);
-        self.break_rear.reserve(cap);
-        self.break_pedal.reserve(cap);
-
-        self.current.reserve(cap);
-        self.power_reduce.reserve(cap);
-
-        self.torque_out_rl.reserve(cap);
-        self.torque_out_rr.reserve(cap);
-        self.torque_out_fl.reserve(cap);
-        self.torque_out_fr.reserve(cap);
-
-        self.spring_fr.reserve(cap);
-        self.spring_fl.reserve(cap);
-        self.spring_rl.reserve(cap);
-        self.spring_rr.reserve(cap);
+        self.entries.reserve(cap);
     }
 
     pub fn read_extend(&mut self, reader: &mut (impl Read + Seek)) -> anyhow::Result<()> {
@@ -129,188 +87,160 @@ impl Data {
         self.extend_capacity(samples);
 
         for _ in 0..samples {
-            self.time.push(reader.read_f32()?);
+            self.entries.push(DataEntry {
+                time: reader.read_f32()?,
 
-            self.power.push(reader.read_f32()?);
+                power: reader.read_f32()?,
 
-            self.driven.push(reader.read_f32()?);
-            self.energy_to_finish_factor.push(reader.read_f32()?);
-            self.energy_total.push(reader.read_f32()?);
+                driven: reader.read_f32()?,
+                energy_to_finish_factor: reader.read_f32()?,
+                energy_total: reader.read_f32()?,
 
-            self.gas.push(reader.read_f32()?);
+                gas: reader.read_f32()?,
 
-            self.ams_umin.push(reader.read_i16()?);
-            self.ams_umin_true.push(reader.read_i16()?);
+                ams_umin: reader.read_i16()?,
+                ams_umin_true: reader.read_i16()?,
 
-            self.l_uzk.push(reader.read_f32()?);
-            self.speed_rl.push(reader.read_f32()?);
-            self.torque_rl.push(reader.read_f32()?);
-            self.speed_rr.push(reader.read_f32()?);
-            self.torque_rr.push(-reader.read_f32()?);
-            self.speed_fl.push(reader.read_f32()?);
-            self.torque_fl.push(reader.read_f32()?);
-            self.speed_fr.push(reader.read_f32()?);
-            self.torque_fr.push(-reader.read_f32()?);
+                l_uzk: reader.read_f32()?,
+                speed_rl: reader.read_f32()?,
+                torque_rl: reader.read_f32()?,
+                speed_rr: reader.read_f32()?,
+                torque_rr: -reader.read_f32()?,
+                speed_fl: reader.read_f32()?,
+                torque_fl: reader.read_f32()?,
+                speed_fr: reader.read_f32()?,
+                torque_fr: -reader.read_f32()?,
 
-            self.accel_x.push(reader.read_i16()?);
-            self.accel_y.push(reader.read_i16()?);
-            self.accel_z.push(reader.read_i16()?);
+                accel_x: reader.read_i16()?,
+                accel_y: reader.read_i16()?,
+                accel_z: reader.read_i16()?,
 
-            self.gyro_x.push(reader.read_i16()?);
-            self.gyro_y.push(reader.read_i16()?);
-            self.gyro_z.push(reader.read_i16()?);
+                gyro_x: reader.read_i16()?,
+                gyro_y: reader.read_i16()?,
+                gyro_z: reader.read_i16()?,
 
-            self.steering.push(reader.read_i16()?);
-            self.break_fron.push(reader.read_f32()?);
-            self.break_rear.push(reader.read_f32()?);
-            self.break_pedal.push(reader.read_f32()?);
+                steering: reader.read_i16()?,
+                break_fron: reader.read_f32()?,
+                break_rear: reader.read_f32()?,
+                break_pedal: reader.read_f32()?,
 
-            self.current.push(reader.read_i32()? / 1000);
-            self.power_reduce.push(reader.read_f32()?);
+                current: reader.read_i32()? / 1000,
+                power_reduce: reader.read_f32()?,
 
-            self.torque_out_rl.push(reader.read_f32()?);
-            self.torque_out_rr.push(reader.read_f32()?);
-            self.torque_out_fl.push(reader.read_f32()?);
-            self.torque_out_fr.push(reader.read_f32()?);
+                torque_out_rl: reader.read_f32()?,
+                torque_out_rr: reader.read_f32()?,
+                torque_out_fl: reader.read_f32()?,
+                torque_out_fr: reader.read_f32()?,
 
-            self.spring_fr.push(reader.read_f32()? - 1630.0 - 420.0);
-            self.spring_fl.push(reader.read_f32()? - 4750.0 + 400.0);
-            self.spring_rl.push(reader.read_f32()? - 3125.0 + 115.0);
-            self.spring_rr.push(reader.read_f32()? - 4005.0 - 200.0);
+                spring_fr: reader.read_f32()? - 1630.0 - 420.0,
+                spring_fl: reader.read_f32()? - 4750.0 + 400.0,
+                spring_rl: reader.read_f32()? - 3125.0 + 115.0,
+                spring_rr: reader.read_f32()? - 4005.0 - 200.0,
+            });
         }
 
         Ok(())
     }
-
-    pub fn power_fl(&self) -> impl Iterator<Item = f32> + '_ {
-        self.torque_fl
-            .iter()
-            .zip(self.speed_fl.iter())
-            .map(|(&torque, &speed)| 2.0 * PI / 60.0 * torque * 0.0197 * speed)
-    }
-
-    pub fn power_fr(&self) -> impl Iterator<Item = f32> + '_ {
-        self.torque_fr
-            .iter()
-            .zip(self.speed_fr.iter())
-            .map(|(&torque, &speed)| 2.0 * PI / 60.0 * torque * 0.0197 * speed)
-    }
-
-    pub fn power_rl(&self) -> impl Iterator<Item = f32> + '_ {
-        self.torque_rl
-            .iter()
-            .zip(self.speed_rl.iter())
-            .map(|(&torque, &speed)| 2.0 * PI / 60.0 * torque * 0.0197 * speed)
-    }
-
-    pub fn power_rr(&self) -> impl Iterator<Item = f32> + '_ {
-        self.torque_rr
-            .iter()
-            .zip(self.speed_rr.iter())
-            .map(|(&torque, &speed)| 2.0 * PI / 60.0 * torque * 0.0197 * speed)
-    }
-
-    const VELOCITY_FACTOR: f32 = 0.01155;
-    pub fn velocity_fl(&self) -> impl Iterator<Item = f32> + '_ {
-        self.speed_fl.iter().map(|v| *v * Self::VELOCITY_FACTOR)
-    }
-
-    pub fn velocity_fr(&self) -> impl Iterator<Item = f32> + '_ {
-        self.speed_fr.iter().map(|v| *v * Self::VELOCITY_FACTOR)
-    }
-
-    pub fn velocity_rl(&self) -> impl Iterator<Item = f32> + '_ {
-        self.speed_rl.iter().map(|v| *v * Self::VELOCITY_FACTOR)
-    }
-
-    pub fn velocity_rr(&self) -> impl Iterator<Item = f32> + '_ {
-        self.speed_rr.iter().map(|v| *v * Self::VELOCITY_FACTOR)
-    }
-
-    pub fn torque_set_fl(&self) -> impl Iterator<Item = f32> + '_ {
-        self.torque_fl.iter().copied()
-    }
-
-    pub fn torque_set_fr(&self) -> impl Iterator<Item = f32> + '_ {
-        self.torque_fr.iter().copied()
-    }
-
-    pub fn torque_set_rl(&self) -> impl Iterator<Item = f32> + '_ {
-        self.torque_rl.iter().copied()
-    }
-
-    pub fn torque_set_rr(&self) -> impl Iterator<Item = f32> + '_ {
-        self.torque_rr.iter().copied()
-    }
-
-    pub fn torque_real_fl(&self) -> impl Iterator<Item = f32> + '_ {
-        self.torque_out_fl.iter().copied()
-    }
-
-    pub fn torque_real_fr(&self) -> impl Iterator<Item = f32> + '_ {
-        self.torque_out_fr.iter().copied()
-    }
-
-    pub fn torque_real_rl(&self) -> impl Iterator<Item = f32> + '_ {
-        self.torque_out_rl.iter().copied()
-    }
-
-    pub fn torque_real_rr(&self) -> impl Iterator<Item = f32> + '_ {
-        self.torque_out_rr.iter().copied()
-    }
 }
 
-#[derive(Debug, Default)]
+pub fn power_fl(e: &DataEntry) -> f32 {
+    2.0 * PI / 60.0 * e.torque_fl * 0.0197 * e.speed_fl
+}
+
+pub fn power_fr(e: &DataEntry) -> f32 {
+    2.0 * PI / 60.0 * e.torque_fr * 0.0197 * e.speed_fr
+}
+
+pub fn power_rl(e: &DataEntry) -> f32 {
+    2.0 * PI / 60.0 * e.torque_rl * 0.0197 * e.speed_rl
+}
+
+pub fn power_rr(e: &DataEntry) -> f32 {
+    2.0 * PI / 60.0 * e.torque_rr * 0.0197 * e.speed_rr
+}
+
+const VELOCITY_FACTOR: f32 = 0.01155;
+pub fn velocity_fl(e: &DataEntry) -> f32 {
+    e.speed_fl * VELOCITY_FACTOR
+}
+
+pub fn velocity_fr(e: &DataEntry) -> f32 {
+    e.speed_fr * VELOCITY_FACTOR
+}
+
+pub fn velocity_rl(e: &DataEntry) -> f32 {
+    e.speed_rl * VELOCITY_FACTOR
+}
+
+pub fn velocity_rr(e: &DataEntry) -> f32 {
+    e.speed_rr * VELOCITY_FACTOR
+}
+
+pub fn torque_set_fl(e: &DataEntry) -> f32 {
+    e.torque_fl
+}
+
+pub fn torque_set_fr(e: &DataEntry) -> f32 {
+    e.torque_fr
+}
+
+pub fn torque_set_rl(e: &DataEntry) -> f32 {
+    e.torque_rl
+}
+
+pub fn torque_set_rr(e: &DataEntry) -> f32 {
+    e.torque_rr
+}
+
+pub fn torque_real_fl(e: &DataEntry) -> f32 {
+    e.torque_out_fl
+}
+
+pub fn torque_real_fr(e: &DataEntry) -> f32 {
+    e.torque_out_fr
+}
+
+pub fn torque_real_rl(e: &DataEntry) -> f32 {
+    e.torque_out_rl
+}
+
+pub fn torque_real_rr(e: &DataEntry) -> f32 {
+    e.torque_out_rr
+}
+
+#[derive(Debug, Default, Deref, DerefMut)]
 pub struct Temp {
-    pub len: usize,
-    pub time: Vec<f32>,
+    pub entries: Vec<TempEntry>,
+}
 
-    pub ams_temp_max: Vec<i16>,
+#[derive(Debug)]
+pub struct TempEntry {
+    pub time: f32,
 
-    pub water_temp_converter: Vec<i16>,
-    pub water_temp_motor: Vec<i16>,
+    pub ams_temp_max: i16,
 
-    pub temp_rl: Vec<f32>,
-    pub temp_rr: Vec<f32>,
-    pub temp_fl: Vec<f32>,
-    pub temp_fr: Vec<f32>,
+    pub water_temp_converter: i16,
+    pub water_temp_motor: i16,
 
-    pub room_temp_rl: Vec<i16>,
-    pub room_temp_rr: Vec<i16>,
-    pub room_temp_fl: Vec<i16>,
-    pub room_temp_fr: Vec<i16>,
+    pub temp_rl: f32,
+    pub temp_rr: f32,
+    pub temp_fl: f32,
+    pub temp_fr: f32,
 
-    pub kk_temp_rl: Vec<i16>,
-    pub kk_temp_rr: Vec<i16>,
-    pub kk_temp_fl: Vec<i16>,
-    pub kk_temp_fr: Vec<i16>,
+    pub room_temp_rl: i16,
+    pub room_temp_rr: i16,
+    pub room_temp_fl: i16,
+    pub room_temp_fr: i16,
+
+    pub kk_temp_rl: i16,
+    pub kk_temp_rr: i16,
+    pub kk_temp_fl: i16,
+    pub kk_temp_fr: i16,
 }
 
 impl Temp {
     fn extend_capacity(&mut self, cap: usize) {
-        self.len += cap;
-        self.time.reserve(cap);
-        self.time.reserve(cap);
-
-        self.ams_temp_max.reserve(cap);
-
-        self.water_temp_converter.reserve(cap);
-        self.water_temp_motor.reserve(cap);
-
-        self.temp_rl.reserve(cap);
-        self.temp_rr.reserve(cap);
-        self.temp_fl.reserve(cap);
-        self.temp_fr.reserve(cap);
-
-        self.room_temp_rl.reserve(cap);
-        self.room_temp_rr.reserve(cap);
-        self.room_temp_fl.reserve(cap);
-        self.room_temp_fr.reserve(cap);
-
-        self.kk_temp_rl.reserve(cap);
-        self.kk_temp_rr.reserve(cap);
-        self.kk_temp_fl.reserve(cap);
-        self.kk_temp_fr.reserve(cap);
+        self.entries.reserve(cap);
     }
 
     pub fn read_extend(&mut self, reader: &mut (impl Read + Seek)) -> anyhow::Result<()> {
@@ -319,27 +249,29 @@ impl Temp {
         self.extend_capacity(samples);
 
         for _ in 0..samples {
-            self.time.push(reader.read_f32()?);
+            self.entries.push(TempEntry {
+                time: reader.read_f32()?,
 
-            self.ams_temp_max.push(reader.read_i16()?);
+                ams_temp_max: reader.read_i16()?,
 
-            self.water_temp_converter.push(reader.read_i16()?);
-            self.water_temp_motor.push(reader.read_i16()?);
+                water_temp_converter: reader.read_i16()?,
+                water_temp_motor: reader.read_i16()?,
 
-            self.temp_rl.push(reader.read_f32()?);
-            self.temp_rr.push(reader.read_f32()?);
-            self.temp_fl.push(reader.read_f32()?);
-            self.temp_fr.push(reader.read_f32()?);
+                temp_rl: reader.read_f32()?,
+                temp_rr: reader.read_f32()?,
+                temp_fl: reader.read_f32()?,
+                temp_fr: reader.read_f32()?,
 
-            self.room_temp_rl.push(reader.read_i16()?);
-            self.room_temp_rr.push(reader.read_i16()?);
-            self.room_temp_fl.push(reader.read_i16()?);
-            self.room_temp_fr.push(reader.read_i16()?);
+                room_temp_rl: reader.read_i16()?,
+                room_temp_rr: reader.read_i16()?,
+                room_temp_fl: reader.read_i16()?,
+                room_temp_fr: reader.read_i16()?,
 
-            self.kk_temp_rl.push(reader.read_i16()?);
-            self.kk_temp_rr.push(reader.read_i16()?);
-            self.kk_temp_fl.push(reader.read_i16()?);
-            self.kk_temp_fr.push(reader.read_i16()?);
+                kk_temp_rl: reader.read_i16()?,
+                kk_temp_rr: reader.read_i16()?,
+                kk_temp_fl: reader.read_i16()?,
+                kk_temp_fr: reader.read_i16()?,
+            })
         }
 
         Ok(())
