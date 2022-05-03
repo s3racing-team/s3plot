@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use egui::{Align2, Color32, Context, Id, LayerId, Order, TextStyle};
 
-use crate::app::{PlotData, QuadValues};
+use crate::app::{PlotData, WheelValues};
 use crate::data::{Data, MapOverTime};
 use crate::{eval, PlotApp};
 
@@ -54,25 +54,25 @@ impl PlotApp {
         match open(&path) {
             Ok(d) => {
                 self.current_path = Some(path);
-                let power = QuadValues {
+                let power = WheelValues {
                     fl: d.power_fl().map_over_time(),
                     fr: d.power_fr().map_over_time(),
                     rl: d.power_rl().map_over_time(),
                     rr: d.power_rr().map_over_time(),
                 };
-                let velocity = QuadValues {
+                let velocity = WheelValues {
                     fl: d.velocity_fl().map_over_time(),
                     fr: d.velocity_fr().map_over_time(),
                     rl: d.velocity_rl().map_over_time(),
                     rr: d.velocity_rr().map_over_time(),
                 };
-                let torque_set = QuadValues {
+                let torque_set = WheelValues {
                     fl: d.torque_set_fl().map_over_time(),
                     fr: d.torque_set_fr().map_over_time(),
                     rl: d.torque_set_rl().map_over_time(),
                     rr: d.torque_set_rr().map_over_time(),
                 };
-                let torque_real = QuadValues {
+                let torque_real = WheelValues {
                     fl: d.torque_real_fl().map_over_time(),
                     fr: d.torque_real_fr().map_over_time(),
                     rl: d.torque_real_rl().map_over_time(),

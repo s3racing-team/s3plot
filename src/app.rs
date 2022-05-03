@@ -32,14 +32,14 @@ enum Tab {
 
 pub struct PlotData {
     pub raw: Data,
-    pub power: QuadValues,
-    pub velocity: QuadValues,
-    pub torque_set: QuadValues,
-    pub torque_real: QuadValues,
+    pub power: WheelValues,
+    pub velocity: WheelValues,
+    pub torque_set: WheelValues,
+    pub torque_real: WheelValues,
     pub custom: Vec<Vec<Value>>,
 }
 
-pub struct QuadValues {
+pub struct WheelValues {
     pub fl: Vec<Value>,
     pub fr: Vec<Value>,
     pub rl: Vec<Value>,
