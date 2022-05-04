@@ -6,7 +6,7 @@ use crate::custom;
 use crate::custom::CustomConfig;
 use crate::data::{Data, Temp};
 use crate::fs::Files;
-use crate::motor::{self, PowerConfig, TorqueConfig, VelocityConfig};
+use crate::motor::{self, PowerConfig, TempConfig, TorqueConfig, VelocityConfig};
 
 #[derive(Serialize, Deserialize)]
 #[serde(default)]
@@ -16,6 +16,7 @@ pub struct PlotApp {
     pub power: PowerConfig,
     pub velocity: VelocityConfig,
     pub torque: TorqueConfig,
+    pub temp: TempConfig,
     pub custom: CustomConfig,
     #[serde(skip)]
     pub data: Option<PlotData>,
@@ -26,6 +27,7 @@ enum Tab {
     Power,
     Velocity,
     Torque,
+    Temp,
     Custom,
 }
 
@@ -36,6 +38,9 @@ pub struct PlotData {
     pub velocity: WheelValues,
     pub torque_set: WheelValues,
     pub torque_real: WheelValues,
+    pub temp: WheelValues,
+    pub room_temp: WheelValues,
+    pub heatsink_temp: WheelValues,
     pub custom: Vec<Vec<Value>>,
 }
 
@@ -55,6 +60,7 @@ impl Default for PlotApp {
             power: PowerConfig::default(),
             velocity: VelocityConfig::default(),
             torque: TorqueConfig::default(),
+            temp: TempConfig::default(),
             custom: CustomConfig::default(),
         }
     }
@@ -97,38 +103,25 @@ impl eframe::App for PlotApp {
                     ui.selectable_value(&mut self.selected_tab, Tab::Power, "Power");
                     ui.selectable_value(&mut self.selected_tab, Tab::Velocity, "Velocity");
                     ui.selectable_value(&mut self.selected_tab, Tab::Torque, "Torque");
+                    ui.selectable_value(&mut self.selected_tab, Tab::Temp, "Temperature");
                     ui.selectable_value(&mut self.selected_tab, Tab::Custom, "Custom");
                     ui.add_space(30.0);
 
                     match self.selected_tab {
-                        Tab::Power => {
-                            motor::config(ui, &mut self.power);
-                        }
-                        Tab::Velocity => {
-                            motor::config(ui, &mut self.velocity);
-                        }
-                        Tab::Torque => {
-                            motor::config(ui, &mut self.torque);
-                        }
-                        Tab::Custom => {
-                            custom::ratio_slider(ui, &mut self.custom);
-                        }
+                        Tab::Power => motor::config(ui, &mut self.power),
+                        Tab::Velocity => motor::config(ui, &mut self.velocity),
+                        Tab::Torque => motor::config(ui, &mut self.torque),
+                        Tab::Temp => motor::config(ui, &mut self.temp),
+                        Tab::Custom => custom::ratio_slider(ui, &mut self.custom),
                     }
                 });
 
                 match self.selected_tab {
-                    Tab::Power => {
-                        motor::power_plot(ui, d, &self.power);
-                    }
-                    Tab::Velocity => {
-                        motor::velocity_plot(ui, d, &self.velocity);
-                    }
-                    Tab::Torque => {
-                        motor::torque_plot(ui, d, &self.torque);
-                    }
-                    Tab::Custom => {
-                        custom::plot(ui, d, &mut self.custom);
-                    }
+                    Tab::Power => motor::power_plot(ui, d, &self.power),
+                    Tab::Velocity => motor::velocity_plot(ui, d, &self.velocity),
+                    Tab::Torque => motor::torque_plot(ui, d, &self.torque),
+                    Tab::Temp => motor::temp_plot(ui, d, &self.temp),
+                    Tab::Custom => custom::plot(ui, d, &mut self.custom),
                 }
             } else {
                 ui.label("Open or drag and drop a file");

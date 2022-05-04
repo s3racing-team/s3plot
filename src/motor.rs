@@ -11,6 +11,7 @@ use crate::util::{self, format_time};
 const POWER_ASPECT_RATIO: f32 = 0.006;
 const VELOCITY_ASPECT_RATIO: f32 = 1.0;
 const TORQUE_ASPECT_RATIO: f32 = 0.08;
+const TEMP_ASPECT_RATIO: f32 = 2.0;
 
 const DEFAULT_GRID_MODE: bool = true;
 const DEFAULT_LINKED: bool = true;
@@ -106,6 +107,31 @@ impl MotorPlotConfig for TorqueConfig {
     }
 }
 
+#[derive(Serialize, Deserialize, Deref, DerefMut)]
+pub struct TempConfig(MotorConfig);
+
+impl Default for TempConfig {
+    fn default() -> Self {
+        Self(MotorConfig {
+            aspect_ratio: TEMP_ASPECT_RATIO,
+            grid_mode: DEFAULT_GRID_MODE,
+            linked: DEFAULT_LINKED,
+            axis_group: LinkedAxisGroup::both(),
+        })
+    }
+}
+
+impl MotorPlotConfig for TempConfig {
+    const NAME: &'static str = "temp";
+    const ASPECT_RATIO: f32 = TEMP_ASPECT_RATIO;
+
+    fn format_label(name: &str, val: &Value) -> String {
+        let x = format_time(val.x);
+        let y = (val.y * 1000.0).round() / 1000.0;
+        format!("{name}\nt = {x}\nT = {y}°C")
+    }
+}
+
 pub fn config<T: MotorPlotConfig>(ui: &mut Ui, cfg: &mut T) {
     util::ratio_slider(ui, &mut cfg.aspect_ratio, T::ASPECT_RATIO, 100.0);
     ui.add_space(30.0);
@@ -160,6 +186,33 @@ pub fn torque_plot(ui: &mut Ui, data: &PlotData, cfg: &TorqueConfig) {
         [
             line(data.torque_set.rr.clone(), "set"),
             line(data.torque_real.rr.clone(), "real"),
+        ],
+    );
+}
+
+pub fn temp_plot(ui: &mut Ui, data: &PlotData, cfg: &TempConfig) {
+    plot(
+        ui,
+        cfg,
+        [
+            line(data.temp.fl.clone(), ""),
+            line(data.room_temp.fl.clone(), "room"),
+            line(data.heatsink_temp.fl.clone(), "heatsink"),
+        ],
+        [
+            line(data.temp.fr.clone(), ""),
+            line(data.room_temp.fr.clone(), "room"),
+            line(data.heatsink_temp.fr.clone(), "heatsink"),
+        ],
+        [
+            line(data.temp.rl.clone(), ""),
+            line(data.room_temp.rl.clone(), "room"),
+            line(data.heatsink_temp.rl.clone(), "heatsink"),
+        ],
+        [
+            line(data.temp.rr.clone(), ""),
+            line(data.room_temp.rr.clone(), "room"),
+            line(data.heatsink_temp.rr.clone(), "heatsink"),
         ],
     );
 }

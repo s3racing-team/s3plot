@@ -7,7 +7,7 @@ use egui::{Align2, Color32, Context, Id, LayerId, Order, TextStyle};
 use serde::{Deserialize, Serialize};
 
 use crate::app::{PlotData, WheelValues};
-use crate::data::{Data, Temp};
+use crate::data::{Data, MapOverTime, Temp, TempEntry};
 use crate::{eval, PlotApp};
 
 #[derive(Serialize, Deserialize, Default, Clone)]
@@ -100,6 +100,24 @@ impl PlotApp {
                     rl: d.iter().map(|e| e.timed(e.torque_real_rl)).collect(),
                     rr: d.iter().map(|e| e.timed(e.torque_real_rr)).collect(),
                 };
+                let temp = WheelValues {
+                    fl: t.iter().map_over_time(TempEntry::temp_fl),
+                    fr: t.iter().map_over_time(TempEntry::temp_fr),
+                    rl: t.iter().map_over_time(TempEntry::temp_rl),
+                    rr: t.iter().map_over_time(TempEntry::temp_rr),
+                };
+                let room_temp = WheelValues {
+                    fl: t.iter().map_over_time(TempEntry::room_temp_fl),
+                    fr: t.iter().map_over_time(TempEntry::room_temp_fr),
+                    rl: t.iter().map_over_time(TempEntry::room_temp_rl),
+                    rr: t.iter().map_over_time(TempEntry::room_temp_rr),
+                };
+                let heatsink_temp = WheelValues {
+                    fl: t.iter().map_over_time(TempEntry::heatsink_temp_fl),
+                    fr: t.iter().map_over_time(TempEntry::heatsink_temp_fr),
+                    rl: t.iter().map_over_time(TempEntry::heatsink_temp_rl),
+                    rr: t.iter().map_over_time(TempEntry::heatsink_temp_rr),
+                };
                 let custom = self
                     .custom
                     .plots
@@ -115,6 +133,9 @@ impl PlotApp {
                     velocity,
                     torque_set,
                     torque_real,
+                    temp,
+                    room_temp,
+                    heatsink_temp,
                     custom,
                 });
             }
