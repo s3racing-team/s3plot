@@ -6,7 +6,7 @@ use egui::{TextStyle, Ui};
 use serde::{Deserialize, Serialize};
 
 use crate::app::PlotData;
-use crate::util;
+use crate::util::{self, format_time};
 
 const POWER_ASPECT_RATIO: f32 = 0.006;
 const VELOCITY_ASPECT_RATIO: f32 = 1.0;
@@ -50,9 +50,9 @@ impl MotorPlotConfig for PowerConfig {
     const ASPECT_RATIO: f32 = POWER_ASPECT_RATIO;
 
     fn format_label(_name: &str, val: &Value) -> String {
-        let x = (val.x * 1000.0).round() / 1000.0;
+        let x = format_time(val.x);
         let y = (val.y * 1000.0).round() / 1000.0;
-        format!("t = {x}s\nP = {y}W")
+        format!("t = {x}\nP = {y}W")
     }
 }
 
@@ -75,9 +75,9 @@ impl MotorPlotConfig for VelocityConfig {
     const ASPECT_RATIO: f32 = VELOCITY_ASPECT_RATIO;
 
     fn format_label(_name: &str, val: &Value) -> String {
-        let x = (val.x * 1000.0).round() / 1000.0;
+        let x = format_time(val.x);
         let y = (val.y * 1000.0).round() / 1000.0;
-        format!("t = {x}s\nv = {y}km/h")
+        format!("t = {x}\nv = {y}km/h")
     }
 }
 
@@ -100,9 +100,9 @@ impl MotorPlotConfig for TorqueConfig {
     const ASPECT_RATIO: f32 = TORQUE_ASPECT_RATIO;
 
     fn format_label(name: &str, val: &Value) -> String {
-        let x = (val.x * 1000.0).round() / 1000.0;
+        let x = format_time(val.x);
         let y = (val.y * 1000.0).round() / 1000.0;
-        format!("{name}\nt = {x}s\nM = {y}Nm")
+        format!("{name}\nt = {x}\nM = {y}Nm")
     }
 }
 

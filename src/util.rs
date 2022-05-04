@@ -9,3 +9,17 @@ pub fn ratio_slider(ui: &mut Ui, value: &mut f32, default_ratio: f32, range: f32
             .text("aspect ratio"),
     );
 }
+
+pub fn format_time(t: f64) -> String {
+    let sub_sec = (t.fract() * 100.0).round() as usize;
+
+    let secs = t as usize;
+    let s = secs % 60;
+    let m = secs / 60 % 60;
+    let h = secs / (60 * 60);
+    if h == 0 {
+        format!("{m:02}:{s:02}.{sub_sec}")
+    } else {
+        format!("{h:02}:{m:02}:{s:02}.{sub_sec}")
+    }
+}
