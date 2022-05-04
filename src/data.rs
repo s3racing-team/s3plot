@@ -5,75 +5,12 @@ use std::mem::size_of;
 use derive_more::{Deref, DerefMut};
 use egui::plot::Value;
 
-pub const SAMPLE_RATE: f64 = 0.02;
-
 const DATA_SAMPLE_SIZE: usize = size_of::<DataEntry>();
 const TEMP_SAMPLE_SIZE: usize = size_of::<TempEntry>();
-
-impl<T: Iterator<Item = f32>> MapOverTime for T {}
-pub trait MapOverTime: Iterator<Item = f32> + Sized {
-    fn map_over_time(self) -> Vec<Value> {
-        self.enumerate()
-            .map(|(i, v)| Value::new(i as f64 * SAMPLE_RATE, v as f64))
-            .collect()
-    }
-}
 
 #[derive(Debug, Default, Deref, DerefMut)]
 pub struct Data {
     entries: Vec<DataEntry>,
-}
-
-#[derive(Debug)]
-pub struct DataEntry {
-    pub time: f32, // 20ms steps
-
-    pub power: f32,
-
-    pub driven: f32,
-    pub energy_to_finish_factor: f32,
-    pub energy_total: f32,
-
-    pub gas: f32,
-
-    pub ams_umin: i16,
-    pub ams_umin_true: i16,
-
-    pub l_uzk: f32,
-    pub speed_rl: f32,
-    pub torque_rl: f32,
-    pub speed_rr: f32,
-    pub torque_rr: f32,
-    pub speed_fl: f32,
-    pub torque_fl: f32,
-    pub speed_fr: f32,
-    pub torque_fr: f32,
-
-    pub accel_x: i16,
-    pub accel_y: i16,
-    pub accel_z: i16,
-
-    pub gyro_x: i16,
-    pub gyro_y: i16,
-    pub gyro_z: i16,
-
-    pub steering: i16,
-    pub break_fron: f32,
-    pub break_rear: f32,
-    pub break_pedal: f32,
-
-    pub current: i32,
-    pub power_reduce: f32,
-
-    pub torque_out_rl: f32,
-    pub torque_out_rr: f32,
-    pub torque_out_fl: f32,
-    pub torque_out_fr: f32,
-
-    pub spring_fr: f32,
-    pub spring_fl: f32,
-    pub spring_rl: f32,
-    pub spring_rr: f32,
 }
 
 impl Data {
@@ -88,7 +25,7 @@ impl Data {
 
         for _ in 0..samples {
             self.entries.push(DataEntry {
-                time: reader.read_f32()?,
+                ms: reader.read_f32()?,
 
                 power: reader.read_f32()?,
 
@@ -103,13 +40,13 @@ impl Data {
 
                 l_uzk: reader.read_f32()?,
                 speed_rl: reader.read_f32()?,
-                torque_rl: reader.read_f32()?,
+                torque_set_rl: reader.read_f32()?,
                 speed_rr: reader.read_f32()?,
-                torque_rr: -reader.read_f32()?,
+                torque_set_rr: -reader.read_f32()?,
                 speed_fl: reader.read_f32()?,
-                torque_fl: reader.read_f32()?,
+                torque_set_fl: reader.read_f32()?,
                 speed_fr: reader.read_f32()?,
-                torque_fr: -reader.read_f32()?,
+                torque_set_fr: -reader.read_f32()?,
 
                 accel_x: reader.read_i16()?,
                 accel_y: reader.read_i16()?,
@@ -120,17 +57,17 @@ impl Data {
                 gyro_z: reader.read_i16()?,
 
                 steering: reader.read_i16()?,
-                break_fron: reader.read_f32()?,
+                break_front: reader.read_f32()?,
                 break_rear: reader.read_f32()?,
                 break_pedal: reader.read_f32()?,
 
                 current: reader.read_i32()? / 1000,
                 power_reduce: reader.read_f32()?,
 
-                torque_out_rl: reader.read_f32()?,
-                torque_out_rr: reader.read_f32()?,
-                torque_out_fl: reader.read_f32()?,
-                torque_out_fr: reader.read_f32()?,
+                torque_real_rl: reader.read_f32()?,
+                torque_real_rr: reader.read_f32()?,
+                torque_real_fl: reader.read_f32()?,
+                torque_real_fr: reader.read_f32()?,
 
                 spring_fr: reader.read_f32()? - 1630.0 - 420.0,
                 spring_fl: reader.read_f32()? - 4750.0 + 400.0,
@@ -143,69 +80,99 @@ impl Data {
     }
 }
 
-pub fn power_fl(e: &DataEntry) -> f32 {
-    2.0 * PI / 60.0 * e.torque_fl * 0.0197 * e.speed_fl
-}
+#[derive(Debug)]
+pub struct DataEntry {
+    pub ms: f32,
 
-pub fn power_fr(e: &DataEntry) -> f32 {
-    2.0 * PI / 60.0 * e.torque_fr * 0.0197 * e.speed_fr
-}
+    pub power: f32,
 
-pub fn power_rl(e: &DataEntry) -> f32 {
-    2.0 * PI / 60.0 * e.torque_rl * 0.0197 * e.speed_rl
-}
+    pub driven: f32,
+    pub energy_to_finish_factor: f32,
+    pub energy_total: f32,
 
-pub fn power_rr(e: &DataEntry) -> f32 {
-    2.0 * PI / 60.0 * e.torque_rr * 0.0197 * e.speed_rr
+    pub gas: f32,
+
+    pub ams_umin: i16,
+    pub ams_umin_true: i16,
+
+    pub l_uzk: f32,
+    pub speed_rl: f32,
+    pub torque_set_rl: f32,
+    pub speed_rr: f32,
+    pub torque_set_rr: f32,
+    pub speed_fl: f32,
+    pub torque_set_fl: f32,
+    pub speed_fr: f32,
+    pub torque_set_fr: f32,
+
+    pub accel_x: i16,
+    pub accel_y: i16,
+    pub accel_z: i16,
+
+    pub gyro_x: i16,
+    pub gyro_y: i16,
+    pub gyro_z: i16,
+
+    pub steering: i16,
+    pub break_front: f32,
+    pub break_rear: f32,
+    pub break_pedal: f32,
+
+    pub current: i32,
+    pub power_reduce: f32,
+
+    pub torque_real_rl: f32,
+    pub torque_real_rr: f32,
+    pub torque_real_fl: f32,
+    pub torque_real_fr: f32,
+
+    pub spring_fr: f32,
+    pub spring_fl: f32,
+    pub spring_rl: f32,
+    pub spring_rr: f32,
 }
 
 const VELOCITY_FACTOR: f32 = 0.01155;
-pub fn velocity_fl(e: &DataEntry) -> f32 {
-    e.speed_fl * VELOCITY_FACTOR
-}
+impl DataEntry {
+    pub fn timed(&self, y: f32) -> Value {
+        Value::new(self.time(), y as f64)
+    }
 
-pub fn velocity_fr(e: &DataEntry) -> f32 {
-    e.speed_fr * VELOCITY_FACTOR
-}
+    pub fn time(&self) -> f32 {
+        self.ms / 1000.0
+    }
 
-pub fn velocity_rl(e: &DataEntry) -> f32 {
-    e.speed_rl * VELOCITY_FACTOR
-}
+    pub fn power_fl(&self) -> f32 {
+        2.0 * PI / 60.0 * self.torque_set_fl * 0.0197 * self.speed_fl
+    }
 
-pub fn velocity_rr(e: &DataEntry) -> f32 {
-    e.speed_rr * VELOCITY_FACTOR
-}
+    pub fn power_fr(&self) -> f32 {
+        2.0 * PI / 60.0 * self.torque_set_fr * 0.0197 * self.speed_fr
+    }
 
-pub fn torque_set_fl(e: &DataEntry) -> f32 {
-    e.torque_fl
-}
+    pub fn power_rl(&self) -> f32 {
+        2.0 * PI / 60.0 * self.torque_set_rl * 0.0197 * self.speed_rl
+    }
 
-pub fn torque_set_fr(e: &DataEntry) -> f32 {
-    e.torque_fr
-}
+    pub fn power_rr(&self) -> f32 {
+        2.0 * PI / 60.0 * self.torque_set_rr * 0.0197 * self.speed_rr
+    }
 
-pub fn torque_set_rl(e: &DataEntry) -> f32 {
-    e.torque_rl
-}
+    pub fn velocity_fl(&self) -> f32 {
+        self.speed_fl * VELOCITY_FACTOR
+    }
 
-pub fn torque_set_rr(e: &DataEntry) -> f32 {
-    e.torque_rr
-}
+    pub fn velocity_fr(&self) -> f32 {
+        self.speed_fr * VELOCITY_FACTOR
+    }
 
-pub fn torque_real_fl(e: &DataEntry) -> f32 {
-    e.torque_out_fl
-}
+    pub fn velocity_rl(&self) -> f32 {
+        self.speed_rl * VELOCITY_FACTOR
+    }
 
-pub fn torque_real_fr(e: &DataEntry) -> f32 {
-    e.torque_out_fr
-}
-
-pub fn torque_real_rl(e: &DataEntry) -> f32 {
-    e.torque_out_rl
-}
-
-pub fn torque_real_rr(e: &DataEntry) -> f32 {
-    e.torque_out_rr
+    pub fn velocity_rr(&self) -> f32 {
+        self.speed_rr * VELOCITY_FACTOR
+    }
 }
 
 #[derive(Debug, Default, Deref, DerefMut)]

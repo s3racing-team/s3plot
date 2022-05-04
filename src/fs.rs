@@ -7,7 +7,7 @@ use egui::{Align2, Color32, Context, Id, LayerId, Order, TextStyle};
 use serde::{Deserialize, Serialize};
 
 use crate::app::{PlotData, WheelValues};
-use crate::data::{Data, MapOverTime, Temp, self};
+use crate::data::{Data, Temp};
 use crate::{eval, PlotApp};
 
 #[derive(Serialize, Deserialize, Default, Clone)]
@@ -77,28 +77,28 @@ impl PlotApp {
         match (open_data(&files), open_temp(&files)) {
             (Ok(d), Ok(t)) => {
                 let power = WheelValues {
-                    fl: d.iter().map(data::power_fl).map_over_time(),
-                    fr: d.iter().map(data::power_fr).map_over_time(),
-                    rl: d.iter().map(data::power_rl).map_over_time(),
-                    rr: d.iter().map(data::power_rr).map_over_time(),
+                    fl: d.iter().map(|e| e.timed(e.power_fl())).collect(),
+                    fr: d.iter().map(|e| e.timed(e.power_fr())).collect(),
+                    rl: d.iter().map(|e| e.timed(e.power_rl())).collect(),
+                    rr: d.iter().map(|e| e.timed(e.power_rr())).collect(),
                 };
                 let velocity = WheelValues {
-                    fl: d.iter().map(data::velocity_fl).map_over_time(),
-                    fr: d.iter().map(data::velocity_fr).map_over_time(),
-                    rl: d.iter().map(data::velocity_rl).map_over_time(),
-                    rr: d.iter().map(data::velocity_rr).map_over_time(),
+                    fl: d.iter().map(|e| e.timed(e.velocity_fl())).collect(),
+                    fr: d.iter().map(|e| e.timed(e.velocity_fr())).collect(),
+                    rl: d.iter().map(|e| e.timed(e.velocity_rl())).collect(),
+                    rr: d.iter().map(|e| e.timed(e.velocity_rr())).collect(),
                 };
                 let torque_set = WheelValues {
-                    fl: d.iter().map(data::torque_set_fl).map_over_time(),
-                    fr: d.iter().map(data::torque_set_fr).map_over_time(),
-                    rl: d.iter().map(data::torque_set_rl).map_over_time(),
-                    rr: d.iter().map(data::torque_set_rr).map_over_time(),
+                    fl: d.iter().map(|e| e.timed(e.torque_set_fl)).collect(),
+                    fr: d.iter().map(|e| e.timed(e.torque_set_fr)).collect(),
+                    rl: d.iter().map(|e| e.timed(e.torque_set_rl)).collect(),
+                    rr: d.iter().map(|e| e.timed(e.torque_set_rr)).collect(),
                 };
                 let torque_real = WheelValues {
-                    fl: d.iter().map(data::torque_real_fl).map_over_time(),
-                    fr: d.iter().map(data::torque_real_fr).map_over_time(),
-                    rl: d.iter().map(data::torque_real_rl).map_over_time(),
-                    rr: d.iter().map(data::torque_real_rr).map_over_time(),
+                    fl: d.iter().map(|e| e.timed(e.torque_real_fl)).collect(),
+                    fr: d.iter().map(|e| e.timed(e.torque_real_fr)).collect(),
+                    rl: d.iter().map(|e| e.timed(e.torque_real_rl)).collect(),
+                    rr: d.iter().map(|e| e.timed(e.torque_real_rr)).collect(),
                 };
                 let custom = self
                     .custom
