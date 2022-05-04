@@ -1,33 +1,13 @@
 use std::rc::Rc;
-use std::str::FromStr;
 
 use cods::{Context, Cst, Ident, IdentSpan, Scopes, Span, Val};
 use egui::plot::Value;
 use serde::Deserialize;
 use serde::Serialize;
-use strum::IntoEnumIterator;
-use strum_macros::EnumIter;
+use strum::{Display, EnumIter, EnumString, IntoEnumIterator, IntoStaticStr};
 
-use crate::data::{Data, self};
 use crate::data::SAMPLE_RATE;
-
-const TIME: &str = "t";
-const POWER_FL: &str = "P_fl";
-const POWER_FR: &str = "P_fr";
-const POWER_RL: &str = "P_rl";
-const POWER_RR: &str = "P_rr";
-const VELOCITY_FL: &str = "v_fl";
-const VELOCITY_FR: &str = "v_fr";
-const VELOCITY_RL: &str = "v_rl";
-const VELOCITY_RR: &str = "v_rr";
-const TORQUE_SET_FL: &str = "M_set_fl";
-const TORQUE_SET_FR: &str = "M_set_fr";
-const TORQUE_SET_RL: &str = "M_set_rl";
-const TORQUE_SET_RR: &str = "M_set_rr";
-const TORQUE_REAL_FL: &str = "M_real_fl";
-const TORQUE_REAL_FR: &str = "M_real_fr";
-const TORQUE_REAL_RL: &str = "M_real_rl";
-const TORQUE_REAL_RR: &str = "M_real_rr";
+use crate::data::{self, Data};
 
 fn get_value(data: &Data, index: usize, var: Var) -> Val {
     let i = index;
@@ -54,76 +34,42 @@ fn get_value(data: &Data, index: usize, var: Var) -> Val {
     Val::Float(val)
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, EnumIter)]
+#[derive(Clone, Copy, Debug, PartialEq, EnumIter, EnumString, IntoStaticStr, Display)]
 pub enum Var {
+    #[strum(serialize = "t")]
     Time,
+    #[strum(serialize = "P_fl")]
     PowerFl,
+    #[strum(serialize = "P_fr")]
     PowerFr,
+    #[strum(serialize = "P_rl")]
     PowerRl,
+    #[strum(serialize = "P_rr")]
     PowerRr,
+    #[strum(serialize = "v_fl")]
     VelocityFl,
+    #[strum(serialize = "v_fr")]
     VelocityFr,
+    #[strum(serialize = "v_rl")]
     VelocityRl,
+    #[strum(serialize = "v_rr")]
     VelocityRr,
+    #[strum(serialize = "M_set_fl")]
     TorqueSetFl,
+    #[strum(serialize = "M_set_fr")]
     TorqueSetFr,
+    #[strum(serialize = "M_set_rl")]
     TorqueSetRl,
+    #[strum(serialize = "M_set_rr")]
     TorqueSetRr,
+    #[strum(serialize = "M_real_fl")]
     TorqueRealFl,
+    #[strum(serialize = "M_real_fr")]
     TorqueRealFr,
+    #[strum(serialize = "M_real_rl")]
     TorqueRealRl,
+    #[strum(serialize = "M_real_rr")]
     TorqueRealRr,
-}
-
-impl FromStr for Var {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            TIME => Ok(Self::Time),
-            POWER_FL => Ok(Self::PowerFl),
-            POWER_FR => Ok(Self::PowerFr),
-            POWER_RL => Ok(Self::PowerRl),
-            POWER_RR => Ok(Self::PowerRr),
-            VELOCITY_FL => Ok(Self::VelocityFl),
-            VELOCITY_FR => Ok(Self::VelocityFr),
-            VELOCITY_RL => Ok(Self::VelocityRl),
-            VELOCITY_RR => Ok(Self::VelocityRr),
-            TORQUE_SET_FL => Ok(Self::TorqueSetFl),
-            TORQUE_SET_FR => Ok(Self::TorqueSetFr),
-            TORQUE_SET_RL => Ok(Self::TorqueSetRl),
-            TORQUE_SET_RR => Ok(Self::TorqueSetRr),
-            TORQUE_REAL_FL => Ok(Self::TorqueRealFl),
-            TORQUE_REAL_FR => Ok(Self::TorqueRealFr),
-            TORQUE_REAL_RL => Ok(Self::TorqueRealRl),
-            TORQUE_REAL_RR => Ok(Self::TorqueRealRr),
-            _ => Err(()),
-        }
-    }
-}
-
-impl Var {
-    pub fn name(&self) -> &'static str {
-        match self {
-            Self::Time => TIME,
-            Self::PowerFl => POWER_FL,
-            Self::PowerFr => POWER_FR,
-            Self::PowerRl => POWER_RL,
-            Self::PowerRr => POWER_RR,
-            Self::VelocityFl => VELOCITY_FL,
-            Self::VelocityFr => VELOCITY_FR,
-            Self::VelocityRl => VELOCITY_RL,
-            Self::VelocityRr => VELOCITY_RR,
-            Self::TorqueSetFl => TORQUE_SET_FL,
-            Self::TorqueSetFr => TORQUE_SET_FR,
-            Self::TorqueSetRl => TORQUE_SET_RL,
-            Self::TorqueSetRr => TORQUE_SET_RR,
-            Self::TorqueRealFl => TORQUE_REAL_FL,
-            Self::TorqueRealFr => TORQUE_REAL_FR,
-            Self::TorqueRealRl => TORQUE_REAL_RL,
-            Self::TorqueRealRr => TORQUE_REAL_RR,
-        }
-    }
 }
 
 #[derive(Default, Serialize, Deserialize)]
@@ -135,7 +81,7 @@ pub struct Expr {
 pub fn eval(expr: &Expr, data: &Data) -> anyhow::Result<Vec<Value>> {
     let mut ctx = Context::default();
     for v in Var::iter() {
-        ctx.idents.push(v.name());
+        ctx.idents.push(v.into());
     }
 
     let csts_x = parse(&mut ctx, &expr.x)?;

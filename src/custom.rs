@@ -153,6 +153,6 @@ fn sidebar(ui: &mut Ui, data: &mut PlotData, cfg: &mut CustomConfig) {
         RichText::new("Variables").text_style(TextStyle::Heading),
     ));
     for v in Var::iter() {
-        ui.add(Label::new(RichText::new(v.name()).monospace()));
+        ui.add(Label::new(RichText::new(v.to_string()).monospace()));
     }
 }
