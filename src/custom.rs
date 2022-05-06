@@ -9,7 +9,7 @@ use strum::IntoEnumIterator;
 
 use crate::app::PlotData;
 use crate::eval::{self, Expr, Var};
-use crate::util;
+use crate::util::{self, format_time};
 
 const CUSTOM_ASPECT_RATIO: f32 = 0.1;
 
@@ -83,9 +83,9 @@ pub fn plot(ui: &mut Ui, data: &mut PlotData, cfg: &mut CustomConfig) {
             Plot::new("rr_motor")
                 .data_aspect(cfg.aspect_ratio)
                 .label_formatter(|_, v| {
-                    let x = (v.x * 1000.0).round() / 1000.0;
+                    let x = format_time(v.x);
                     let y = (v.y * 1000.0).round() / 1000.0;
-                    format!("t = {x}s\ny = {y}")
+                    format!("t = {x}\ny = {y}")
                 })
                 .legend(Legend::default())
                 .show(ui, |ui| {
