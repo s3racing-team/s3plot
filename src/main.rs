@@ -8,7 +8,7 @@ mod custom;
 mod data;
 mod eval;
 mod fs;
-mod motor;
+mod plot;
 mod util;
 
 const APP_NAME: &str = "s3plot";

@@ -146,7 +146,7 @@ pub fn config<T: MotorPlotConfig>(ui: &mut Ui, cfg: &mut T) {
 }
 
 pub fn power_plot(ui: &mut Ui, data: &PlotData, cfg: &PowerConfig) {
-    plot(
+    wheel_plot(
         ui,
         cfg,
         [line(data.power.fl.clone(), "")],
@@ -157,7 +157,7 @@ pub fn power_plot(ui: &mut Ui, data: &PlotData, cfg: &PowerConfig) {
 }
 
 pub fn velocity_plot(ui: &mut Ui, data: &PlotData, cfg: &VelocityConfig) {
-    plot(
+    wheel_plot(
         ui,
         cfg,
         [line(data.velocity.fl.clone(), "")],
@@ -168,7 +168,7 @@ pub fn velocity_plot(ui: &mut Ui, data: &PlotData, cfg: &VelocityConfig) {
 }
 
 pub fn torque_plot(ui: &mut Ui, data: &PlotData, cfg: &TorqueConfig) {
-    plot(
+    wheel_plot(
         ui,
         cfg,
         [
@@ -191,28 +191,28 @@ pub fn torque_plot(ui: &mut Ui, data: &PlotData, cfg: &TorqueConfig) {
 }
 
 pub fn temp_plot(ui: &mut Ui, data: &PlotData, cfg: &TempConfig) {
-    plot(
+    wheel_plot(
         ui,
         cfg,
         [
-            line(data.temp.fl.clone(), ""),
-            line(data.room_temp.fl.clone(), "room"),
-            line(data.heatsink_temp.fl.clone(), "heatsink"),
+            line(data.temp.fl.clone(), "temp"),
+            line(data.room_temp.fl.clone(), "room temp"),
+            line(data.heatsink_temp.fl.clone(), "heatsink temp"),
         ],
         [
-            line(data.temp.fr.clone(), ""),
-            line(data.room_temp.fr.clone(), "room"),
-            line(data.heatsink_temp.fr.clone(), "heatsink"),
+            line(data.temp.fr.clone(), "temp"),
+            line(data.room_temp.fr.clone(), "room temp"),
+            line(data.heatsink_temp.fr.clone(), "heatsink temp"),
         ],
         [
-            line(data.temp.rl.clone(), ""),
-            line(data.room_temp.rl.clone(), "room"),
-            line(data.heatsink_temp.rl.clone(), "heatsink"),
+            line(data.temp.rl.clone(), "temp"),
+            line(data.room_temp.rl.clone(), "room temp"),
+            line(data.heatsink_temp.rl.clone(), "heatsink temp"),
         ],
         [
-            line(data.temp.rr.clone(), ""),
-            line(data.room_temp.rr.clone(), "room"),
-            line(data.heatsink_temp.rr.clone(), "heatsink"),
+            line(data.temp.rr.clone(), "temp"),
+            line(data.room_temp.rr.clone(), "room temp"),
+            line(data.heatsink_temp.rr.clone(), "heatsink temp"),
         ],
     );
 }
@@ -221,7 +221,7 @@ fn line(values: Vec<Value>, name: &str) -> (Line, &str) {
     (Line::new(Values::from_values(values)), name)
 }
 
-fn plot<T: MotorPlotConfig, const COUNT: usize>(
+fn wheel_plot<T: MotorPlotConfig, const COUNT: usize>(
     ui: &mut Ui,
     cfg: &T,
     fl: [(Line, &str); COUNT],

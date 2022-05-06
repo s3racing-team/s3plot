@@ -6,7 +6,7 @@ use crate::custom;
 use crate::custom::CustomConfig;
 use crate::data::{Data, Temp};
 use crate::fs::Files;
-use crate::motor::{self, PowerConfig, TempConfig, TorqueConfig, VelocityConfig};
+use crate::plot::{self, PowerConfig, TempConfig, TorqueConfig, VelocityConfig};
 
 #[derive(Serialize, Deserialize)]
 #[serde(default)]
@@ -108,19 +108,19 @@ impl eframe::App for PlotApp {
                     ui.add_space(30.0);
 
                     match self.selected_tab {
-                        Tab::Power => motor::config(ui, &mut self.power),
-                        Tab::Velocity => motor::config(ui, &mut self.velocity),
-                        Tab::Torque => motor::config(ui, &mut self.torque),
-                        Tab::Temp => motor::config(ui, &mut self.temp),
+                        Tab::Power => plot::config(ui, &mut self.power),
+                        Tab::Velocity => plot::config(ui, &mut self.velocity),
+                        Tab::Torque => plot::config(ui, &mut self.torque),
+                        Tab::Temp => plot::config(ui, &mut self.temp),
                         Tab::Custom => custom::ratio_slider(ui, &mut self.custom),
                     }
                 });
 
                 match self.selected_tab {
-                    Tab::Power => motor::power_plot(ui, d, &self.power),
-                    Tab::Velocity => motor::velocity_plot(ui, d, &self.velocity),
-                    Tab::Torque => motor::torque_plot(ui, d, &self.torque),
-                    Tab::Temp => motor::temp_plot(ui, d, &self.temp),
+                    Tab::Power => plot::power_plot(ui, d, &self.power),
+                    Tab::Velocity => plot::velocity_plot(ui, d, &self.velocity),
+                    Tab::Torque => plot::torque_plot(ui, d, &self.torque),
+                    Tab::Temp => plot::temp_plot(ui, d, &self.temp),
                     Tab::Custom => custom::plot(ui, d, &mut self.custom),
                 }
             } else {
