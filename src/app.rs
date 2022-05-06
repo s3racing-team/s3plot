@@ -2,11 +2,11 @@ use egui::plot::Value;
 use egui::{menu, CentralPanel, Key, TopBottomPanel, Visuals};
 use serde::{Deserialize, Serialize};
 
-use crate::custom;
-use crate::custom::CustomConfig;
 use crate::data::{Data, Temp};
 use crate::fs::Files;
-use crate::plot::{self, PowerConfig, Temp1Config, TorqueConfig, VelocityConfig, Temp2Config};
+use crate::plot::{
+    self, CustomConfig, PowerConfig, Temp1Config, Temp2Config, TorqueConfig, VelocityConfig,
+};
 
 #[derive(Serialize, Deserialize)]
 #[serde(default)]
@@ -120,7 +120,7 @@ impl eframe::App for PlotApp {
                         Tab::Torque => plot::wheel_config(ui, &mut self.torque),
                         Tab::Temp1 => plot::wheel_config(ui, &mut self.temp1),
                         Tab::Temp2 => plot::temp2_config(ui, &mut self.temp2),
-                        Tab::Custom => custom::ratio_slider(ui, &mut self.custom),
+                        Tab::Custom => plot::custom_config(ui, &mut self.custom),
                     }
                 });
 
@@ -130,7 +130,7 @@ impl eframe::App for PlotApp {
                     Tab::Torque => plot::torque_plot(ui, d, &self.torque),
                     Tab::Temp1 => plot::temp1_plot(ui, d, &self.temp1),
                     Tab::Temp2 => plot::temp2_plot(ui, d, &self.temp2),
-                    Tab::Custom => custom::plot(ui, d, &mut self.custom),
+                    Tab::Custom => plot::plot(ui, d, &mut self.custom),
                 }
             } else {
                 ui.label("Open or drag and drop a file");

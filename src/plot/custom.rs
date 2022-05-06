@@ -1,4 +1,4 @@
-use egui::plot::{Legend, Line, Plot, Values};
+use egui::plot::{Legend, Plot};
 use egui::style::Margin;
 use egui::{
     CentralPanel, Color32, Frame, Label, RichText, Rounding, ScrollArea, SidePanel, TextEdit,
@@ -10,6 +10,8 @@ use strum::IntoEnumIterator;
 use crate::app::PlotData;
 use crate::eval::{self, Expr, Var};
 use crate::util::{self, format_time};
+
+use super::line;
 
 const CUSTOM_ASPECT_RATIO: f32 = 0.1;
 
@@ -58,7 +60,7 @@ impl CustomPlot {
     }
 }
 
-pub fn ratio_slider(ui: &mut Ui, cfg: &mut CustomConfig) {
+pub fn custom_config(ui: &mut Ui, cfg: &mut CustomConfig) {
     util::ratio_slider(ui, &mut cfg.aspect_ratio, CUSTOM_ASPECT_RATIO, 1000.0);
 }
 
@@ -90,7 +92,7 @@ pub fn plot(ui: &mut Ui, data: &mut PlotData, cfg: &mut CustomConfig) {
                 .legend(Legend::default())
                 .show(ui, |ui| {
                     for (d, p) in data.custom.iter().zip(cfg.plots.iter()) {
-                        ui.line(Line::new(Values::from_values(d.clone())).name(&p.name));
+                        ui.line(line(d.clone()).name(&p.name));
                     }
                 });
         });

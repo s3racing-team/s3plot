@@ -4,7 +4,6 @@ use app::PlotApp;
 use eframe::NativeOptions;
 
 mod app;
-mod custom;
 mod data;
 mod eval;
 mod fs;

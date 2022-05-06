@@ -136,7 +136,7 @@ impl PlotApp {
                     velocity,
                     torque_set,
                     torque_real,
-                    temp: temp,
+                    temp,
                     room_temp,
                     heatsink_temp,
                     ams_temp_max,
