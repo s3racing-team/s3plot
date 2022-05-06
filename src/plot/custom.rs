@@ -30,14 +30,14 @@ impl Default for CustomConfig {
                     name: "1.".into(),
                     expr: Expr {
                         x: "t".into(),
-                        y: "sin(t / PI) *  sqrt(P_fl)".into(),
+                        y: "sin(t / PI) * sqrt(abs(P_fl))".into(),
                     },
                 },
                 CustomPlot {
                     name: "2.".into(),
                     expr: Expr {
                         x: "t".into(),
-                        y: "cos(t / PI - PI) * sqrt(P_fl)".into(),
+                        y: "cos(t / PI - PI) * sqrt(abs(P_fl))".into(),
                     },
                 },
             ],
