@@ -6,7 +6,7 @@ use crate::custom;
 use crate::custom::CustomConfig;
 use crate::data::{Data, Temp};
 use crate::fs::Files;
-use crate::plot::{self, PowerConfig, TempConfig, TorqueConfig, VelocityConfig};
+use crate::plot::{self, PowerConfig, Temp1Config, TorqueConfig, VelocityConfig, Temp2Config};
 
 #[derive(Serialize, Deserialize)]
 #[serde(default)]
@@ -16,7 +16,8 @@ pub struct PlotApp {
     pub power: PowerConfig,
     pub velocity: VelocityConfig,
     pub torque: TorqueConfig,
-    pub temp: TempConfig,
+    pub temp1: Temp1Config,
+    pub temp2: Temp2Config,
     pub custom: CustomConfig,
     #[serde(skip)]
     pub data: Option<PlotData>,
@@ -27,7 +28,8 @@ enum Tab {
     Power,
     Velocity,
     Torque,
-    Temp,
+    Temp1,
+    Temp2,
     Custom,
 }
 
@@ -41,6 +43,9 @@ pub struct PlotData {
     pub temp: WheelValues,
     pub room_temp: WheelValues,
     pub heatsink_temp: WheelValues,
+    pub ams_temp_max: Vec<Value>,
+    pub water_temp_converter: Vec<Value>,
+    pub water_temp_motor: Vec<Value>,
     pub custom: Vec<Vec<Value>>,
 }
 
@@ -60,7 +65,8 @@ impl Default for PlotApp {
             power: PowerConfig::default(),
             velocity: VelocityConfig::default(),
             torque: TorqueConfig::default(),
-            temp: TempConfig::default(),
+            temp1: Temp1Config::default(),
+            temp2: Temp2Config::default(),
             custom: CustomConfig::default(),
         }
     }
@@ -103,15 +109,17 @@ impl eframe::App for PlotApp {
                     ui.selectable_value(&mut self.selected_tab, Tab::Power, "Power");
                     ui.selectable_value(&mut self.selected_tab, Tab::Velocity, "Velocity");
                     ui.selectable_value(&mut self.selected_tab, Tab::Torque, "Torque");
-                    ui.selectable_value(&mut self.selected_tab, Tab::Temp, "Temperature");
+                    ui.selectable_value(&mut self.selected_tab, Tab::Temp1, "Temp 1");
+                    ui.selectable_value(&mut self.selected_tab, Tab::Temp2, "Temp 2");
                     ui.selectable_value(&mut self.selected_tab, Tab::Custom, "Custom");
                     ui.add_space(30.0);
 
                     match self.selected_tab {
-                        Tab::Power => plot::config(ui, &mut self.power),
-                        Tab::Velocity => plot::config(ui, &mut self.velocity),
-                        Tab::Torque => plot::config(ui, &mut self.torque),
-                        Tab::Temp => plot::config(ui, &mut self.temp),
+                        Tab::Power => plot::wheel_config(ui, &mut self.power),
+                        Tab::Velocity => plot::wheel_config(ui, &mut self.velocity),
+                        Tab::Torque => plot::wheel_config(ui, &mut self.torque),
+                        Tab::Temp1 => plot::wheel_config(ui, &mut self.temp1),
+                        Tab::Temp2 => plot::temp2_config(ui, &mut self.temp2),
                         Tab::Custom => custom::ratio_slider(ui, &mut self.custom),
                     }
                 });
@@ -120,7 +128,8 @@ impl eframe::App for PlotApp {
                     Tab::Power => plot::power_plot(ui, d, &self.power),
                     Tab::Velocity => plot::velocity_plot(ui, d, &self.velocity),
                     Tab::Torque => plot::torque_plot(ui, d, &self.torque),
-                    Tab::Temp => plot::temp_plot(ui, d, &self.temp),
+                    Tab::Temp1 => plot::temp1_plot(ui, d, &self.temp1),
+                    Tab::Temp2 => plot::temp2_plot(ui, d, &self.temp2),
                     Tab::Custom => custom::plot(ui, d, &mut self.custom),
                 }
             } else {

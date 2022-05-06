@@ -118,6 +118,9 @@ impl PlotApp {
                     rl: t.iter().map_over_time(TempEntry::heatsink_temp_rl),
                     rr: t.iter().map_over_time(TempEntry::heatsink_temp_rr),
                 };
+                let ams_temp_max = t.iter().map_over_time(TempEntry::ams_temp_max);
+                let water_temp_converter = t.iter().map_over_time(TempEntry::water_temp_converter);
+                let water_temp_motor = t.iter().map_over_time(TempEntry::water_temp_motor);
                 let custom = self
                     .custom
                     .plots
@@ -133,9 +136,12 @@ impl PlotApp {
                     velocity,
                     torque_set,
                     torque_real,
-                    temp,
+                    temp: temp,
                     room_temp,
                     heatsink_temp,
+                    ams_temp_max,
+                    water_temp_converter,
+                    water_temp_motor,
                     custom,
                 });
             }
