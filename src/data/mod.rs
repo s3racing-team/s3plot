@@ -157,55 +157,56 @@ impl TimeStamped for TempEntry {
     }
 }
 
+const TEMP_FACTOR: f64 = 0.1;
 impl TempEntry {
     pub fn ams_temp_max(&self) -> f64 {
-        self.ams_temp_max as f64 / 10.0
+        self.ams_temp_max as f64 * TEMP_FACTOR
     }
 
     pub fn water_temp_converter(&self) -> f64 {
-        self.water_temp_converter as f64 / 10.0
+        self.water_temp_converter as f64 * TEMP_FACTOR
     }
 
     pub fn water_temp_motor(&self) -> f64 {
-        self.water_temp_motor as f64 / 10.0
+        self.water_temp_motor as f64 * TEMP_FACTOR
     }
 
     pub fn temp_rl(&self) -> f64 {
-        self.temp_rl as f64 / 10.0
+        self.temp_rl as f64 * TEMP_FACTOR
     }
     pub fn temp_rr(&self) -> f64 {
-        self.temp_rr as f64 / 10.0
+        self.temp_rr as f64 * TEMP_FACTOR
     }
     pub fn temp_fl(&self) -> f64 {
-        self.temp_fl as f64 / 10.0
+        self.temp_fl as f64 * TEMP_FACTOR
     }
     pub fn temp_fr(&self) -> f64 {
-        self.temp_fr as f64 / 10.0
+        self.temp_fr as f64 * TEMP_FACTOR
     }
 
     pub fn room_temp_rl(&self) -> f64 {
-        self.room_temp_rl as f64 / 10.0
+        self.room_temp_rl as f64 * TEMP_FACTOR
     }
     pub fn room_temp_rr(&self) -> f64 {
-        self.room_temp_rr as f64 / 10.0
+        self.room_temp_rr as f64 * TEMP_FACTOR
     }
     pub fn room_temp_fl(&self) -> f64 {
-        self.room_temp_fl as f64 / 10.0
+        self.room_temp_fl as f64 * TEMP_FACTOR
     }
     pub fn room_temp_fr(&self) -> f64 {
-        self.room_temp_fr as f64 / 10.0
+        self.room_temp_fr as f64 * TEMP_FACTOR
     }
 
     pub fn heatsink_temp_rl(&self) -> f64 {
-        self.heatsink_temp_rl as f64 / 10.0
+        self.heatsink_temp_rl as f64 * TEMP_FACTOR
     }
     pub fn heatsink_temp_rr(&self) -> f64 {
-        self.heatsink_temp_rr as f64 / 10.0
+        self.heatsink_temp_rr as f64 * TEMP_FACTOR
     }
     pub fn heatsink_temp_fl(&self) -> f64 {
-        self.heatsink_temp_fl as f64 / 10.0
+        self.heatsink_temp_fl as f64 * TEMP_FACTOR
     }
     pub fn heatsink_temp_fr(&self) -> f64 {
-        self.heatsink_temp_fr as f64 / 10.0
+        self.heatsink_temp_fr as f64 * TEMP_FACTOR
     }
 }
