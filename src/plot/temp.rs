@@ -62,9 +62,17 @@ pub fn temp1_plot(ui: &mut Ui, data: &PlotData, cfg: &Temp1Config) {
     );
 }
 
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize)]
 pub struct Temp2Config {
     aspect_ratio: f32,
+}
+
+impl Default for Temp2Config {
+    fn default() -> Self {
+        Self {
+            aspect_ratio: TEMP_ASPECT_RATIO,
+        }
+    }
 }
 
 pub fn temp2_config(ui: &mut Ui, cfg: &mut Temp2Config) {
