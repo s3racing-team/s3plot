@@ -130,7 +130,7 @@ impl eframe::App for PlotApp {
                     Tab::Torque => plot::torque_plot(ui, d, &self.torque),
                     Tab::Temp1 => plot::temp1_plot(ui, d, &self.temp1),
                     Tab::Temp2 => plot::temp2_plot(ui, d, &self.temp2),
-                    Tab::Custom => plot::plot(ui, d, &mut self.custom),
+                    Tab::Custom => plot::custom_plot(ui, d, &mut self.custom),
                 }
             } else {
                 ui.label("Open or drag and drop a file");

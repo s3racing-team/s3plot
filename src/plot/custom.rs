@@ -64,7 +64,7 @@ pub fn custom_config(ui: &mut Ui, cfg: &mut CustomConfig) {
     util::ratio_slider(ui, &mut cfg.aspect_ratio, CUSTOM_ASPECT_RATIO, 1000.0);
 }
 
-pub fn plot(ui: &mut Ui, data: &mut PlotData, cfg: &mut CustomConfig) {
+pub fn custom_plot(ui: &mut Ui, data: &mut PlotData, cfg: &mut CustomConfig) {
     SidePanel::left("side_panel")
         .resizable(true)
         .frame(Frame {
