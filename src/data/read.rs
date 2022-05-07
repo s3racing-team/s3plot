@@ -1,11 +1,10 @@
-use std::io::{Read, Seek, self, SeekFrom};
+use std::io::{self, Read, Seek, SeekFrom};
 use std::mem::size_of;
 
-use super::{DataEntry, TempEntry, Data, Temp};
+use super::{Data, DataEntry, Temp, TempEntry};
 
 const DATA_SAMPLE_SIZE: usize = size_of::<DataEntry>();
 const TEMP_SAMPLE_SIZE: usize = size_of::<TempEntry>();
-
 
 impl Data {
     fn extend_capacity(&mut self, cap: usize) {

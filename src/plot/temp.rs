@@ -1,12 +1,12 @@
 use derive_more::{Deref, DerefMut};
+use egui::plot::{Legend, LinkedAxisGroup, Plot, Value};
 use egui::Ui;
-use egui::plot::{LinkedAxisGroup, Value, Plot, Legend};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use crate::app::PlotData;
-use crate::util::{format_time, self};
+use crate::util::{self, format_time};
 
-use super::{WheelConfig, DEFAULT_GRID_MODE, DEFAULT_LINKED, WheelPlotConfig, wheel_plot, line};
+use super::{line, wheel_plot, WheelConfig, WheelPlotConfig, DEFAULT_GRID_MODE, DEFAULT_LINKED};
 
 const TEMP_ASPECT_RATIO: f32 = 2.0;
 
