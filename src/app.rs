@@ -1,5 +1,5 @@
 use egui::plot::Value;
-use egui::{menu, CentralPanel, Key, TopBottomPanel, Visuals};
+use egui::{menu, CentralPanel, Key, TopBottomPanel};
 use serde::{Deserialize, Serialize};
 
 use crate::data::{Data, Temp};
@@ -143,8 +143,6 @@ impl eframe::App for PlotApp {
 
 impl PlotApp {
     pub fn new(context: &eframe::CreationContext) -> Self {
-        context.egui_ctx.set_visuals(Visuals::dark());
-
         let mut app = context
             .storage
             .and_then(|s| eframe::get_value::<PlotApp>(s, eframe::APP_KEY))
