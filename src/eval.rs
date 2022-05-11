@@ -1,6 +1,4 @@
-use std::rc::Rc;
-
-use cods::{Context, Cst, Ident, IdentSpan, Scopes, Span, Val};
+use cods::{Context, Cst, Ident, IdentSpan, Scopes, Span, Val, Stack};
 use egui::plot::Value;
 use serde::{Deserialize, Serialize};
 use strum::{Display, EnumIter, EnumString, IntoEnumIterator, IntoStaticStr};
@@ -87,25 +85,25 @@ pub fn eval(expr: &Expr, data: &Data) -> anyhow::Result<Vec<Value>> {
     let var_count = Var::iter().count();
     let mut vars = Vec::with_capacity(var_count);
     let mut scopes = Scopes::default();
-    for (id, _) in Var::iter().enumerate() {
+    for (id, v) in Var::iter().enumerate() {
         let ident = IdentSpan::new(Ident(id), Span::pos(0));
-        let inner = Rc::new(cods::ast::Var::new(None));
-        let var = cods::Var::new(ident, cods::DataType::Float, true, false, Rc::clone(&inner));
-        ctx.def_var(&mut scopes, var);
-        vars.push(inner);
+        let inner = ctx.def_var(&mut scopes, ident, cods::DataType::Float, true, false);
+        vars.push((inner, v));
     }
-    let asts_x = ctx.check_with(csts_x, &mut scopes)?;
-    let asts_y = ctx.check_with(csts_y, &mut scopes)?;
+    let asts_x = ctx.check_with(&mut scopes, csts_x)?;
+    let asts_y = ctx.check_with(&mut scopes, csts_y)?;
 
     let mut values = Vec::with_capacity(data.len());
+    let mut stack = Stack::default();
+    stack.extend_to(vars.len());
     for e in data.iter() {
-        for (id, v) in Var::iter().enumerate() {
-            let val = get_value(e, v);
-            vars[id].set(val)
+        for (var, val) in vars.iter() {
+            let val = get_value(e, *val);
+            stack.set(var, val)
         }
 
-        let x = cods::eval_all(&asts_x);
-        let y = cods::eval_all(&asts_y);
+        let x = cods::eval_with(&mut stack ,&asts_x);
+        let y = cods::eval_with(&mut stack ,&asts_y);
 
         if let (Ok(x), Ok(y)) = (x, y) {
             if let (Some(x), Some(y)) = (cast_float(x), cast_float(y)) {
