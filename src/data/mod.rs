@@ -1,4 +1,4 @@
-use std::f32::consts::PI;
+use std::f64::consts::PI;
 
 use derive_more::{Deref, DerefMut};
 use egui::plot::Value;
@@ -28,96 +28,127 @@ pub struct Data {
 
 #[derive(Debug)]
 pub struct DataEntry {
-    pub ms: f32,
+    ms: f32,
 
-    pub power: f32,
+    power: f32,
 
-    pub driven: f32,
-    pub energy_to_finish_factor: f32,
-    pub energy_total: f32,
+    driven: f32,
+    energy_to_finish_factor: f32,
+    energy_total: f32,
 
-    pub gas: f32,
+    gas: f32,
 
-    pub ams_umin: i16,
-    pub ams_umin_true: i16,
+    ams_umin: i16,
+    ams_umin_true: i16,
 
-    pub l_uzk: f32,
-    pub speed_rl: f32,
-    pub torque_set_rl: f32,
-    pub speed_rr: f32,
-    pub torque_set_rr: f32,
-    pub speed_fl: f32,
-    pub torque_set_fl: f32,
-    pub speed_fr: f32,
-    pub torque_set_fr: f32,
+    l_uzk: f32,
+    speed_rl: f32,
+    torque_set_rl: f32,
+    speed_rr: f32,
+    torque_set_rr: f32,
+    speed_fl: f32,
+    torque_set_fl: f32,
+    speed_fr: f32,
+    torque_set_fr: f32,
 
-    pub accel_x: i16,
-    pub accel_y: i16,
-    pub accel_z: i16,
+    accel_x: i16,
+    accel_y: i16,
+    accel_z: i16,
 
-    pub gyro_x: i16,
-    pub gyro_y: i16,
-    pub gyro_z: i16,
+    gyro_x: i16,
+    gyro_y: i16,
+    gyro_z: i16,
 
-    pub steering: i16,
-    pub break_front: f32,
-    pub break_rear: f32,
-    pub break_pedal: f32,
+    steering: i16,
+    break_front: f32,
+    break_rear: f32,
+    break_pedal: f32,
 
-    pub current: i32,
-    pub power_reduce: f32,
+    current: i32,
+    power_reduce: f32,
 
-    pub torque_real_rl: f32,
-    pub torque_real_rr: f32,
-    pub torque_real_fl: f32,
-    pub torque_real_fr: f32,
+    torque_real_rl: f32,
+    torque_real_rr: f32,
+    torque_real_fl: f32,
+    torque_real_fr: f32,
 
-    pub spring_fr: f32,
-    pub spring_fl: f32,
-    pub spring_rl: f32,
-    pub spring_rr: f32,
+    spring_fr: f32,
+    spring_fl: f32,
+    spring_rl: f32,
+    spring_rr: f32,
 }
 
-const VELOCITY_FACTOR: f32 = 0.01155;
+impl TimeStamped for DataEntry {
+    fn time(&self) -> f64 {
+        self.ms as f64 / 1000.0
+    }
+}
+
+const POWER_FACTOR: f64 = 2.0 * PI / 60.0 * 0.0197;
+const VELOCITY_FACTOR: f64 = 0.01155;
 impl DataEntry {
-    pub fn timed(&self, y: f32) -> Value {
-        Value::new(self.time(), y as f64)
+    pub fn power_fl(&self) -> f64 {
+        self.speed_fl as f64 * self.torque_set_fl as f64 * POWER_FACTOR
     }
 
-    pub fn time(&self) -> f32 {
-        self.ms / 1000.0
+    pub fn power_fr(&self) -> f64 {
+        self.speed_fr as f64 * self.torque_set_fr as f64 * POWER_FACTOR
     }
 
-    pub fn power_fl(&self) -> f32 {
-        2.0 * PI / 60.0 * self.torque_set_fl * 0.0197 * self.speed_fl
+    pub fn power_rl(&self) -> f64 {
+        self.speed_rl as f64 * self.torque_set_rl as f64 * POWER_FACTOR
     }
 
-    pub fn power_fr(&self) -> f32 {
-        2.0 * PI / 60.0 * self.torque_set_fr * 0.0197 * self.speed_fr
+    pub fn power_rr(&self) -> f64 {
+        self.speed_rr as f64 * self.torque_set_rr as f64 * POWER_FACTOR
     }
 
-    pub fn power_rl(&self) -> f32 {
-        2.0 * PI / 60.0 * self.torque_set_rl * 0.0197 * self.speed_rl
+    pub fn velocity_fl(&self) -> f64 {
+        self.speed_fl as f64 * VELOCITY_FACTOR
     }
 
-    pub fn power_rr(&self) -> f32 {
-        2.0 * PI / 60.0 * self.torque_set_rr * 0.0197 * self.speed_rr
+    pub fn velocity_fr(&self) -> f64 {
+        self.speed_fr as f64 * VELOCITY_FACTOR
     }
 
-    pub fn velocity_fl(&self) -> f32 {
-        self.speed_fl * VELOCITY_FACTOR
+    pub fn velocity_rl(&self) -> f64 {
+        self.speed_rl as f64 * VELOCITY_FACTOR
     }
 
-    pub fn velocity_fr(&self) -> f32 {
-        self.speed_fr * VELOCITY_FACTOR
+    pub fn velocity_rr(&self) -> f64 {
+        self.speed_rr as f64 * VELOCITY_FACTOR
     }
 
-    pub fn velocity_rl(&self) -> f32 {
-        self.speed_rl * VELOCITY_FACTOR
+    pub fn torque_set_fl(&self) -> f64 {
+        self.torque_set_fl as f64
     }
 
-    pub fn velocity_rr(&self) -> f32 {
-        self.speed_rr * VELOCITY_FACTOR
+    pub fn torque_set_fr(&self) -> f64 {
+        self.torque_set_fr as f64
+    }
+
+    pub fn torque_set_rl(&self) -> f64 {
+        self.torque_set_rl as f64
+    }
+
+    pub fn torque_set_rr(&self) -> f64 {
+        self.torque_set_rr as f64
+    }
+
+    pub fn torque_real_fl(&self) -> f64 {
+        self.torque_real_fl as f64
+    }
+
+    pub fn torque_real_fr(&self) -> f64 {
+        self.torque_real_fr as f64
+    }
+
+    pub fn torque_real_rl(&self) -> f64 {
+        self.torque_real_rl as f64
+    }
+
+    pub fn torque_real_rr(&self) -> f64 {
+        self.torque_real_rr as f64
     }
 }
 

@@ -3,27 +3,27 @@ use egui::plot::Value;
 use serde::{Deserialize, Serialize};
 use strum::{Display, EnumIter, EnumString, IntoEnumIterator, IntoStaticStr};
 
-use crate::data::{Data, DataEntry};
+use crate::data::{Data, DataEntry, TimeStamped};
 
 fn get_value(e: &DataEntry, var: Var) -> Val {
     let val = match var {
-        Var::Time => e.time() as f64,
-        Var::PowerFl => e.power_fl() as f64,
-        Var::PowerFr => e.power_fr() as f64,
-        Var::PowerRl => e.power_rl() as f64,
-        Var::PowerRr => e.power_rr() as f64,
-        Var::VelocityFl => e.velocity_fl() as f64,
-        Var::VelocityFr => e.velocity_fr() as f64,
-        Var::VelocityRl => e.velocity_rl() as f64,
-        Var::VelocityRr => e.velocity_rr() as f64,
-        Var::TorqueSetFl => e.torque_set_fl as f64,
-        Var::TorqueSetFr => e.torque_set_fr as f64,
-        Var::TorqueSetRl => e.torque_set_rl as f64,
-        Var::TorqueSetRr => e.torque_set_rr as f64,
-        Var::TorqueRealFl => e.torque_real_fl as f64,
-        Var::TorqueRealFr => e.torque_real_fr as f64,
-        Var::TorqueRealRl => e.torque_real_rl as f64,
-        Var::TorqueRealRr => e.torque_real_rr as f64,
+        Var::Time => e.time(),
+        Var::PowerFl => e.power_fl(),
+        Var::PowerFr => e.power_fr(),
+        Var::PowerRl => e.power_rl(),
+        Var::PowerRr => e.power_rr(),
+        Var::VelocityFl => e.velocity_fl(),
+        Var::VelocityFr => e.velocity_fr(),
+        Var::VelocityRl => e.velocity_rl(),
+        Var::VelocityRr => e.velocity_rr(),
+        Var::TorqueSetFl => e.torque_set_fl(),
+        Var::TorqueSetFr => e.torque_set_fr(),
+        Var::TorqueSetRl => e.torque_set_rl(),
+        Var::TorqueSetRr => e.torque_set_rr(),
+        Var::TorqueRealFl => e.torque_real_fl(),
+        Var::TorqueRealFr => e.torque_real_fr(),
+        Var::TorqueRealRl => e.torque_real_rl(),
+        Var::TorqueRealRr => e.torque_real_rr(),
     };
 
     Val::Float(val)
