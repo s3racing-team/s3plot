@@ -30,17 +30,25 @@ pub struct Data {
 pub struct DataEntry {
     ms: f32,
 
+    #[allow(unused)]
     power: f32,
 
+    #[allow(unused)]
     driven: f32,
+    #[allow(unused)]
     energy_to_finish_factor: f32,
+    #[allow(unused)]
     energy_total: f32,
 
+    #[allow(unused)]
     gas: f32,
 
+    #[allow(unused)]
     ams_umin: i16,
+    #[allow(unused)]
     ams_umin_true: i16,
 
+    #[allow(unused)]
     l_uzk: f32,
     speed_rl: f32,
     torque_set_rl: f32,
@@ -51,20 +59,32 @@ pub struct DataEntry {
     speed_fr: f32,
     torque_set_fr: f32,
 
+    #[allow(unused)]
     accel_x: i16,
+    #[allow(unused)]
     accel_y: i16,
+    #[allow(unused)]
     accel_z: i16,
 
+    #[allow(unused)]
     gyro_x: i16,
+    #[allow(unused)]
     gyro_y: i16,
+    #[allow(unused)]
     gyro_z: i16,
 
+    #[allow(unused)]
     steering: i16,
+    #[allow(unused)]
     break_front: f32,
+    #[allow(unused)]
     break_rear: f32,
+    #[allow(unused)]
     break_pedal: f32,
 
+    #[allow(unused)]
     current: i32,
+    #[allow(unused)]
     power_reduce: f32,
 
     torque_real_rl: f32,
@@ -72,9 +92,13 @@ pub struct DataEntry {
     torque_real_fl: f32,
     torque_real_fr: f32,
 
+    #[allow(unused)]
     spring_fr: f32,
+    #[allow(unused)]
     spring_fl: f32,
+    #[allow(unused)]
     spring_rl: f32,
+    #[allow(unused)]
     spring_rr: f32,
 }
 
