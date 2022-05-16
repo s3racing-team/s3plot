@@ -18,6 +18,7 @@ const CUSTOM_ASPECT_RATIO: f32 = 0.1;
 #[derive(Serialize, Deserialize)]
 pub struct CustomConfig {
     pub aspect_ratio: f32,
+    pub common: String,
     pub plots: Vec<CustomPlot>,
 }
 
@@ -25,6 +26,7 @@ impl Default for CustomConfig {
     fn default() -> Self {
         Self {
             aspect_ratio: CUSTOM_ASPECT_RATIO,
+            common: String::new(),
             plots: vec![
                 CustomPlot {
                     name: "1.".into(),
@@ -99,6 +101,13 @@ pub fn custom_plot(ui: &mut Ui, data: &mut PlotData, cfg: &mut CustomConfig) {
 }
 
 fn sidebar(ui: &mut Ui, data: &mut PlotData, cfg: &mut CustomConfig) {
+    ui.add(Label::new(RichText::new("Common").monospace()));
+    ui.add(
+        TextEdit::multiline(&mut cfg.common)
+            .desired_width(ui.available_width())
+            .code_editor(),
+    );
+
     let mut i = 0;
     while i < cfg.plots.len() {
         let p = &mut cfg.plots[i];
