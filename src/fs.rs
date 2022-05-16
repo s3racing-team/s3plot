@@ -163,7 +163,7 @@ impl PlotApp {
                     .custom
                     .plots
                     .iter()
-                    .map(|p| eval::eval(&p.expr, &d).unwrap_or_default())
+                    .map(|p| eval::eval(&p.expr, &d, &t).unwrap_or_default())
                     .collect();
 
                 self.files = Some(files);

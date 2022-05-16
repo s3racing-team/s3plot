@@ -3,27 +3,58 @@ use egui::plot::Value;
 use serde::{Deserialize, Serialize};
 use strum::{Display, EnumIter, EnumString, IntoEnumIterator, IntoStaticStr};
 
-use crate::data::{Data, DataEntry, TimeStamped};
+use crate::data::{Data, DataEntry, Temp, TempEntry, TimeStamped};
 
-fn get_value(e: &DataEntry, var: Var) -> Val {
+fn lerp(d: &DataEntry, t: &[TempEntry], f: impl Fn(&TempEntry) -> f64) -> f64 {
+    match t {
+        [a] => f(a),
+        [a, b] => {
+            let range = b.time() - a.time();
+            let pos = d.time() - a.time();
+            let factor = pos / range;
+            let val = f(a) + factor * (f(b) - f(a));
+            val
+        }
+        _ => f64::NAN,
+    }
+}
+
+fn get_value(var: Var, d: &DataEntry, t: &[TempEntry]) -> Val {
     let val = match var {
-        Var::Time => e.time(),
-        Var::PowerFl => e.power_fl(),
-        Var::PowerFr => e.power_fr(),
-        Var::PowerRl => e.power_rl(),
-        Var::PowerRr => e.power_rr(),
-        Var::VelocityFl => e.velocity_fl(),
-        Var::VelocityFr => e.velocity_fr(),
-        Var::VelocityRl => e.velocity_rl(),
-        Var::VelocityRr => e.velocity_rr(),
-        Var::TorqueSetFl => e.torque_set_fl(),
-        Var::TorqueSetFr => e.torque_set_fr(),
-        Var::TorqueSetRl => e.torque_set_rl(),
-        Var::TorqueSetRr => e.torque_set_rr(),
-        Var::TorqueRealFl => e.torque_real_fl(),
-        Var::TorqueRealFr => e.torque_real_fr(),
-        Var::TorqueRealRl => e.torque_real_rl(),
-        Var::TorqueRealRr => e.torque_real_rr(),
+        Var::Time => d.time(),
+        // data
+        Var::PowerFl => d.power_fl(),
+        Var::PowerFr => d.power_fr(),
+        Var::PowerRl => d.power_rl(),
+        Var::PowerRr => d.power_rr(),
+        Var::VelocityFl => d.velocity_fl(),
+        Var::VelocityFr => d.velocity_fr(),
+        Var::VelocityRl => d.velocity_rl(),
+        Var::VelocityRr => d.velocity_rr(),
+        Var::TorqueSetFl => d.torque_set_fl(),
+        Var::TorqueSetFr => d.torque_set_fr(),
+        Var::TorqueSetRl => d.torque_set_rl(),
+        Var::TorqueSetRr => d.torque_set_rr(),
+        Var::TorqueRealFl => d.torque_real_fl(),
+        Var::TorqueRealFr => d.torque_real_fr(),
+        Var::TorqueRealRl => d.torque_real_rl(),
+        Var::TorqueRealRr => d.torque_real_rr(),
+        // temp
+        Var::AmsTempMax => lerp(d, t, TempEntry::ams_temp_max),
+        Var::WaterTempConverter => lerp(d, t, TempEntry::water_temp_converter),
+        Var::WaterTempMotor => lerp(d, t, TempEntry::water_temp_motor),
+        Var::TempFl => lerp(d, t, TempEntry::temp_fl),
+        Var::TempFr => lerp(d, t, TempEntry::temp_fr),
+        Var::TempRl => lerp(d, t, TempEntry::temp_rl),
+        Var::TempRr => lerp(d, t, TempEntry::temp_rr),
+        Var::RoomTempFl => lerp(d, t, TempEntry::room_temp_fl),
+        Var::RoomTempFr => lerp(d, t, TempEntry::room_temp_fr),
+        Var::RoomTempRl => lerp(d, t, TempEntry::room_temp_rl),
+        Var::RoomTempRr => lerp(d, t, TempEntry::room_temp_rr),
+        Var::HeatsinkTempFl => lerp(d, t, TempEntry::heatsink_temp_fl),
+        Var::HeatsinkTempFr => lerp(d, t, TempEntry::heatsink_temp_fr),
+        Var::HeatsinkTempRl => lerp(d, t, TempEntry::heatsink_temp_rl),
+        Var::HeatsinkTempRr => lerp(d, t, TempEntry::heatsink_temp_rr),
     };
 
     Val::Float(val)
@@ -33,6 +64,7 @@ fn get_value(e: &DataEntry, var: Var) -> Val {
 pub enum Var {
     #[strum(serialize = "t")]
     Time,
+    // data
     #[strum(serialize = "P_fl")]
     PowerFl,
     #[strum(serialize = "P_fr")]
@@ -65,6 +97,37 @@ pub enum Var {
     TorqueRealRl,
     #[strum(serialize = "M_real_rr")]
     TorqueRealRr,
+    // temp
+    #[strum(serialize = "T_ams_max")]
+    AmsTempMax,
+    #[strum(serialize = "T_water_converter")]
+    WaterTempConverter,
+    #[strum(serialize = "T_water_motor")]
+    WaterTempMotor,
+    #[strum(serialize = "T_fl")]
+    TempFl,
+    #[strum(serialize = "T_fr")]
+    TempFr,
+    #[strum(serialize = "T_rl")]
+    TempRl,
+    #[strum(serialize = "T_rr")]
+    TempRr,
+    #[strum(serialize = "T_room_fl")]
+    RoomTempFl,
+    #[strum(serialize = "T_room_fr")]
+    RoomTempFr,
+    #[strum(serialize = "T_room_rl")]
+    RoomTempRl,
+    #[strum(serialize = "T_room_rr")]
+    RoomTempRr,
+    #[strum(serialize = "T_heatsink_fl")]
+    HeatsinkTempFl,
+    #[strum(serialize = "T_heatsink_fr")]
+    HeatsinkTempFr,
+    #[strum(serialize = "T_heatsink_rl")]
+    HeatsinkTempRl,
+    #[strum(serialize = "T_heatsink_rr")]
+    HeatsinkTempRr,
 }
 
 #[derive(Default, Serialize, Deserialize)]
@@ -73,7 +136,7 @@ pub struct Expr {
     pub y: String,
 }
 
-pub fn eval(expr: &Expr, data: &Data) -> anyhow::Result<Vec<Value>> {
+pub fn eval(expr: &Expr, data: &Data, temp: &Temp) -> anyhow::Result<Vec<Value>> {
     let mut ctx_x = Context::default();
     let mut ctx_y = Context::default();
     for v in Var::iter() {
@@ -103,9 +166,28 @@ pub fn eval(expr: &Expr, data: &Data) -> anyhow::Result<Vec<Value>> {
     let mut stack_y = Stack::default();
     stack_x.extend_to(vars.len());
     stack_y.extend_to(vars.len());
-    for e in data.iter() {
-        for (var, val) in vars.iter() {
-            let val = get_value(e, *val);
+
+    let mut temp_index = 0;
+    let mut temp_entries: &[TempEntry] = &[];
+    for d in data.iter() {
+        while let Some(t) = temp.get(temp_index) {
+            if t.ms == d.ms {
+                temp_entries = std::slice::from_ref(t);
+            } else if t.ms > d.ms && temp_index == 0 {
+                temp_entries = std::slice::from_ref(t);
+            } else if t.ms > d.ms {
+                temp_entries = &temp[temp_index - 1..temp_index + 1];
+            } else if temp_index + 1 == temp.len() {
+                temp_entries = std::slice::from_ref(t);
+            } else {
+                temp_index += 1;
+                continue;
+            }
+            break;
+        }
+
+        for (var, id) in vars.iter() {
+            let val = get_value(*id, d, temp_entries);
             stack_x.set(var, val.clone());
             stack_y.set(var, val);
         }

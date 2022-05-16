@@ -28,7 +28,7 @@ pub struct Data {
 
 #[derive(Debug)]
 pub struct DataEntry {
-    ms: f32,
+    pub ms: f32,
 
     #[allow(unused)]
     power: f32,
@@ -183,7 +183,7 @@ pub struct Temp {
 
 #[derive(Debug)]
 pub struct TempEntry {
-    ms: f32,
+    pub ms: f32,
 
     ams_temp_max: i16,
 

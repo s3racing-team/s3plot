@@ -139,7 +139,8 @@ fn sidebar(ui: &mut Ui, data: &mut PlotData, cfg: &mut CustomConfig) {
             data.custom.remove(i);
         } else {
             if x_changed.inner || y_changed.inner {
-                data.custom[i] = eval::eval(&p.expr, &data.raw_data).unwrap_or_default();
+                data.custom[i] =
+                    eval::eval(&p.expr, &data.raw_data, &data.raw_temp).unwrap_or_default();
             }
             i += 1;
         }
