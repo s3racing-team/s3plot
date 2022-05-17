@@ -3,6 +3,7 @@ use egui::{menu, CentralPanel, Key, TopBottomPanel};
 use serde::{Deserialize, Serialize};
 
 use crate::data::{Data, Temp};
+use crate::eval::ExprError;
 use crate::fs::Files;
 use crate::plot::{
     self, CustomConfig, PowerConfig, Temp1Config, Temp2Config, TorqueConfig, VelocityConfig,
@@ -46,7 +47,7 @@ pub struct PlotData {
     pub ams_temp_max: Vec<Value>,
     pub water_temp_converter: Vec<Value>,
     pub water_temp_motor: Vec<Value>,
-    pub custom: Vec<Vec<Value>>,
+    pub custom: Vec<CustomValues>,
 }
 
 pub struct WheelValues {
@@ -54,6 +55,35 @@ pub struct WheelValues {
     pub fr: Vec<Value>,
     pub rl: Vec<Value>,
     pub rr: Vec<Value>,
+}
+
+#[derive(Default)]
+pub struct CustomValues {
+    pub error: ExprError,
+    pub values: Vec<Value>,
+}
+
+impl CustomValues {
+    pub fn from_values(values: Vec<Value>) -> Self {
+        Self {
+            error: ExprError::default(),
+            values,
+        }
+    }
+
+    pub fn from_error(error: ExprError) -> Self {
+        Self {
+            error,
+            values: Vec::new(),
+        }
+    }
+
+    pub fn from_result(r: Result<Vec<Value>, ExprError>) -> Self {
+        match r {
+            Ok(v) => CustomValues::from_values(v),
+            Err(e) => CustomValues::from_error(e),
+        }
+    }
 }
 
 impl Default for PlotApp {

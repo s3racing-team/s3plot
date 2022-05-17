@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use egui::{Align2, Color32, Context, Id, LayerId, Order, Pos2, Rect, TextStyle, Vec2};
 use serde::{Deserialize, Serialize};
 
-use crate::app::{PlotData, WheelValues};
+use crate::app::{CustomValues, PlotData, WheelValues};
 use crate::data::{Data, DataEntry, MapOverTime, Temp, TempEntry};
 use crate::{eval, PlotApp};
 
@@ -163,7 +163,10 @@ impl PlotApp {
                     .custom
                     .plots
                     .iter()
-                    .map(|p| eval::eval(&p.expr, &d, &t).unwrap_or_default())
+                    .map(|p| {
+                        let r = eval::eval(&p.expr, &d, &t);
+                        CustomValues::from_result(r)
+                    })
                     .collect();
 
                 self.files = Some(files);

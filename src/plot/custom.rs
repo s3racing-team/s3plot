@@ -1,3 +1,4 @@
+use cods::UserFacing;
 use egui::plot::{Legend, Plot};
 use egui::style::Margin;
 use egui::{
@@ -7,13 +8,14 @@ use egui::{
 use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
 
-use crate::app::PlotData;
+use crate::app::{CustomValues, PlotData};
 use crate::eval::{self, Expr, Var};
 use crate::util::{self, format_time};
 
 use super::line;
 
 const CUSTOM_ASPECT_RATIO: f32 = 0.1;
+const RED: Color32 = Color32::from_rgb(0xf0, 0x56, 0x56);
 
 #[derive(Serialize, Deserialize)]
 pub struct CustomConfig {
@@ -92,7 +94,7 @@ pub fn custom_plot(ui: &mut Ui, data: &mut PlotData, cfg: &mut CustomConfig) {
                 .legend(Legend::default())
                 .show(ui, |ui| {
                     for (d, p) in data.custom.iter().zip(cfg.plots.iter()) {
-                        ui.line(line(d.clone()).name(&p.name));
+                        ui.line(line(d.values.clone()).name(&p.name));
                     }
                 });
         });
@@ -102,45 +104,16 @@ fn sidebar(ui: &mut Ui, data: &mut PlotData, cfg: &mut CustomConfig) {
     let mut i = 0;
     while i < cfg.plots.len() {
         let p = &mut cfg.plots[i];
-        let removed = ui.horizontal(|ui| {
-            let r = ui.button(" − ").clicked();
-            ui.add(
-                TextEdit::singleline(&mut p.name)
-                    .desired_width(ui.available_width())
-                    .frame(false),
-            );
-            r
-        });
+        let d = &data.custom[i];
+        let input = expr_inputs(ui, p, d);
 
-        let x_changed = ui.horizontal(|ui| {
-            ui.add(Label::new(RichText::new(" X ").monospace()));
-            ui.add(
-                TextEdit::multiline(&mut p.expr.x)
-                    .desired_width(ui.available_width())
-                    .desired_rows(1)
-                    .font(TextStyle::Monospace),
-            )
-            .changed()
-        });
-        let y_changed = ui.horizontal(|ui| {
-            ui.add(Label::new(RichText::new(" Y ").monospace()));
-            ui.add(
-                TextEdit::multiline(&mut p.expr.y)
-                    .desired_width(ui.available_width())
-                    .desired_rows(1)
-                    .font(TextStyle::Monospace),
-            )
-            .changed()
-        });
-        ui.add_space(10.0);
-
-        if removed.inner {
+        if input.removed {
             cfg.plots.remove(i);
             data.custom.remove(i);
         } else {
-            if x_changed.inner || y_changed.inner {
-                data.custom[i] =
-                    eval::eval(&p.expr, &data.raw_data, &data.raw_temp).unwrap_or_default();
+            if input.x_changed || input.y_changed {
+                let r = eval::eval(&p.expr, &data.raw_data, &data.raw_temp);
+                data.custom[i] = CustomValues::from_result(r);
             }
             i += 1;
         }
@@ -148,7 +121,7 @@ fn sidebar(ui: &mut Ui, data: &mut PlotData, cfg: &mut CustomConfig) {
 
     if ui.button(" + ").clicked() {
         cfg.plots.push(CustomPlot::named(format!("{}.", i + 1)));
-        data.custom.push(Vec::new());
+        data.custom.push(CustomValues::default());
     }
     ui.add_space(10.0);
 
@@ -157,5 +130,60 @@ fn sidebar(ui: &mut Ui, data: &mut PlotData, cfg: &mut CustomConfig) {
     ));
     for v in Var::iter() {
         ui.add(Label::new(RichText::new(v.to_string()).monospace()));
+    }
+}
+
+struct ExprInput {
+    removed: bool,
+    x_changed: bool,
+    y_changed: bool,
+}
+
+fn expr_inputs(ui: &mut Ui, p: &mut CustomPlot, d: &CustomValues) -> ExprInput {
+    let removed = ui.horizontal(|ui| {
+        let r = ui.button(" − ").clicked();
+        ui.add(
+            TextEdit::singleline(&mut p.name)
+                .desired_width(ui.available_width())
+                .frame(false),
+        );
+        r
+    });
+
+    let x_changed = ui.horizontal(|ui| {
+        ui.add(Label::new(RichText::new(" X ").monospace()));
+        ui.add(
+            TextEdit::multiline(&mut p.expr.x)
+                .desired_width(ui.available_width())
+                .desired_rows(1)
+                .font(TextStyle::Monospace),
+        )
+        .changed()
+    });
+    if let Some(e) = &d.error.x {
+        ui.colored_label(RED, e.to_string());
+    }
+
+    let y_changed = ui.horizontal(|ui| {
+        ui.add(Label::new(RichText::new(" Y ").monospace()));
+        ui.add(
+            TextEdit::multiline(&mut p.expr.y)
+                .desired_width(ui.available_width())
+                .desired_rows(1)
+                .font(TextStyle::Monospace),
+        )
+        .changed()
+    });
+    if let Some(e) = &d.error.y {
+        e.spans();
+        ui.colored_label(RED, e.to_string());
+    }
+
+    ui.add_space(10.0);
+
+    ExprInput {
+        removed: removed.inner,
+        x_changed: x_changed.inner,
+        y_changed: y_changed.inner,
     }
 }

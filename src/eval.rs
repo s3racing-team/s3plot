@@ -1,4 +1,4 @@
-use cods::{Context, Cst, Ident, IdentSpan, Scopes, Span, Stack, Val};
+use cods::{Asts, Context, Ident, IdentSpan, Scopes, Span, Stack, Val, VarRef};
 use egui::plot::Value;
 use serde::{Deserialize, Serialize};
 use strum::{Display, EnumIter, EnumString, IntoEnumIterator, IntoStaticStr};
@@ -136,7 +136,13 @@ pub struct Expr {
     pub y: String,
 }
 
-pub fn eval(expr: &Expr, data: &Data, temp: &Temp) -> anyhow::Result<Vec<Value>> {
+#[derive(Default)]
+pub struct ExprError {
+    pub x: Option<cods::Error>,
+    pub y: Option<cods::Error>,
+}
+
+pub fn eval(expr: &Expr, data: &Data, temp: &Temp) -> Result<Vec<Value>, ExprError> {
     let mut ctx_x = Context::default();
     let mut ctx_y = Context::default();
     for v in Var::iter() {
@@ -144,28 +150,27 @@ pub fn eval(expr: &Expr, data: &Data, temp: &Temp) -> anyhow::Result<Vec<Value>>
         ctx_y.idents.push(v.into());
     }
 
-    let csts_x = parse(&mut ctx_x, &expr.x)?;
-    let csts_y = parse(&mut ctx_y, &expr.y)?;
-
     let var_count = Var::iter().count();
-    let mut vars = Vec::with_capacity(var_count);
-    let mut scopes_x = Scopes::default();
-    let mut scopes_y = Scopes::default();
-    for (id, v) in Var::iter().enumerate() {
-        let ident = IdentSpan::new(Ident(id), Span::pos(0));
-        let inner = ctx_x.def_var(&mut scopes_x, ident, cods::DataType::Float, true, false);
-        ctx_y.def_var(&mut scopes_y, ident, cods::DataType::Float, true, false);
-        vars.push((inner, v));
-    }
+    let mut vars_x = Vec::with_capacity(var_count);
+    let mut vars_y = Vec::with_capacity(var_count);
+    let asts_x = parse(&mut ctx_x, &mut vars_x, &expr.x);
+    let asts_y = parse(&mut ctx_y, &mut vars_y, &expr.y);
 
-    let asts_x = ctx_x.check_with(&mut scopes_x, csts_x)?;
-    let asts_y = ctx_y.check_with(&mut scopes_y, csts_y)?;
+    let (asts_x, asts_y) = match (asts_x, asts_y) {
+        (Ok(x), Ok(y)) => (x, y),
+        (x, y) => {
+            return Err(ExprError {
+                x: x.err(),
+                y: y.err(),
+            })
+        }
+    };
 
     let mut values = Vec::with_capacity(data.len());
     let mut stack_x = Stack::default();
     let mut stack_y = Stack::default();
-    stack_x.extend_to(vars.len());
-    stack_y.extend_to(vars.len());
+    stack_x.extend_to(vars_x.len());
+    stack_y.extend_to(vars_y.len());
 
     let mut temp_index = 0;
     let mut temp_entries: &[TempEntry] = &[];
@@ -186,9 +191,12 @@ pub fn eval(expr: &Expr, data: &Data, temp: &Temp) -> anyhow::Result<Vec<Value>>
             break;
         }
 
-        for (var, id) in vars.iter() {
+        for (var, id) in vars_x.iter() {
             let val = get_value(*id, d, temp_entries);
-            stack_x.set(var, val.clone());
+            stack_x.set(var, val);
+        }
+        for (var, id) in vars_y.iter() {
+            let val = get_value(*id, d, temp_entries);
             stack_y.set(var, val);
         }
 
@@ -205,14 +213,24 @@ pub fn eval(expr: &Expr, data: &Data, temp: &Temp) -> anyhow::Result<Vec<Value>>
     Ok(values)
 }
 
-fn parse(ctx: &mut Context, input: &str) -> anyhow::Result<Vec<Cst>> {
+fn parse(ctx: &mut Context, vars: &mut Vec<(VarRef, Var)>, input: &str) -> cods::Result<Asts> {
     let tokens = ctx.lex(input)?;
     let items = ctx.group(tokens)?;
     let csts = ctx.parse(items)?;
+
+    let mut scopes = Scopes::default();
+    for (id, v) in Var::iter().enumerate() {
+        let ident = IdentSpan::new(Ident(id), Span::pos(0));
+        let inner = ctx.def_var(&mut scopes, ident, cods::DataType::Float, true, false);
+        vars.push((inner, v));
+    }
+
+    let asts = ctx.check_with(&mut scopes, csts)?;
     if !ctx.errors.is_empty() {
         return Err(ctx.errors.remove(0).into());
     }
-    Ok(csts)
+
+    Ok(asts)
 }
 
 fn cast_float(val: Val) -> Option<f64> {
