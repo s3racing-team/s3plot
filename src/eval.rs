@@ -220,7 +220,7 @@ fn parse(ctx: &mut Context, vars: &mut Vec<(VarRef, Var)>, input: &str) -> cods:
 
     let mut scopes = Scopes::default();
     for (id, v) in Var::iter().enumerate() {
-        let ident = IdentSpan::new(Ident(id), Span::pos(0));
+        let ident = IdentSpan::new(Ident(id), Span::pos(0, 0));
         let inner = ctx.def_var(&mut scopes, ident, cods::DataType::Float, true, false);
         vars.push((inner, v));
     }

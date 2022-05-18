@@ -361,7 +361,7 @@ dependencies = [
 [[package]]
 name = "cods"
 version = "0.2.0"
-source = "git+https://github.com/saecki/comeondosomething#ac685ab810868695cadb171a6fe2ee6e58ee75c5"
+source = "git+https://github.com/saecki/comeondosomething#98e3227693505f48633d89f0c8b9e67675e2ff89"
 dependencies = [
  "strum",
 ]
@@ -1166,9 +1166,9 @@ checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
 
 [[package]]
 name = "libc"
-version = "0.2.125"
+version = "0.2.126"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5916d2ae698f6de9bfb891ad7a8d65c09d232dc58cc4ac433c7da3b2fd84bc2b"
+checksum = "349d5a591cd28b49e1d1037471617a32ddcda5731b99419008085f72d5a53836"
 
 [[package]]
 name = "libloading"
@@ -1603,11 +1603,11 @@ dependencies = [
 
 [[package]]
 name = "proc-macro2"
-version = "1.0.38"
+version = "1.0.39"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9027b48e9d4c9175fa2218adf3557f91c1137021739951d4932f5f8268ac48aa"
+checksum = "c54b25569025b7fc9651de43004ae593a75ad88543b17178aa5e1b9c4f15f56f"
 dependencies = [
- "unicode-xid",
+ "unicode-ident",
 ]
 
 [[package]]
@@ -1940,12 +1940,12 @@ dependencies = [
 
 [[package]]
 name = "socket2"
-version = "0.4.5"
+version = "0.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ca642ba17f8b2995138b1d7711829c92e98c0a25ea019de790f4f09279c4e296"
+checksum = "66d72b759436ae32898a2af0a14218dbf55efde3feeb170eb623637db85ee1e0"
 dependencies = [
  "libc",
- "windows-sys",
+ "winapi",
 ]
 
 [[package]]
@@ -1990,13 +1990,13 @@ dependencies = [
 
 [[package]]
 name = "syn"
-version = "1.0.93"
+version = "1.0.95"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "04066589568b72ec65f42d65a1a52436e954b168773148893c020269563decf2"
+checksum = "fbaf6116ab8924f39d52792136fb74fd60a80194cf1b1c6ffa6453eef1c3f942"
 dependencies = [
  "proc-macro2",
  "quote",
- "unicode-xid",
+ "unicode-ident",
 ]
 
 [[package]]
@@ -2121,6 +2121,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "099b7128301d285f79ddd55b9a83d5e6b9e97c92e0ea0daebee7263e932de992"
 
 [[package]]
+name = "unicode-ident"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d22af068fba1eb5edcb4aea19d382b2a3deb4c8f9d475c589b6ada9e0fd493ee"
+
+[[package]]
 name = "unicode-normalization"
 version = "0.1.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2128,12 +2134,6 @@ checksum = "d54590932941a9e9266f0832deed84ebe1bf2e4c9e4a3554d393d18f5e854bf9"
 dependencies = [
  "tinyvec",
 ]
-
-[[package]]
-name = "unicode-xid"
-version = "0.2.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "957e51f3646910546462e67d5f7599b9e4fb8acdd304b087a6494730f9eebf04"
 
 [[package]]
 name = "url"
@@ -2646,9 +2646,9 @@ dependencies = [
 
 [[package]]
 name = "zvariant"
-version = "3.2.0"
+version = "3.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e18ba99d71e03af262953f476071607da0c44e225236cf9b5b9f7f11f1d0b6b0"
+checksum = "cbd1abd8bc2c855412b9c8af9fc11c0d695c73c732ad5a1a1be10f3fd4bf19b2"
 dependencies = [
  "byteorder",
  "enumflags2",
@@ -2660,9 +2660,9 @@ dependencies = [
 
 [[package]]
 name = "zvariant_derive"
-version = "3.2.0"
+version = "3.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9042892ebdca35261951a83d17bcbfd4d3d528cb3bde828498a9b306b50d05c0"
+checksum = "abebd57382dfacf3e7bbdd7b7c3d162d6ed0687a78f046263ddef4ddabc275ae"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
