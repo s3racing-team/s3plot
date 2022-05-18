@@ -1,9 +1,12 @@
-use cods::UserFacing;
+use std::ops::Range;
+
+use cods::{Pos, UserFacing};
 use egui::plot::{Legend, Plot};
 use egui::style::Margin;
+use egui::text::{LayoutJob, LayoutSection};
 use egui::{
     CentralPanel, Color32, Frame, Label, RichText, Rounding, ScrollArea, SidePanel, TextEdit,
-    TextStyle, Ui,
+    TextFormat, TextStyle, Ui,
 };
 use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
@@ -150,13 +153,22 @@ fn expr_inputs(ui: &mut Ui, p: &mut CustomPlot, d: &CustomValues) -> ExprInput {
         r
     });
 
+    let mut x_layouter = |ui: &egui::Ui, string: &str, wrap_width: f32| {
+        let mut layout_job = match &d.error.x {
+            Some(e) => mark_errors(string, e),
+            None => LayoutJob::single_section(string.to_string(), TextFormat::default()),
+        };
+        layout_job.wrap.max_width = wrap_width;
+        ui.fonts().layout_job(layout_job)
+    };
     let x_changed = ui.horizontal(|ui| {
         ui.add(Label::new(RichText::new(" X ").monospace()));
         ui.add(
             TextEdit::multiline(&mut p.expr.x)
                 .desired_width(ui.available_width())
                 .desired_rows(1)
-                .font(TextStyle::Monospace),
+                .font(TextStyle::Monospace)
+                .layouter(&mut x_layouter),
         )
         .changed()
     });
@@ -164,18 +176,26 @@ fn expr_inputs(ui: &mut Ui, p: &mut CustomPlot, d: &CustomValues) -> ExprInput {
         ui.colored_label(RED, e.to_string());
     }
 
+    let mut y_layouter = |ui: &egui::Ui, string: &str, wrap_width: f32| {
+        let mut layout_job = match &d.error.y {
+            Some(e) => mark_errors(string, e),
+            None => LayoutJob::single_section(string.to_string(), TextFormat::default()),
+        };
+        layout_job.wrap.max_width = wrap_width;
+        ui.fonts().layout_job(layout_job)
+    };
     let y_changed = ui.horizontal(|ui| {
         ui.add(Label::new(RichText::new(" Y ").monospace()));
         ui.add(
             TextEdit::multiline(&mut p.expr.y)
                 .desired_width(ui.available_width())
                 .desired_rows(1)
-                .font(TextStyle::Monospace),
+                .font(TextStyle::Monospace)
+                .layouter(&mut y_layouter),
         )
         .changed()
     });
     if let Some(e) = &d.error.y {
-        e.spans();
         ui.colored_label(RED, e.to_string());
     }
 
@@ -185,5 +205,81 @@ fn expr_inputs(ui: &mut Ui, p: &mut CustomPlot, d: &CustomValues) -> ExprInput {
         removed: removed.inner,
         x_changed: x_changed.inner,
         y_changed: y_changed.inner,
+    }
+}
+
+fn mark_errors(input: &str, error: &cods::Error) -> LayoutJob {
+    let spans = error.spans();
+
+    let mut sections = Vec::new();
+    let mut pos = Pos::new(0, 0);
+    let mut range = 0..input.len();
+    let mut errors = 0;
+    for (i, c) in input.char_indices() {
+        for s in spans.iter() {
+            if s.start == pos {
+                if errors == 0 && i != 0 {
+                    range.end = i;
+                    sections.push(normal_section(range.clone()));
+                    range.start = i;
+                }
+                errors += 1;
+            }
+        }
+        for s in spans.iter() {
+            if s.end == pos {
+                errors -= 1;
+                if errors == 0 {
+                    range.end = i;
+                    sections.push(error_section(range.clone()));
+                    range.start = i;
+                }
+            }
+        }
+
+        match c {
+            '\n' => {
+                pos.line += 1;
+                pos.col = 0;
+            }
+            _ => pos.col += 1,
+        }
+    }
+
+    if sections.is_empty() || sections.last().unwrap().byte_range.end < input.len() {
+        range.end = input.len();
+        if errors == 0 {
+            sections.push(normal_section(range));
+        } else {
+            sections.push(error_section(range));
+        }
+    }
+
+    LayoutJob {
+        text: input.to_string(),
+        sections,
+        ..Default::default()
+    }
+}
+
+fn normal_section(range: Range<usize>) -> LayoutSection {
+    LayoutSection {
+        leading_space: 0.0,
+        byte_range: range,
+        format: TextFormat::default(),
+    }
+}
+
+fn error_section(range: Range<usize>) -> LayoutSection {
+    LayoutSection {
+        leading_space: 0.0,
+        byte_range: range,
+        format: TextFormat {
+            underline: egui::Stroke {
+                width: 2.0,
+                color: RED,
+            },
+            ..Default::default()
+        },
     }
 }
