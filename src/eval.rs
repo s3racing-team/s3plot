@@ -12,8 +12,7 @@ fn lerp(d: &DataEntry, t: &[TempEntry], f: impl Fn(&TempEntry) -> f64) -> f64 {
             let range = b.time() - a.time();
             let pos = d.time() - a.time();
             let factor = pos / range;
-            let val = f(a) + factor * (f(b) - f(a));
-            val
+            f(a) + factor * (f(b) - f(a))
         }
         _ => f64::NAN,
     }
@@ -176,9 +175,7 @@ pub fn eval(expr: &Expr, data: &Data, temp: &Temp) -> Result<Vec<Value>, ExprErr
     let mut temp_entries: &[TempEntry] = &[];
     for d in data.iter() {
         while let Some(t) = temp.get(temp_index) {
-            if t.ms == d.ms {
-                temp_entries = std::slice::from_ref(t);
-            } else if t.ms > d.ms && temp_index == 0 {
+            if t.ms == d.ms || t.ms > d.ms && temp_index == 0 {
                 temp_entries = std::slice::from_ref(t);
             } else if t.ms > d.ms {
                 temp_entries = &temp[temp_index - 1..temp_index + 1];
@@ -227,7 +224,7 @@ fn parse(ctx: &mut Context, vars: &mut Vec<(VarRef, Var)>, input: &str) -> cods:
 
     let asts = ctx.check_with(&mut scopes, csts)?;
     if !ctx.errors.is_empty() {
-        return Err(ctx.errors.remove(0).into());
+        return Err(ctx.errors.remove(0));
     }
 
     Ok(asts)
