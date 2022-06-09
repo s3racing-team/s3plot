@@ -70,12 +70,17 @@ pub fn custom_config(ui: &mut Ui, cfg: &mut CustomConfig) {
 }
 
 pub fn custom_plot(ui: &mut Ui, data: &mut PlotData, cfg: &mut CustomConfig) {
+    let panel_fill = if ui.style().visuals.dark_mode {
+        Color32::from_gray(0x20)
+    } else {
+        Color32::from_gray(0xf0)
+    };
     SidePanel::left("side_panel")
         .resizable(true)
         .frame(Frame {
             inner_margin: Margin::same(6.0),
             rounding: Rounding::same(5.0),
-            fill: Color32::from_rgb(0x20, 0x20, 0x20),
+            fill: panel_fill,
             ..Default::default()
         })
         .show_inside(ui, |ui| {
