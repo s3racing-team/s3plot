@@ -168,8 +168,8 @@ pub fn eval(expr: &Expr, data: &Data, temp: &Temp) -> Result<Vec<Value>, ExprErr
     let mut values = Vec::with_capacity(data.len());
     let mut stack_x = Stack::default();
     let mut stack_y = Stack::default();
-    stack_x.extend_to(vars_x.len());
-    stack_y.extend_to(vars_y.len());
+    stack_x.resize(vars_x.len());
+    stack_y.resize(vars_y.len());
 
     let mut temp_index = 0;
     let mut temp_entries: &[TempEntry] = &[];
