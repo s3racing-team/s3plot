@@ -1,4 +1,8 @@
+use std::path::Path;
+
 use egui::{Slider, Ui};
+
+use crate::fs::Files;
 
 pub fn ratio_slider(ui: &mut Ui, value: &mut f32, default_ratio: f32, range: f32) {
     let min = default_ratio / range;
@@ -22,4 +26,23 @@ pub fn format_time(t: f64) -> String {
     } else {
         format!("{h:02}:{m:02}:{s:02}.{sub_sec}")
     }
+}
+
+pub fn common_parent_dir(files: &Files) -> Option<&Path> {
+    let first = files.data.first()?;
+    let parent = first.parent()?;
+
+    for f in files.data.iter() {
+        if f.parent()? != parent {
+            return None;
+        }
+    }
+
+    if let Some(f) = &files.temp {
+        if f.parent()? != parent {
+            return None;
+        }
+    }
+
+    Some(parent)
 }

@@ -167,7 +167,7 @@ fn expr_inputs(ui: &mut Ui, p: &mut CustomPlot, d: &CustomValues) -> ExprInput {
             TextEdit::multiline(&mut p.expr.x)
                 .desired_width(ui.available_width())
                 .desired_rows(1)
-                .font(TextStyle::Monospace)
+                .code_editor()
                 .layouter(&mut x_layouter),
         )
         .changed()
@@ -190,7 +190,7 @@ fn expr_inputs(ui: &mut Ui, p: &mut CustomPlot, d: &CustomValues) -> ExprInput {
             TextEdit::multiline(&mut p.expr.y)
                 .desired_width(ui.available_width())
                 .desired_rows(1)
-                .font(TextStyle::Monospace)
+                .code_editor()
                 .layouter(&mut y_layouter),
         )
         .changed()

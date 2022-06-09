@@ -1,5 +1,5 @@
 use egui::plot::Value;
-use egui::{menu, CentralPanel, Key, TopBottomPanel};
+use egui::{menu, CentralPanel, Key, RichText, TopBottomPanel};
 use serde::{Deserialize, Serialize};
 
 use crate::data::{Data, Temp};
@@ -8,6 +8,7 @@ use crate::fs::Files;
 use crate::plot::{
     self, CustomConfig, PowerConfig, Temp1Config, Temp2Config, TorqueConfig, VelocityConfig,
 };
+use crate::util;
 
 #[derive(Serialize, Deserialize)]
 #[serde(default)]
@@ -122,12 +123,22 @@ impl eframe::App for PlotApp {
                 ui.add_space(40.0);
 
                 if let Some(files) = &self.files {
-                    // TODO: strip common components
+                    let prefix = match util::common_parent_dir(files) {
+                        Some(p) => {
+                            ui.label(format!("{}/", p.display()));
+                            ui.add_space(20.0);
+                            p
+                        }
+                        None => "".as_ref(),
+                    };
+
                     for p in files.data.iter() {
-                        ui.label(format!("{}", p.display()));
+                        let text = p.strip_prefix(prefix).unwrap().display().to_string();
+                        ui.label(RichText::new(text).strong());
                     }
                     if let Some(p) = &files.temp {
-                        ui.label(format!("{}", p.display()));
+                        let text = p.strip_prefix(prefix).unwrap().display().to_string();
+                        ui.label(RichText::new(text).strong());
                     }
                 }
             });
