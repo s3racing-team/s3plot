@@ -2,7 +2,6 @@ name: Build
 
 on:
   push:
-  pull_request:
   schedule:
   - cron:  '0 0 1 * *' # monthly
 
@@ -21,10 +20,14 @@ jobs:
     - run: cargo build --release
     - run: cargo test --release
     - run: strip target/release/s3plot
-    - uses: actions/upload-artifact@v2
+    - uses: softprops/action-gh-release@v0.1.14
       with:
-        name: s3plot-linux
-        path: target/release/s3plot
+        name: 's3plot nightly'
+        body: 'Nightly build of s3plot'
+        tag_name: 'nightly'
+        fail_on_unmatched_files: true
+        files: |
+          target/release/s3plot
   
   build-windows:
     runs-on: windows-latest
@@ -38,7 +41,11 @@ jobs:
     - run: cargo build --release
     - run: cargo test --release
     - run: strip target/release/s3plot.exe
-    - uses: actions/upload-artifact@v2
+    - uses: softprops/action-gh-release@v0.1.14
       with:
-        name: s3plot-windows
-        path: target/release/s3plot.exe
+        name: 's3plot nightly'
+        body: 'Nightly build of s3plot'
+        tag_name: 'nightly'
+        fail_on_unmatched_files: true
+        files: |
+          target/release/s3plot.exe
