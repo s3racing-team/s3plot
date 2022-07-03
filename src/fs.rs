@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fmt::Write as _;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
@@ -66,7 +67,7 @@ impl PlotApp {
             let mut text = String::new();
             for f in ctx.input().raw.hovered_files.iter() {
                 if let Some(p) = &f.path {
-                    text += &format!("\n{}", p.display());
+                    write!(&mut text, "\n{}", p.display()).ok();
                 }
             }
             painter.text(
