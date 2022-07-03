@@ -8,7 +8,7 @@ use egui::{Align2, Color32, Context, Id, LayerId, Order, Pos2, Rect, TextStyle, 
 use serde::{Deserialize, Serialize};
 
 use crate::app::{CustomValues, PlotData, WheelValues};
-use crate::data::{Data, DataEntry, MapOverTime, Temp, TempEntry};
+use crate::data::{Data, DataEntry, MapOverTime, Temp, TempEntry, Version};
 use crate::{eval, PlotApp};
 
 #[derive(Serialize, Deserialize, Default, Clone)]
@@ -96,24 +96,27 @@ impl PlotApp {
     }
 
     pub fn try_open(&mut self, files: Files) {
-        fn open_data(files: &Files) -> anyhow::Result<Data> {
+        fn open_data(files: &Files, version: Version) -> anyhow::Result<Data> {
             let mut data = Data::default();
             for p in files.data.iter() {
                 let mut reader = BufReader::new(File::open(p)?);
-                data.read_extend(&mut reader)?;
+                data.read_extend(&mut reader, version)?;
             }
             Ok(data)
         }
-        fn open_temp(files: &Files) -> anyhow::Result<Temp> {
+        fn open_temp(files: &Files, version: Version) -> anyhow::Result<Temp> {
             let mut temp = Temp::default();
             if let Some(p) = &files.temp {
                 let mut reader = BufReader::new(File::open(p)?);
-                temp.read_extend(&mut reader)?;
+                temp.read_extend(&mut reader, version)?;
             }
             Ok(temp)
         }
 
-        match (open_data(&files), open_temp(&files)) {
+        match (
+            open_data(&files, self.version),
+            open_temp(&files, self.version),
+        ) {
             (Ok(d), Ok(t)) => {
                 let power = WheelValues {
                     fl: d.iter().map_over_time(DataEntry::power_fl),

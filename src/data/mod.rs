@@ -2,6 +2,8 @@ use std::f64::consts::PI;
 
 use derive_more::{Deref, DerefMut};
 use egui::plot::Value;
+use serde::{Deserialize, Serialize};
+use strum::{Display, EnumIter};
 
 mod read;
 
@@ -26,6 +28,15 @@ pub struct Data {
     entries: Vec<DataEntry>,
 }
 
+#[derive(Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, EnumIter, Display)]
+pub enum Version {
+    #[strum(serialize = "s3 21e")]
+    S322e,
+    #[default]
+    #[strum(serialize = "s3 22e")]
+    S321e,
+}
+
 #[derive(Debug)]
 pub struct DataEntry {
     pub ms: f32,
@@ -44,9 +55,11 @@ pub struct DataEntry {
     gas: f32,
 
     #[allow(unused)]
-    ams_umin: i16,
+    ams_u_min: i16,
     #[allow(unused)]
-    ams_umin_true: i16,
+    ams_u_min_true: i16,
+    #[allow(unused)]
+    ams_u_avg: i16,
 
     #[allow(unused)]
     l_uzk: f32,

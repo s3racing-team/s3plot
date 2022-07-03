@@ -1,19 +1,35 @@
 use std::io::{self, Read, Seek, SeekFrom};
-use std::mem::size_of;
 
-use super::{Data, DataEntry, Temp, TempEntry};
+use super::{Data, DataEntry, Temp, TempEntry, Version};
 
-const DATA_SAMPLE_SIZE: usize = size_of::<DataEntry>();
-const TEMP_SAMPLE_SIZE: usize = size_of::<TempEntry>();
+impl Version {
+    fn data_sample_size(&self) -> usize {
+        match self {
+            Version::S322e => 132,
+            Version::S321e => 134,
+        }
+    }
+
+    fn temp_sample_size(&self) -> usize {
+        match self {
+            Version::S322e => 44,
+            Version::S321e => 44,
+        }
+    }
+}
 
 impl Data {
     fn extend_capacity(&mut self, cap: usize) {
         self.entries.reserve(cap);
     }
 
-    pub fn read_extend(&mut self, reader: &mut (impl Read + Seek)) -> anyhow::Result<()> {
+    pub fn read_extend(
+        &mut self,
+        reader: &mut (impl Read + Seek),
+        version: Version,
+    ) -> anyhow::Result<()> {
         let len = reader.len()?;
-        let samples = len as usize / DATA_SAMPLE_SIZE;
+        let samples = len as usize / version.data_sample_size();
         self.extend_capacity(samples);
 
         for _ in 0..samples {
@@ -28,8 +44,12 @@ impl Data {
 
                 gas: reader.read_f32()?,
 
-                ams_umin: reader.read_i16()?,
-                ams_umin_true: reader.read_i16()?,
+                ams_u_min: reader.read_i16()?,
+                ams_u_min_true: reader.read_i16()?,
+                ams_u_avg: match version {
+                    Version::S322e => 0,
+                    Version::S321e => reader.read_i16()?,
+                },
 
                 l_uzk: reader.read_f32()?,
                 speed_rl: reader.read_f32()?,
@@ -78,9 +98,13 @@ impl Temp {
         self.entries.reserve(cap);
     }
 
-    pub fn read_extend(&mut self, reader: &mut (impl Read + Seek)) -> anyhow::Result<()> {
+    pub fn read_extend(
+        &mut self,
+        reader: &mut (impl Read + Seek),
+        version: Version,
+    ) -> anyhow::Result<()> {
         let len = reader.len()?;
-        let samples = len as usize / TEMP_SAMPLE_SIZE;
+        let samples = len as usize / version.temp_sample_size();
         self.extend_capacity(samples);
 
         for _ in 0..samples {

@@ -1,8 +1,9 @@
 use egui::plot::Value;
 use egui::{menu, CentralPanel, Key, RichText, TopBottomPanel};
 use serde::{Deserialize, Serialize};
+use strum::IntoEnumIterator;
 
-use crate::data::{Data, Temp};
+use crate::data::{Data, Temp, Version};
 use crate::eval::ExprError;
 use crate::fs::Files;
 use crate::plot::{
@@ -15,6 +16,7 @@ use crate::util;
 pub struct PlotApp {
     pub files: Option<Files>,
     selected_tab: Tab,
+    pub version: Version,
     pub power: PowerConfig,
     pub velocity: VelocityConfig,
     pub torque: TorqueConfig,
@@ -93,6 +95,7 @@ impl Default for PlotApp {
             files: None,
             data: None,
             selected_tab: Tab::Power,
+            version: Version::default(),
             power: PowerConfig::default(),
             velocity: VelocityConfig::default(),
             torque: TorqueConfig::default(),
@@ -115,11 +118,31 @@ impl eframe::App for PlotApp {
 
         TopBottomPanel::top("top_panel").show(ctx, |ui| {
             menu::bar(ui, |ui| {
-                menu::menu_button(ui, "File", |ui| {
+                ui.menu_button("File", |ui| {
                     if ui.button("Open").clicked() {
                         self.open_dir_dialog();
+                        ui.close_menu();
+                    }
+                    if ui.button("Reopen").clicked() {
+                        if let Some(files) = self.files.clone() {
+                            self.try_open(files);
+                        }
+                        ui.close_menu();
                     }
                 });
+
+                ui.menu_button(format!("Version ( {} )", self.version), |ui| {
+                    let mut clicked = false;
+                    for v in Version::iter() {
+                        clicked |= ui
+                            .selectable_value(&mut self.version, v, v.to_string())
+                            .clicked();
+                    }
+                    if clicked {
+                        ui.close_menu();
+                    }
+                });
+
                 ui.add_space(40.0);
 
                 if let Some(files) = &self.files {
