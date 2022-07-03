@@ -48,6 +48,7 @@ jobs:
         name: 's3plot nightly'
         body: 'Nightly build of s3plot'
         tag_name: 'nightly'
+        prerelease: false
         fail_on_unmatched_files: true
         files: |
           target/release/s3plot.exe
