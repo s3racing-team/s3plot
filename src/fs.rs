@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::fmt::Write as _;
 use std::fs::File;
 use std::io::BufReader;
@@ -120,7 +119,7 @@ fn find_files(path: &Path) -> Result<Files, data::Error> {
     }
 
     let mut files = Files::default();
-    let mut paths = HashMap::new();
+    let mut paths = Vec::new();
     for entry in std::fs::read_dir(path)? {
         let entry = entry?;
         let path = entry.path();
@@ -132,17 +131,19 @@ fn find_files(path: &Path) -> Result<Files, data::Error> {
             if name == "temperature" {
                 files.temp = Some(path);
             } else if let Ok(n) = name.parse::<usize>() {
-                paths.insert(n, path);
+                let mut i = 0;
+                for (k, _) in paths.iter() {
+                    if n < *k {
+                        break;
+                    }
+                    i += 1;
+                }
+                paths.insert(i, (n, path));
             }
         }
     }
 
-    for i in 1.. {
-        match paths.remove(&i) {
-            Some(p) => files.data.push(p),
-            None => break,
-        }
-    }
+    files.data = paths.into_iter().map(|(_, p)| p).collect();
 
     Ok(files)
 }
