@@ -7,8 +7,9 @@ use std::path::{Path, PathBuf};
 use egui::{Align2, Color32, Context, Id, LayerId, Order, Pos2, Rect, TextStyle, Vec2};
 use serde::{Deserialize, Serialize};
 
-use crate::app::{CustomValues, PlotData, WheelValues};
-use crate::data::{Data, DataEntry, MapOverTime, Temp, TempEntry, Version};
+use crate::app::{self, CustomValues, PlotData, WheelValues};
+use crate::data::{self, Data, DataEntry, MapOverTime, Temp, TempEntry, Version};
+use crate::plot::CustomPlot;
 use crate::{eval, PlotApp};
 
 #[derive(Serialize, Deserialize, Default, Clone)]
@@ -96,109 +97,21 @@ impl PlotApp {
     }
 
     pub fn try_open(&mut self, files: Files) {
-        fn open_data(files: &Files, version: Version) -> anyhow::Result<Data> {
-            let mut data = Data::default();
-            for p in files.data.iter() {
-                let mut reader = BufReader::new(File::open(p)?);
-                data.read_extend(&mut reader, version)?;
+        match open_files(&files, self.version, &self.custom.plots) {
+            Ok(plot_data) => {
+                self.data = Some(plot_data);
+                self.error = None;
             }
-            Ok(data)
-        }
-        fn open_temp(files: &Files, version: Version) -> anyhow::Result<Temp> {
-            let mut temp = Temp::default();
-            if let Some(p) = &files.temp {
-                let mut reader = BufReader::new(File::open(p)?);
-                temp.read_extend(&mut reader, version)?;
-            }
-            Ok(temp)
-        }
-
-        match (
-            open_data(&files, self.version),
-            open_temp(&files, self.version),
-        ) {
-            (Ok(d), Ok(t)) => {
-                let power = WheelValues {
-                    fl: d.iter().map_over_time(DataEntry::power_fl),
-                    fr: d.iter().map_over_time(DataEntry::power_fr),
-                    rl: d.iter().map_over_time(DataEntry::power_rl),
-                    rr: d.iter().map_over_time(DataEntry::power_rr),
-                };
-                let velocity = WheelValues {
-                    fl: d.iter().map_over_time(DataEntry::velocity_fl),
-                    fr: d.iter().map_over_time(DataEntry::velocity_fr),
-                    rl: d.iter().map_over_time(DataEntry::velocity_rl),
-                    rr: d.iter().map_over_time(DataEntry::velocity_rr),
-                };
-                let torque_set = WheelValues {
-                    fl: d.iter().map_over_time(DataEntry::torque_set_fl),
-                    fr: d.iter().map_over_time(DataEntry::torque_set_fr),
-                    rl: d.iter().map_over_time(DataEntry::torque_set_rl),
-                    rr: d.iter().map_over_time(DataEntry::torque_set_rr),
-                };
-                let torque_real = WheelValues {
-                    fl: d.iter().map_over_time(DataEntry::torque_real_fl),
-                    fr: d.iter().map_over_time(DataEntry::torque_real_fr),
-                    rl: d.iter().map_over_time(DataEntry::torque_real_rl),
-                    rr: d.iter().map_over_time(DataEntry::torque_real_rr),
-                };
-                let temp = WheelValues {
-                    fl: t.iter().map_over_time(TempEntry::temp_fl),
-                    fr: t.iter().map_over_time(TempEntry::temp_fr),
-                    rl: t.iter().map_over_time(TempEntry::temp_rl),
-                    rr: t.iter().map_over_time(TempEntry::temp_rr),
-                };
-                let room_temp = WheelValues {
-                    fl: t.iter().map_over_time(TempEntry::room_temp_fl),
-                    fr: t.iter().map_over_time(TempEntry::room_temp_fr),
-                    rl: t.iter().map_over_time(TempEntry::room_temp_rl),
-                    rr: t.iter().map_over_time(TempEntry::room_temp_rr),
-                };
-                let heatsink_temp = WheelValues {
-                    fl: t.iter().map_over_time(TempEntry::heatsink_temp_fl),
-                    fr: t.iter().map_over_time(TempEntry::heatsink_temp_fr),
-                    rl: t.iter().map_over_time(TempEntry::heatsink_temp_rl),
-                    rr: t.iter().map_over_time(TempEntry::heatsink_temp_rr),
-                };
-                let ams_temp_max = t.iter().map_over_time(TempEntry::ams_temp_max);
-                let water_temp_converter = t.iter().map_over_time(TempEntry::water_temp_converter);
-                let water_temp_motor = t.iter().map_over_time(TempEntry::water_temp_motor);
-                let custom = self
-                    .custom
-                    .plots
-                    .iter()
-                    .map(|p| {
-                        let r = eval::eval(&p.expr, &d, &t);
-                        CustomValues::from_result(r)
-                    })
-                    .collect();
-
-                self.files = Some(files);
-                self.data = Some(PlotData {
-                    raw_data: d,
-                    raw_temp: t,
-                    power,
-                    velocity,
-                    torque_set,
-                    torque_real,
-                    temp,
-                    room_temp,
-                    heatsink_temp,
-                    ams_temp_max,
-                    water_temp_converter,
-                    water_temp_motor,
-                    custom,
-                });
-            }
-            _ => {
-                self.files = None;
+            Err(err) => {
                 self.data = None;
+                self.error = Some(err);
             }
         }
+        self.files = Some(files);
     }
 }
 
-fn find_files(path: &Path) -> anyhow::Result<Files> {
+fn find_files(path: &Path) -> Result<Files, data::Error> {
     fn filename(path: &Path) -> Option<&str> {
         if path.extension()? != "bin" {
             return None;
@@ -232,4 +145,113 @@ fn find_files(path: &Path) -> anyhow::Result<Files> {
     }
 
     Ok(files)
+}
+
+fn open_files(
+    files: &Files,
+    version: Version,
+    custom_plots: &[CustomPlot],
+) -> Result<PlotData, app::Error> {
+    let mut d = Data::default();
+    for p in files.data.iter() {
+        if let Err(e) = open_data(&mut d, p, version) {
+            return Err(app::Error {
+                file: p.to_str().unwrap_or_default().to_string(),
+                msg: e.to_string(),
+            });
+        }
+    }
+
+    let mut t = Temp::default();
+    if let Some(p) = &files.temp {
+        if let Err(e) = open_temp(&mut t, p, version) {
+            return Err(app::Error {
+                file: p.to_str().unwrap_or_default().to_string(),
+                msg: e.to_string(),
+            });
+        };
+    }
+
+    let power = WheelValues {
+        fl: d.iter().map_over_time(DataEntry::power_fl),
+        fr: d.iter().map_over_time(DataEntry::power_fr),
+        rl: d.iter().map_over_time(DataEntry::power_rl),
+        rr: d.iter().map_over_time(DataEntry::power_rr),
+    };
+    let velocity = WheelValues {
+        fl: d.iter().map_over_time(DataEntry::velocity_fl),
+        fr: d.iter().map_over_time(DataEntry::velocity_fr),
+        rl: d.iter().map_over_time(DataEntry::velocity_rl),
+        rr: d.iter().map_over_time(DataEntry::velocity_rr),
+    };
+    let torque_set = WheelValues {
+        fl: d.iter().map_over_time(DataEntry::torque_set_fl),
+        fr: d.iter().map_over_time(DataEntry::torque_set_fr),
+        rl: d.iter().map_over_time(DataEntry::torque_set_rl),
+        rr: d.iter().map_over_time(DataEntry::torque_set_rr),
+    };
+    let torque_real = WheelValues {
+        fl: d.iter().map_over_time(DataEntry::torque_real_fl),
+        fr: d.iter().map_over_time(DataEntry::torque_real_fr),
+        rl: d.iter().map_over_time(DataEntry::torque_real_rl),
+        rr: d.iter().map_over_time(DataEntry::torque_real_rr),
+    };
+    let temp = WheelValues {
+        fl: t.iter().map_over_time(TempEntry::temp_fl),
+        fr: t.iter().map_over_time(TempEntry::temp_fr),
+        rl: t.iter().map_over_time(TempEntry::temp_rl),
+        rr: t.iter().map_over_time(TempEntry::temp_rr),
+    };
+    let room_temp = WheelValues {
+        fl: t.iter().map_over_time(TempEntry::room_temp_fl),
+        fr: t.iter().map_over_time(TempEntry::room_temp_fr),
+        rl: t.iter().map_over_time(TempEntry::room_temp_rl),
+        rr: t.iter().map_over_time(TempEntry::room_temp_rr),
+    };
+    let heatsink_temp = WheelValues {
+        fl: t.iter().map_over_time(TempEntry::heatsink_temp_fl),
+        fr: t.iter().map_over_time(TempEntry::heatsink_temp_fr),
+        rl: t.iter().map_over_time(TempEntry::heatsink_temp_rl),
+        rr: t.iter().map_over_time(TempEntry::heatsink_temp_rr),
+    };
+    let ams_temp_max = t.iter().map_over_time(TempEntry::ams_temp_max);
+    let water_temp_converter = t.iter().map_over_time(TempEntry::water_temp_converter);
+    let water_temp_motor = t.iter().map_over_time(TempEntry::water_temp_motor);
+    let custom = custom_plots
+        .iter()
+        .map(|p| {
+            let r = eval::eval(&p.expr, &d, &t);
+            CustomValues::from_result(r)
+        })
+        .collect();
+
+    let plot_data = PlotData {
+        raw_data: d,
+        raw_temp: t,
+        power,
+        velocity,
+        torque_set,
+        torque_real,
+        temp,
+        room_temp,
+        heatsink_temp,
+        ams_temp_max,
+        water_temp_converter,
+        water_temp_motor,
+        custom,
+    };
+
+    Ok(plot_data)
+}
+
+fn open_data(data: &mut Data, path: &Path, version: Version) -> Result<(), data::Error> {
+    let mut reader = BufReader::new(File::open(path)?);
+    data.read_extend(&mut reader, version)?;
+    Ok(())
+}
+
+fn open_temp(temp: &mut Temp, path: &Path, version: Version) -> Result<(), data::Error> {
+    let mut reader = BufReader::new(File::open(path)?);
+    temp.read_extend(&mut reader, version)?;
+    Ok(())
 }

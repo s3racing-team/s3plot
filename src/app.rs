@@ -1,5 +1,5 @@
 use egui::plot::Value;
-use egui::{menu, CentralPanel, Key, RichText, TopBottomPanel};
+use egui::{menu, CentralPanel, Color32, Key, RichText, TopBottomPanel};
 use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
 
@@ -25,6 +25,13 @@ pub struct PlotApp {
     pub custom: CustomConfig,
     #[serde(skip)]
     pub data: Option<PlotData>,
+    #[serde(skip)]
+    pub error: Option<Error>,
+}
+
+pub struct Error {
+    pub file: String,
+    pub msg: String,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq)]
@@ -102,6 +109,7 @@ impl Default for PlotApp {
             temp1: Temp1Config::default(),
             temp2: Temp2Config::default(),
             custom: CustomConfig::default(),
+            error: None,
         }
     }
 }
@@ -196,6 +204,12 @@ impl eframe::App for PlotApp {
                     Tab::Temp2 => plot::temp2_plot(ui, d, &self.temp2),
                     Tab::Custom => plot::custom_plot(ui, d, &mut self.custom),
                 }
+            } else if let Some(error) = &self.error {
+                ui.label(
+                    RichText::new(format!("Error opening file: {}", error.file))
+                        .color(Color32::RED),
+                );
+                ui.label(RichText::new(error.msg.to_string()).color(Color32::RED));
             } else {
                 ui.label("Open or drag and drop a file");
             }

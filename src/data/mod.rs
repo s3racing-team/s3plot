@@ -1,4 +1,5 @@
 use std::f64::consts::PI;
+use std::{fmt, io};
 
 use derive_more::{Deref, DerefMut};
 use egui::plot::Value;
@@ -23,18 +24,41 @@ pub trait TimeStamped {
     fn time(&self) -> f64;
 }
 
-#[derive(Debug, Default, Deref, DerefMut)]
-pub struct Data {
-    entries: Vec<DataEntry>,
+#[derive(Debug)]
+pub enum Error {
+    IO(io::Error),
+    SanityCheck(&'static str),
+}
+
+impl std::error::Error for Error {}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::SanityCheck(message) => write!(f, "Sanity check failed: {message}. Maybe try selecting another version and reopening"),
+            Self::IO(error) => write!(f, "Error reading files: {}", error),
+        }
+    }
+}
+
+impl From<io::Error> for Error {
+    fn from(inner: io::Error) -> Self {
+        Self::IO(inner)
+    }
 }
 
 #[derive(Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, EnumIter, Display)]
 pub enum Version {
     #[strum(serialize = "s3 21e")]
-    S322e,
+    S321e,
     #[default]
     #[strum(serialize = "s3 22e")]
-    S321e,
+    S322e,
+}
+
+#[derive(Debug, Default, Deref, DerefMut)]
+pub struct Data {
+    entries: Vec<DataEntry>,
 }
 
 #[derive(Debug)]
