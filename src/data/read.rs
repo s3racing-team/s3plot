@@ -1,6 +1,6 @@
 use std::io::{self, Read, Seek, SeekFrom};
 
-use super::{Data, DataEntry, Error, Temp, TempEntry, Version};
+use super::{DataEntry, Error, TempEntry, Version};
 
 impl Version {
     fn data_sample_size(&self) -> usize {
@@ -18,28 +18,22 @@ impl Version {
     }
 }
 
-impl Data {
-    fn extend_capacity(&mut self, cap: usize) {
-        self.entries.reserve(cap);
+pub fn read_extend_data(
+    reader: &mut (impl Read + Seek),
+    data: &mut Vec<DataEntry>,
+    version: Version,
+) -> Result<(), Error> {
+    let len = reader.len()?;
+    let samples = len as usize / version.data_sample_size();
+    data.reserve(samples);
+
+    for _ in 0..samples {
+        let entry = read_data_entry(reader, version)?;
+        entry.sanity_check()?;
+        data.push(entry);
     }
 
-    pub fn read_extend(
-        &mut self,
-        reader: &mut (impl Read + Seek),
-        version: Version,
-    ) -> Result<(), Error> {
-        let len = reader.len()?;
-        let samples = len as usize / version.data_sample_size();
-        self.extend_capacity(samples);
-
-        for _ in 0..samples {
-            let entry = read_data_entry(reader, version)?;
-            entry.sanity_check()?;
-            self.entries.push(entry);
-        }
-
-        Ok(())
-    }
+    Ok(())
 }
 
 fn read_data_entry(reader: &mut (impl Read + Seek), version: Version) -> Result<DataEntry, Error> {
@@ -155,28 +149,22 @@ impl DataEntry {
     }
 }
 
-impl Temp {
-    fn extend_capacity(&mut self, cap: usize) {
-        self.entries.reserve(cap);
+pub fn read_extend_temp(
+    reader: &mut (impl Read + Seek),
+    temp: &mut Vec<TempEntry>,
+    version: Version,
+) -> Result<(), Error> {
+    let len = reader.len()?;
+    let samples = len as usize / version.temp_sample_size();
+    temp.reserve(samples);
+
+    for _ in 0..samples {
+        let entry = read_temp_entry(reader, version)?;
+        entry.sanity_check()?;
+        temp.push(entry);
     }
 
-    pub fn read_extend(
-        &mut self,
-        reader: &mut (impl Read + Seek),
-        version: Version,
-    ) -> Result<(), Error> {
-        let len = reader.len()?;
-        let samples = len as usize / version.temp_sample_size();
-        self.extend_capacity(samples);
-
-        for _ in 0..samples {
-            let entry = read_temp_entry(reader, version)?;
-            entry.sanity_check()?;
-            self.entries.push(entry);
-        }
-
-        Ok(())
-    }
+    Ok(())
 }
 
 fn read_temp_entry(reader: &mut (impl Read + Seek), _version: Version) -> Result<TempEntry, Error> {

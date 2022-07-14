@@ -6,23 +6,42 @@ use std::path::{Path, PathBuf};
 use egui::{Align2, Color32, Context, Id, LayerId, Order, Pos2, Rect, TextStyle, Vec2};
 use serde::{Deserialize, Serialize};
 
-use crate::app::{self, CustomValues, PlotData, WheelValues};
-use crate::data::{self, Data, DataEntry, MapOverTime, Temp, TempEntry, Version};
-use crate::plot::CustomPlot;
-use crate::{eval, PlotApp};
+use crate::data::{self, DataEntry, TempEntry, TimeStamped, Version};
+use crate::PlotApp;
 
-#[derive(Serialize, Deserialize, Default, Clone)]
+#[derive(Serialize, Deserialize, Default, Clone, Debug)]
 pub struct Files {
+    pub dir: PathBuf,
     pub data: Vec<PathBuf>,
-    pub temp: Option<PathBuf>,
+    pub temp: Vec<PathBuf>,
+}
+
+pub struct SelectableFiles {
+    pub dir: PathBuf,
+    pub data: Vec<SelectableFile<DataEntry>>,
+    pub temp: Vec<SelectableFile<TempEntry>>,
+}
+
+pub struct SelectableFile<T: TimeStamped> {
+    pub selected: bool,
+    pub file: PathBuf,
+    pub result: Result<Vec<T>, data::Error>,
+}
+
+impl<T: TimeStamped> SelectableFile<T> {
+    pub fn new(seleted: bool, file: PathBuf, result: Result<Vec<T>, data::Error>) -> Self {
+        Self {
+            selected: seleted,
+            file,
+            result,
+        }
+    }
 }
 
 impl PlotApp {
     pub fn open_dir_dialog(&mut self) {
         if let Some(path) = rfd::FileDialog::new().pick_folder() {
-            if let Ok(files) = find_files(&path) {
-                self.try_open(files);
-            }
+            self.try_open_dir(path);
         }
     }
 
@@ -86,41 +105,35 @@ impl PlotApp {
                 .raw
                 .dropped_files
                 .first()
-                .and_then(|f| f.path.as_ref())
+                .and_then(|f| f.path.clone())
             {
-                if let Ok(files) = find_files(p) {
-                    self.try_open(files);
-                }
+                self.try_open_dir(p);
             }
         }
     }
 
-    pub fn try_open(&mut self, files: Files) {
-        match open_files(&files, self.version, &self.custom.plots) {
-            Ok(plot_data) => {
-                self.data = Some(plot_data);
-                self.error = None;
-            }
-            Err(err) => {
-                self.data = None;
-                self.error = Some(err);
-            }
+    pub fn try_open_dir(&mut self, dir: PathBuf) {
+        if let Ok(files) = find_files(dir) {
+            self.selectable_files = Some(open_files(files, self.version));
         }
-        self.files = Some(files);
+    }
+
+    pub fn try_open_files(&mut self, files: Files) {
+        self.selectable_files = Some(open_files(files, self.version));
     }
 }
 
-fn find_files(path: &Path) -> Result<Files, data::Error> {
-    fn filename(path: &Path) -> Option<&str> {
-        if path.extension()? != "bin" {
+pub fn find_files(dir: PathBuf) -> Result<Files, data::Error> {
+    fn filename(file: &Path) -> Option<&str> {
+        if file.extension()? != "bin" {
             return None;
         }
-        path.file_stem()?.to_str()
+        file.file_stem()?.to_str()
     }
 
-    let mut files = Files::default();
-    let mut paths = Vec::new();
-    for entry in std::fs::read_dir(path)? {
+    let mut data_paths: Vec<(String, PathBuf)> = Vec::new();
+    let mut temp_paths: Vec<(String, PathBuf)> = Vec::new();
+    for entry in std::fs::read_dir(&dir)? {
         let entry = entry?;
         let path = entry.path();
         if !path.is_file() {
@@ -128,131 +141,65 @@ fn find_files(path: &Path) -> Result<Files, data::Error> {
         }
 
         if let Some(name) = filename(&path) {
-            if name == "temperature" {
-                files.temp = Some(path);
-            } else if let Ok(n) = name.parse::<usize>() {
+            if let Some(name) = name.strip_prefix("temperature") {
                 let mut i = 0;
-                for (k, _) in paths.iter() {
-                    if n < *k {
+                for (other, _) in temp_paths.iter() {
+                    if name < other {
                         break;
                     }
                     i += 1;
                 }
-                paths.insert(i, (n, path));
+                temp_paths.insert(i, (name.to_string(), path));
+            } else {
+                let mut i = 0;
+                for (other, _) in data_paths.iter() {
+                    if name < other {
+                        break;
+                    }
+                    i += 1;
+                }
+                data_paths.insert(i, (name.to_string(), path));
             }
         }
     }
 
-    files.data = paths.into_iter().map(|(_, p)| p).collect();
-
-    Ok(files)
+    Ok(Files {
+        dir,
+        data: data_paths.into_iter().map(|(_, p)| p).collect(),
+        temp: temp_paths.into_iter().map(|(_, p)| p).collect(),
+    })
 }
 
-fn open_files(
-    files: &Files,
-    version: Version,
-    custom_plots: &[CustomPlot],
-) -> Result<PlotData, app::Error> {
-    let mut d = Data::default();
+fn open_files(files: Files, version: Version) -> SelectableFiles {
+    let mut data = Vec::new();
     for p in files.data.iter() {
-        if let Err(e) = open_data(&mut d, p, version) {
-            return Err(app::Error {
-                file: p.to_str().unwrap_or_default().to_string(),
-                msg: e.to_string(),
-            });
-        }
+        let result = open_data(p, version);
+        data.push(SelectableFile::new(true, p.to_owned(), result));
     }
 
-    let mut t = Temp::default();
-    if let Some(p) = &files.temp {
-        if let Err(e) = open_temp(&mut t, p, version) {
-            return Err(app::Error {
-                file: p.to_str().unwrap_or_default().to_string(),
-                msg: e.to_string(),
-            });
-        };
+    let mut temp = Vec::new();
+    for p in files.temp.iter() {
+        let result = open_temp(p, version);
+        temp.push(SelectableFile::new(true, p.to_owned(), result));
     }
 
-    let power = WheelValues {
-        fl: d.iter().map_over_time(DataEntry::power_fl),
-        fr: d.iter().map_over_time(DataEntry::power_fr),
-        rl: d.iter().map_over_time(DataEntry::power_rl),
-        rr: d.iter().map_over_time(DataEntry::power_rr),
-    };
-    let velocity = WheelValues {
-        fl: d.iter().map_over_time(DataEntry::velocity_fl),
-        fr: d.iter().map_over_time(DataEntry::velocity_fr),
-        rl: d.iter().map_over_time(DataEntry::velocity_rl),
-        rr: d.iter().map_over_time(DataEntry::velocity_rr),
-    };
-    let torque_set = WheelValues {
-        fl: d.iter().map_over_time(DataEntry::torque_set_fl),
-        fr: d.iter().map_over_time(DataEntry::torque_set_fr),
-        rl: d.iter().map_over_time(DataEntry::torque_set_rl),
-        rr: d.iter().map_over_time(DataEntry::torque_set_rr),
-    };
-    let torque_real = WheelValues {
-        fl: d.iter().map_over_time(DataEntry::torque_real_fl),
-        fr: d.iter().map_over_time(DataEntry::torque_real_fr),
-        rl: d.iter().map_over_time(DataEntry::torque_real_rl),
-        rr: d.iter().map_over_time(DataEntry::torque_real_rr),
-    };
-    let temp = WheelValues {
-        fl: t.iter().map_over_time(TempEntry::temp_fl),
-        fr: t.iter().map_over_time(TempEntry::temp_fr),
-        rl: t.iter().map_over_time(TempEntry::temp_rl),
-        rr: t.iter().map_over_time(TempEntry::temp_rr),
-    };
-    let room_temp = WheelValues {
-        fl: t.iter().map_over_time(TempEntry::room_temp_fl),
-        fr: t.iter().map_over_time(TempEntry::room_temp_fr),
-        rl: t.iter().map_over_time(TempEntry::room_temp_rl),
-        rr: t.iter().map_over_time(TempEntry::room_temp_rr),
-    };
-    let heatsink_temp = WheelValues {
-        fl: t.iter().map_over_time(TempEntry::heatsink_temp_fl),
-        fr: t.iter().map_over_time(TempEntry::heatsink_temp_fr),
-        rl: t.iter().map_over_time(TempEntry::heatsink_temp_rl),
-        rr: t.iter().map_over_time(TempEntry::heatsink_temp_rr),
-    };
-    let ams_temp_max = t.iter().map_over_time(TempEntry::ams_temp_max);
-    let water_temp_converter = t.iter().map_over_time(TempEntry::water_temp_converter);
-    let water_temp_motor = t.iter().map_over_time(TempEntry::water_temp_motor);
-    let custom = custom_plots
-        .iter()
-        .map(|p| {
-            let r = eval::eval(&p.expr, &d, &t);
-            CustomValues::from_result(r)
-        })
-        .collect();
-
-    let plot_data = PlotData {
-        raw_data: d,
-        raw_temp: t,
-        power,
-        velocity,
-        torque_set,
-        torque_real,
+    SelectableFiles {
+        dir: files.dir,
+        data,
         temp,
-        room_temp,
-        heatsink_temp,
-        ams_temp_max,
-        water_temp_converter,
-        water_temp_motor,
-        custom,
-    };
-
-    Ok(plot_data)
+    }
 }
 
-fn open_data(data: &mut Data, path: &Path, version: Version) -> Result<(), data::Error> {
+fn open_data(path: &Path, version: Version) -> Result<Vec<DataEntry>, data::Error> {
+    let mut data = Vec::new();
     let mut reader = BufReader::new(File::open(path)?);
-    data.read_extend(&mut reader, version)?;
-    Ok(())
+    data::read_extend_data(&mut reader, &mut data, version)?;
+    Ok(data)
 }
 
-fn open_temp(temp: &mut Temp, path: &Path, version: Version) -> Result<(), data::Error> {
+fn open_temp(path: &Path, version: Version) -> Result<Vec<TempEntry>, data::Error> {
+    let mut temp = Vec::new();
     let mut reader = BufReader::new(File::open(path)?);
-    temp.read_extend(&mut reader, version)?;
-    Ok(())
+    data::read_extend_temp(&mut reader, &mut temp, version)?;
+    Ok(temp)
 }

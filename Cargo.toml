@@ -9,6 +9,7 @@ serde = { version = "1.0" }
 anyhow = "1.0"
 eframe = { version = "0.18.0", features = ["persistence", "dark-light"] }
 egui = { version = "0.18.1", features = ["persistence"] }
+egui_extras = "0.18.0"
 rfd = "0.9.1"
 strum = { version = "0.24.1", features = ["derive"] }
 derive_more = "0.99"

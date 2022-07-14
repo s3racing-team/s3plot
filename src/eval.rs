@@ -3,7 +3,7 @@ use egui::plot::Value;
 use serde::{Deserialize, Serialize};
 use strum::{Display, EnumIter, EnumString, IntoEnumIterator, IntoStaticStr};
 
-use crate::data::{Data, DataEntry, Temp, TempEntry, TimeStamped};
+use crate::data::{DataEntry, TempEntry, TimeStamped};
 
 fn lerp(d: &DataEntry, t: &[TempEntry], f: impl Fn(&TempEntry) -> f64) -> f64 {
     match t {
@@ -141,7 +141,7 @@ pub struct ExprError {
     pub y: Option<cods::Error>,
 }
 
-pub fn eval(expr: &Expr, data: &Data, temp: &Temp) -> Result<Vec<Value>, ExprError> {
+pub fn eval(expr: &Expr, data: &[DataEntry], temp: &[TempEntry]) -> Result<Vec<Value>, ExprError> {
     let mut ctx_x = Context::default();
     let mut ctx_y = Context::default();
     for v in Var::iter() {

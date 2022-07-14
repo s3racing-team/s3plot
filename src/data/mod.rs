@@ -1,10 +1,15 @@
 use std::f64::consts::PI;
 use std::{fmt, io};
 
-use derive_more::{Deref, DerefMut};
 use egui::plot::Value;
 use serde::{Deserialize, Serialize};
 use strum::{Display, EnumIter};
+
+use crate::app::{CustomValues, PlotData, WheelValues};
+use crate::eval;
+use crate::plot::CustomPlot;
+
+pub use read::{read_extend_data, read_extend_temp};
 
 mod read;
 
@@ -35,7 +40,10 @@ impl std::error::Error for Error {}
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::SanityCheck(message) => write!(f, "Sanity check failed: {message}. Maybe try selecting another version and reopening"),
+            Self::SanityCheck(message) => write!(
+                f,
+                "Sanity check failed: {message}. Maybe try selecting another version and reopening"
+            ),
             Self::IO(error) => write!(f, "Error reading files: {}", error),
         }
     }
@@ -56,12 +64,7 @@ pub enum Version {
     S322e,
 }
 
-#[derive(Debug, Default, Deref, DerefMut)]
-pub struct Data {
-    entries: Vec<DataEntry>,
-}
-
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct DataEntry {
     pub ms: f32,
 
@@ -213,12 +216,7 @@ impl DataEntry {
     }
 }
 
-#[derive(Debug, Default, Deref, DerefMut)]
-pub struct Temp {
-    pub entries: Vec<TempEntry>,
-}
-
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct TempEntry {
     pub ms: f32,
 
@@ -300,5 +298,76 @@ impl TempEntry {
     }
     pub fn heatsink_temp_fr(&self) -> f64 {
         self.heatsink_temp_fr as f64 * TEMP_FACTOR
+    }
+}
+
+pub fn process_data(d: Vec<DataEntry>, t: Vec<TempEntry>, custom_plots: &[CustomPlot]) -> PlotData {
+    let power = WheelValues {
+        fl: d.iter().map_over_time(DataEntry::power_fl),
+        fr: d.iter().map_over_time(DataEntry::power_fr),
+        rl: d.iter().map_over_time(DataEntry::power_rl),
+        rr: d.iter().map_over_time(DataEntry::power_rr),
+    };
+    let velocity = WheelValues {
+        fl: d.iter().map_over_time(DataEntry::velocity_fl),
+        fr: d.iter().map_over_time(DataEntry::velocity_fr),
+        rl: d.iter().map_over_time(DataEntry::velocity_rl),
+        rr: d.iter().map_over_time(DataEntry::velocity_rr),
+    };
+    let torque_set = WheelValues {
+        fl: d.iter().map_over_time(DataEntry::torque_set_fl),
+        fr: d.iter().map_over_time(DataEntry::torque_set_fr),
+        rl: d.iter().map_over_time(DataEntry::torque_set_rl),
+        rr: d.iter().map_over_time(DataEntry::torque_set_rr),
+    };
+    let torque_real = WheelValues {
+        fl: d.iter().map_over_time(DataEntry::torque_real_fl),
+        fr: d.iter().map_over_time(DataEntry::torque_real_fr),
+        rl: d.iter().map_over_time(DataEntry::torque_real_rl),
+        rr: d.iter().map_over_time(DataEntry::torque_real_rr),
+    };
+    let temp = WheelValues {
+        fl: t.iter().map_over_time(TempEntry::temp_fl),
+        fr: t.iter().map_over_time(TempEntry::temp_fr),
+        rl: t.iter().map_over_time(TempEntry::temp_rl),
+        rr: t.iter().map_over_time(TempEntry::temp_rr),
+    };
+    let room_temp = WheelValues {
+        fl: t.iter().map_over_time(TempEntry::room_temp_fl),
+        fr: t.iter().map_over_time(TempEntry::room_temp_fr),
+        rl: t.iter().map_over_time(TempEntry::room_temp_rl),
+        rr: t.iter().map_over_time(TempEntry::room_temp_rr),
+    };
+    let heatsink_temp = WheelValues {
+        fl: t.iter().map_over_time(TempEntry::heatsink_temp_fl),
+        fr: t.iter().map_over_time(TempEntry::heatsink_temp_fr),
+        rl: t.iter().map_over_time(TempEntry::heatsink_temp_rl),
+        rr: t.iter().map_over_time(TempEntry::heatsink_temp_rr),
+    };
+    let ams_temp_max = t.iter().map_over_time(TempEntry::ams_temp_max);
+    let water_temp_converter = t.iter().map_over_time(TempEntry::water_temp_converter);
+    let water_temp_motor = t.iter().map_over_time(TempEntry::water_temp_motor);
+    let custom = custom_plots
+        .iter()
+        .map(|p| {
+            let r = eval::eval(&p.expr, &d, &t);
+            CustomValues::from_result(r)
+        })
+        .collect();
+
+    PlotData {
+        raw_data: d,
+        raw_temp: t,
+        power,
+        velocity,
+        torque_set,
+        torque_real,
+        temp,
+        room_temp,
+        heatsink_temp,
+        ams_temp_max,
+        water_temp_converter,
+        water_temp_motor,
+        custom,
     }
 }
