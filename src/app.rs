@@ -6,7 +6,7 @@ use egui_extras::{Size, TableBuilder};
 use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
 
-use crate::data::{process_data, DataEntry, TempEntry, TimeStamped, Version};
+use crate::data::{DataEntry, TempEntry, TimeStamped, Version};
 use crate::eval::ExprError;
 use crate::fs::{Files, SelectableFile, SelectableFiles};
 use crate::plot::{
@@ -30,13 +30,6 @@ pub struct PlotApp {
     pub selectable_files: Option<SelectableFiles>,
     #[serde(skip)]
     pub data: Option<PlotData>,
-    #[serde(skip)]
-    pub error: Option<Error>,
-}
-
-pub struct Error {
-    pub file: String,
-    pub msg: String,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq)]
@@ -115,7 +108,6 @@ impl Default for PlotApp {
             temp1: Temp1Config::default(),
             temp2: Temp2Config::default(),
             custom: CustomConfig::default(),
-            error: None,
         }
     }
 }
@@ -145,7 +137,7 @@ impl eframe::App for PlotApp {
                     }
                     if ui.button("Reopen files").clicked() {
                         if let Some(files) = self.files.clone() {
-                            self.try_open_files(files);
+                            self.try_open_files(files, true);
                         }
                         ui.close_menu();
                     }
@@ -217,18 +209,12 @@ impl eframe::App for PlotApp {
                     Tab::Temp2 => plot::temp2_plot(ui, d, &self.temp2),
                     Tab::Custom => plot::custom_plot(ui, d, &mut self.custom),
                 }
-            } else if let Some(error) = &self.error {
-                ui.label(
-                    RichText::new(format!("Error opening file: {}", error.file))
-                        .color(Color32::RED),
-                );
-                ui.label(RichText::new(error.msg.to_string()).color(Color32::RED));
             } else {
-                ui.label("Open or drag and drop a file");
+                ui.label("Open or drag and drop a directory");
             }
         });
 
-        if let Some(o) = &mut self.selectable_files {
+        if let Some(files) = &mut self.selectable_files {
             let mut open = true;
             let r = Window::new("Select files")
                 .anchor(Align2::CENTER_CENTER, Vec2::ZERO)
@@ -236,12 +222,13 @@ impl eframe::App for PlotApp {
                 .open(&mut open)
                 .collapsible(false)
                 .resizable(false)
-                .show(ctx, |ui| select_files_dialog(ui, o));
+                .show(ctx, |ui| select_files_dialog(ui, files));
 
             match r {
                 Some(r) if open => {
                     if let Some(true) = r.inner {
-                        self.concat_and_open();
+                        let files = self.selectable_files.take().unwrap();
+                        self.concat_and_open(files);
                     }
                 }
                 _ => self.selectable_files = None,
@@ -385,59 +372,8 @@ impl PlotApp {
 
         if let Some(f) = app.files.clone() {
             // TODO: don't show selection dialog if all files are opened successfully
-            app.try_open_files(f);
+            app.try_open_files(f, false);
         }
         app
-    }
-
-    pub fn concat_and_open(&mut self) {
-        let selectable_files = self.selectable_files.take().unwrap(); // TODO: cleanup
-        let data_len = selectable_files
-            .data
-            .iter()
-            .filter(|f| f.selected)
-            .filter_map(|f| f.result.as_ref().ok())
-            .map(|d| d.len())
-            .sum();
-        let mut data = Vec::with_capacity(data_len);
-        let mut data_files = Vec::with_capacity(data_len);
-        for (p, d) in selectable_files
-            .data
-            .into_iter()
-            .filter(|f| f.selected)
-            .filter_map(|f| f.result.ok().map(|d| (f.file, d)))
-        {
-            data.extend_from_slice(&*d);
-            data_files.push(p);
-        }
-
-        let temp_len = selectable_files
-            .temp
-            .iter()
-            .filter(|f| f.selected)
-            .filter_map(|f| f.result.as_ref().ok())
-            .map(|t| t.len())
-            .sum();
-        let mut temp = Vec::with_capacity(temp_len);
-        let mut temp_files = Vec::with_capacity(temp_len);
-        for (p, t) in selectable_files
-            .temp
-            .into_iter()
-            .filter(|f| f.selected)
-            .filter_map(|f| f.result.ok().map(|d| (f.file, d)))
-        {
-            temp.extend_from_slice(&*t);
-            temp_files.push(p);
-        }
-
-        let files = Files {
-            dir: selectable_files.dir,
-            data: data_files,
-            temp: temp_files,
-        };
-
-        self.selectable_files = None;
-        self.files = Some(files);
-        self.data = Some(process_data(data, temp, &self.custom.plots));
     }
 }

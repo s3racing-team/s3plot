@@ -118,8 +118,67 @@ impl PlotApp {
         }
     }
 
-    pub fn try_open_files(&mut self, files: Files) {
-        self.selectable_files = Some(open_files(files, self.version));
+    pub fn try_open_files(&mut self, files: Files, always_show_dialog: bool) {
+        let selectable_files = open_files(files, self.version);
+
+        let all_succeeded = selectable_files.data.iter().all(|f| f.result.is_ok())
+            && selectable_files.data.iter().all(|f| f.result.is_ok());
+
+        if all_succeeded && !always_show_dialog {
+            self.concat_and_open(selectable_files);
+        } else {
+            self.selectable_files = Some(selectable_files);
+        }
+    }
+
+    pub fn concat_and_open(&mut self, selectable_files: SelectableFiles) {
+        let data_len = selectable_files
+            .data
+            .iter()
+            .filter(|f| f.selected)
+            .filter_map(|f| f.result.as_ref().ok())
+            .map(|d| d.len())
+            .sum();
+        let mut data = Vec::with_capacity(data_len);
+        let mut data_files = Vec::with_capacity(data_len);
+        for (p, d) in selectable_files
+            .data
+            .into_iter()
+            .filter(|f| f.selected)
+            .filter_map(|f| f.result.ok().map(|d| (f.file, d)))
+        {
+            data.extend_from_slice(&*d);
+            data_files.push(p);
+        }
+
+        let temp_len = selectable_files
+            .temp
+            .iter()
+            .filter(|f| f.selected)
+            .filter_map(|f| f.result.as_ref().ok())
+            .map(|t| t.len())
+            .sum();
+        let mut temp = Vec::with_capacity(temp_len);
+        let mut temp_files = Vec::with_capacity(temp_len);
+        for (p, t) in selectable_files
+            .temp
+            .into_iter()
+            .filter(|f| f.selected)
+            .filter_map(|f| f.result.ok().map(|d| (f.file, d)))
+        {
+            temp.extend_from_slice(&*t);
+            temp_files.push(p);
+        }
+
+        let files = Files {
+            dir: selectable_files.dir,
+            data: data_files,
+            temp: temp_files,
+        };
+
+        self.selectable_files = None;
+        self.files = Some(files);
+        self.data = Some(data::process_data(data, temp, &self.custom.plots));
     }
 }
 
