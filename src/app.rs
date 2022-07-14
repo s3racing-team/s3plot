@@ -181,7 +181,9 @@ impl eframe::App for PlotApp {
         });
 
         CentralPanel::default().show(ctx, |ui| {
-            if let Some(d) = &mut self.data {
+            if self.selectable_files.is_some() {
+                ui.label("...");
+            } else if let Some(d) = &mut self.data {
                 ui.horizontal(|ui| {
                     ui.selectable_value(&mut self.selected_tab, Tab::Power, "Power");
                     ui.selectable_value(&mut self.selected_tab, Tab::Velocity, "Velocity");
