@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use cods::{Asts, Context, Ident, IdentSpan, Scopes, Span, Stack, Val, VarRef};
-use egui::plot::Value;
+use cods::{Asts, Checker, Context, Funs, Ident, IdentSpan, Span, Stack, Val, VarRef};
+use egui::plot::PlotPoint;
 use serde::{Deserialize, Serialize};
 use strum::{Display, EnumIter, EnumString, IntoEnumIterator, IntoStaticStr};
 
@@ -147,7 +147,7 @@ pub fn eval(
     expr: &Expr,
     data: Arc<[DataEntry]>,
     temp: Arc<[TempEntry]>,
-) -> Result<Vec<Value>, ExprError> {
+) -> Result<Vec<PlotPoint>, ExprError> {
     let mut ctx_x = Context::default();
     let mut ctx_y = Context::default();
     for v in Var::iter() {
@@ -161,7 +161,7 @@ pub fn eval(
     let asts_x = parse(&mut ctx_x, &mut vars_x, &expr.x);
     let asts_y = parse(&mut ctx_y, &mut vars_y, &expr.y);
 
-    let (asts_x, asts_y) = match (asts_x, asts_y) {
+    let ((funs_x, asts_x), (funs_y, asts_y)) = match (asts_x, asts_y) {
         (Ok(x), Ok(y)) => (x, y),
         (x, y) => {
             return Err(ExprError {
@@ -203,12 +203,12 @@ pub fn eval(
             stack_y.set(var, val);
         }
 
-        let x = cods::eval_with(&mut stack_x, &asts_x);
-        let y = cods::eval_with(&mut stack_y, &asts_y);
+        let x = cods::eval_with(&mut stack_x, &funs_x, &asts_x);
+        let y = cods::eval_with(&mut stack_y, &funs_y, &asts_y);
 
         if let (Ok(x), Ok(y)) = (x, y) {
             if let (Some(x), Some(y)) = (cast_float(x), cast_float(y)) {
-                values.push(Value::new(x, y));
+                values.push(PlotPoint::new(x, y));
             }
         };
     }
@@ -216,24 +216,34 @@ pub fn eval(
     Ok(values)
 }
 
-fn parse(ctx: &mut Context, vars: &mut Vec<(VarRef, Var)>, input: &str) -> cods::Result<Asts> {
+fn parse(
+    ctx: &mut Context,
+    vars: &mut Vec<(VarRef, Var)>,
+    input: &str,
+) -> cods::Result<(Funs, Asts)> {
     let tokens = ctx.lex(input)?;
     let items = ctx.group(tokens)?;
     let csts = ctx.parse(items)?;
 
-    let mut scopes = Scopes::default();
+    let mut checker = Checker::default();
     for (id, v) in Var::iter().enumerate() {
         let ident = IdentSpan::new(Ident(id), Span::pos(0, 0));
-        let inner = ctx.def_var(&mut scopes, ident, cods::DataType::Float, true, false);
+        let inner = ctx.def_var(
+            &mut checker.scopes,
+            ident,
+            cods::DataType::Float,
+            true,
+            false,
+        );
         vars.push((inner, v));
     }
 
-    let asts = ctx.check_with(&mut scopes, csts)?;
+    let asts = ctx.check_with(&mut checker, csts)?;
     if !ctx.errors.is_empty() {
         return Err(ctx.errors.remove(0));
     }
 
-    Ok(asts)
+    Ok((checker.funs, asts))
 }
 
 fn cast_float(val: Val) -> Option<f64> {

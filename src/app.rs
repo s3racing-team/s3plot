@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::thread::JoinHandle;
 
-use egui::plot::Value;
+use egui::plot::PlotPoint;
 use egui::{menu, Align2, CentralPanel, Color32, Key, RichText, TopBottomPanel, Ui, Vec2, Window};
 use egui_extras::{Size, TableBuilder};
 use serde::{Deserialize, Serialize};
@@ -54,15 +54,15 @@ pub struct PlotData {
     pub temp: WheelValues,
     pub room_temp: WheelValues,
     pub heatsink_temp: WheelValues,
-    pub ams_temp_max: Vec<Value>,
-    pub water_temp_converter: Vec<Value>,
-    pub water_temp_motor: Vec<Value>,
+    pub ams_temp_max: Vec<PlotPoint>,
+    pub water_temp_converter: Vec<PlotPoint>,
+    pub water_temp_motor: Vec<PlotPoint>,
     pub custom: Vec<CustomValues>,
 }
 
 pub enum CustomValues {
     Job(Job),
-    Result(Result<Vec<Value>, ExprError>),
+    Result(Result<Vec<PlotPoint>, ExprError>),
 }
 
 impl CustomValues {
@@ -79,7 +79,7 @@ impl CustomValues {
 }
 
 pub struct Job {
-    handle: JoinHandle<Result<Vec<Value>, ExprError>>,
+    handle: JoinHandle<Result<Vec<PlotPoint>, ExprError>>,
 }
 
 impl Job {
@@ -92,16 +92,16 @@ impl Job {
         self.handle.is_finished()
     }
 
-    pub fn join(self) -> Result<Vec<Value>, ExprError> {
+    pub fn join(self) -> Result<Vec<PlotPoint>, ExprError> {
         self.handle.join().expect("failed to join worker thread")
     }
 }
 
 pub struct WheelValues {
-    pub fl: Vec<Value>,
-    pub fr: Vec<Value>,
-    pub rl: Vec<Value>,
-    pub rr: Vec<Value>,
+    pub fl: Vec<PlotPoint>,
+    pub fr: Vec<PlotPoint>,
+    pub rl: Vec<PlotPoint>,
+    pub rr: Vec<PlotPoint>,
 }
 
 impl Default for PlotApp {

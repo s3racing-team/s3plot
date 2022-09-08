@@ -1,5 +1,5 @@
 use derive_more::{Deref, DerefMut};
-use egui::plot::{Legend, LinkedAxisGroup, Plot, Value};
+use egui::plot::{Legend, LinkedAxisGroup, Plot, PlotPoint};
 use egui::Ui;
 use serde::{Deserialize, Serialize};
 
@@ -28,7 +28,7 @@ impl WheelPlotConfig for Temp1Config {
     const NAME: &'static str = "temp1";
     const ASPECT_RATIO: f32 = TEMP_ASPECT_RATIO;
 
-    fn format_label(name: &str, val: &Value) -> String {
+    fn format_label(name: &str, val: &PlotPoint) -> String {
         let x = format_time(val.x);
         let y = (val.y * 1000.0).round() / 1000.0;
         format!("{name}\nt = {x}\nT = {y}°C")

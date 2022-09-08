@@ -1,6 +1,6 @@
 use std::ops::{Deref, DerefMut};
 
-use egui::plot::{Legend, Line, LinkedAxisGroup, Plot, Value, Values};
+use egui::plot::{Legend, Line, LinkedAxisGroup, Plot, PlotPoint, PlotPoints};
 use egui::{TextStyle, Ui};
 use serde::{Deserialize, Serialize};
 
@@ -20,7 +20,7 @@ const DEFAULT_LINKED: bool = true;
 pub trait WheelPlotConfig: Deref<Target = WheelConfig> + DerefMut {
     const NAME: &'static str;
     const ASPECT_RATIO: f32;
-    fn format_label(name: &str, val: &Value) -> String;
+    fn format_label(name: &str, val: &PlotPoint) -> String;
 }
 
 #[derive(Serialize, Deserialize)]
@@ -46,8 +46,8 @@ pub fn wheel_config<T: WheelPlotConfig>(ui: &mut Ui, cfg: &mut T) {
     cfg.axis_group.set_link_y(linked);
 }
 
-fn line(values: Vec<Value>) -> Line {
-    Line::new(Values::from_values(values))
+fn line(values: Vec<PlotPoint>) -> Line {
+    Line::new(PlotPoints::Owned(values))
 }
 
 fn wheel_plot<T: WheelPlotConfig, const COUNT: usize>(

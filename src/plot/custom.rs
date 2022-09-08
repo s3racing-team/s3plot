@@ -2,7 +2,7 @@ use std::ops::Range;
 use std::sync::Arc;
 
 use cods::{Pos, UserFacing};
-use egui::plot::{Legend, Line, Plot, Value, Values};
+use egui::plot::{Legend, Line, Plot};
 use egui::style::Margin;
 use egui::text::{LayoutJob, LayoutSection};
 use egui::{
@@ -114,7 +114,7 @@ pub fn custom_plot(ui: &mut Ui, data: &mut PlotData, cfg: &mut CustomConfig) {
 
                         match c {
                             CustomValues::Result(Ok(d)) => ui.line(line(d.clone()).name(&p.name)),
-                            _ => ui.line(line(vec![Value::new(0.0, f64::NAN)]).name(&p.name)),
+                            _ => ui.line(Line::new([0.0, f64::NAN]).name(&p.name)),
                         }
                     }
                 });

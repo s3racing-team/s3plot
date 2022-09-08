@@ -203,7 +203,7 @@ pub fn find_files(dir: PathBuf) -> Result<Files, data::Error> {
             if let Some(name) = name.strip_prefix("temperature") {
                 let mut i = 0;
                 for (other, _) in temp_paths.iter() {
-                    if name < other {
+                    if name < other.as_str() {
                         break;
                     }
                     i += 1;
@@ -212,7 +212,7 @@ pub fn find_files(dir: PathBuf) -> Result<Files, data::Error> {
             } else {
                 let mut i = 0;
                 for (other, _) in data_paths.iter() {
-                    if name < other {
+                    if name < other.as_str() {
                         break;
                     }
                     i += 1;

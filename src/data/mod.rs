@@ -2,7 +2,7 @@ use std::f64::consts::PI;
 use std::sync::Arc;
 use std::{fmt, io};
 
-use egui::plot::Value;
+use egui::plot::PlotPoint;
 use serde::{Deserialize, Serialize};
 use strum::{Display, EnumIter};
 
@@ -21,8 +21,8 @@ where
 {
 }
 pub trait MapOverTime<'a, T: TimeStamped + 'a>: Iterator<Item = &'a T> + Sized {
-    fn map_over_time(self, f: impl Fn(&T) -> f64) -> Vec<Value> {
-        self.map(|e| Value::new(e.time(), f(e))).collect()
+    fn map_over_time(self, f: impl Fn(&T) -> f64) -> Vec<PlotPoint> {
+        self.map(|e| PlotPoint::new(e.time(), f(e))).collect()
     }
 }
 

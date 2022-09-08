@@ -1,5 +1,5 @@
 use derive_more::{Deref, DerefMut};
-use egui::plot::{LinkedAxisGroup, Value};
+use egui::plot::{LinkedAxisGroup, PlotPoint};
 use egui::Ui;
 use serde::{Deserialize, Serialize};
 
@@ -30,7 +30,7 @@ impl WheelPlotConfig for PowerConfig {
     const NAME: &'static str = "power";
     const ASPECT_RATIO: f32 = POWER_ASPECT_RATIO;
 
-    fn format_label(_name: &str, val: &Value) -> String {
+    fn format_label(_name: &str, val: &PlotPoint) -> String {
         let x = format_time(val.x);
         let y = (val.y * 1000.0).round() / 1000.0;
         format!("t = {x}\nP = {y}W")
@@ -55,7 +55,7 @@ impl WheelPlotConfig for VelocityConfig {
     const NAME: &'static str = "velocity";
     const ASPECT_RATIO: f32 = VELOCITY_ASPECT_RATIO;
 
-    fn format_label(_name: &str, val: &Value) -> String {
+    fn format_label(_name: &str, val: &PlotPoint) -> String {
         let x = format_time(val.x);
         let y = (val.y * 1000.0).round() / 1000.0;
         format!("t = {x}\nv = {y}km/h")
@@ -80,7 +80,7 @@ impl WheelPlotConfig for TorqueConfig {
     const NAME: &'static str = "torque";
     const ASPECT_RATIO: f32 = TORQUE_ASPECT_RATIO;
 
-    fn format_label(name: &str, val: &Value) -> String {
+    fn format_label(name: &str, val: &PlotPoint) -> String {
         let x = format_time(val.x);
         let y = (val.y * 1000.0).round() / 1000.0;
         format!("{name}\nt = {x}\nM = {y}Nm")
