@@ -61,7 +61,7 @@ fn get_value(var: Var, d: &DataEntry, t: &[TempEntry]) -> Val {
     Val::Float(val)
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, EnumIter, EnumString, IntoStaticStr, Display)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, EnumIter, EnumString, IntoStaticStr, Display)]
 pub enum Var {
     #[strum(serialize = "t")]
     Time,
@@ -147,7 +147,7 @@ pub fn eval(
     expr: &Expr,
     data: Arc<[DataEntry]>,
     temp: Arc<[TempEntry]>,
-) -> Result<Vec<PlotPoint>, ExprError> {
+) -> Result<Vec<PlotPoint>, Box<ExprError>> {
     let mut ctx_x = Context::default();
     let mut ctx_y = Context::default();
     for v in Var::iter() {
@@ -164,10 +164,10 @@ pub fn eval(
     let ((funs_x, asts_x), (funs_y, asts_y)) = match (asts_x, asts_y) {
         (Ok(x), Ok(y)) => (x, y),
         (x, y) => {
-            return Err(ExprError {
+            return Err(Box::new(ExprError {
                 x: x.err(),
                 y: y.err(),
-            })
+            }));
         }
     };
 

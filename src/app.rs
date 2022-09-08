@@ -62,7 +62,7 @@ pub struct PlotData {
 
 pub enum CustomValues {
     Job(Job),
-    Result(Result<Vec<PlotPoint>, ExprError>),
+    Result(Result<Vec<PlotPoint>, Box<ExprError>>),
 }
 
 impl CustomValues {
@@ -70,7 +70,7 @@ impl CustomValues {
         Self::Result(Ok(Vec::new()))
     }
 
-    pub fn as_job(self) -> Option<Job> {
+    pub fn into_job(self) -> Option<Job> {
         match self {
             Self::Job(v) => Some(v),
             _ => None,
@@ -79,7 +79,7 @@ impl CustomValues {
 }
 
 pub struct Job {
-    handle: JoinHandle<Result<Vec<PlotPoint>, ExprError>>,
+    handle: JoinHandle<Result<Vec<PlotPoint>, Box<ExprError>>>,
 }
 
 impl Job {
@@ -92,7 +92,7 @@ impl Job {
         self.handle.is_finished()
     }
 
-    pub fn join(self) -> Result<Vec<PlotPoint>, ExprError> {
+    pub fn join(self) -> Result<Vec<PlotPoint>, Box<ExprError>> {
         self.handle.join().expect("failed to join worker thread")
     }
 }

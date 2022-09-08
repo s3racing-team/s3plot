@@ -106,7 +106,7 @@ pub fn custom_plot(ui: &mut Ui, data: &mut PlotData, cfg: &mut CustomConfig) {
                         if let CustomValues::Job(j) = c {
                             if j.is_done() {
                                 let job = std::mem::replace(c, CustomValues::empty());
-                                *c = CustomValues::Result(job.as_job().unwrap().join());
+                                *c = CustomValues::Result(job.into_job().unwrap().join());
                             } else {
                                 ui.ctx().request_repaint();
                             }
