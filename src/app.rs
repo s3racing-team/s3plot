@@ -1,4 +1,6 @@
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use std::thread::JoinHandle;
 
 use egui::plot::Value;
 use egui::{menu, Align2, CentralPanel, Color32, Key, RichText, TopBottomPanel, Ui, Vec2, Window};
@@ -7,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
 
 use crate::data::{DataEntry, TempEntry, TimeStamped, Version};
-use crate::eval::ExprError;
+use crate::eval::{self, Expr, ExprError};
 use crate::fs::{Files, SelectableFile, SelectableFiles};
 use crate::plot::{
     self, CustomConfig, PowerConfig, Temp1Config, Temp2Config, TorqueConfig, VelocityConfig,
@@ -43,8 +45,8 @@ enum Tab {
 }
 
 pub struct PlotData {
-    pub raw_data: Vec<DataEntry>,
-    pub raw_temp: Vec<TempEntry>,
+    pub raw_data: Arc<[DataEntry]>,
+    pub raw_temp: Arc<[TempEntry]>,
     pub power: WheelValues,
     pub velocity: WheelValues,
     pub torque_set: WheelValues,
@@ -58,40 +60,48 @@ pub struct PlotData {
     pub custom: Vec<CustomValues>,
 }
 
+pub enum CustomValues {
+    Job(Job),
+    Result(Result<Vec<Value>, ExprError>),
+}
+
+impl CustomValues {
+    pub const fn empty() -> Self {
+        Self::Result(Ok(Vec::new()))
+    }
+
+    pub fn as_job(self) -> Option<Job> {
+        match self {
+            Self::Job(v) => Some(v),
+            _ => None,
+        }
+    }
+}
+
+pub struct Job {
+    handle: JoinHandle<Result<Vec<Value>, ExprError>>,
+}
+
+impl Job {
+    pub fn start(expr: Expr, data: Arc<[DataEntry]>, temp: Arc<[TempEntry]>) -> Self {
+        let handle = std::thread::spawn(move || eval::eval(&expr, data, temp));
+        Self { handle }
+    }
+
+    pub fn is_done(&self) -> bool {
+        self.handle.is_finished()
+    }
+
+    pub fn join(self) -> Result<Vec<Value>, ExprError> {
+        self.handle.join().expect("failed to join worker thread")
+    }
+}
+
 pub struct WheelValues {
     pub fl: Vec<Value>,
     pub fr: Vec<Value>,
     pub rl: Vec<Value>,
     pub rr: Vec<Value>,
-}
-
-#[derive(Default)]
-pub struct CustomValues {
-    pub error: ExprError,
-    pub values: Vec<Value>,
-}
-
-impl CustomValues {
-    pub fn from_values(values: Vec<Value>) -> Self {
-        Self {
-            error: ExprError::default(),
-            values,
-        }
-    }
-
-    pub fn from_error(error: ExprError) -> Self {
-        Self {
-            error,
-            values: Vec::new(),
-        }
-    }
-
-    pub fn from_result(r: Result<Vec<Value>, ExprError>) -> Self {
-        match r {
-            Ok(v) => CustomValues::from_values(v),
-            Err(e) => CustomValues::from_error(e),
-        }
-    }
 }
 
 impl Default for PlotApp {

@@ -1,4 +1,5 @@
 use std::f64::consts::PI;
+use std::sync::Arc;
 use std::{fmt, io};
 
 use egui::plot::Value;
@@ -347,12 +348,11 @@ pub fn process_data(d: Vec<DataEntry>, t: Vec<TempEntry>, custom_plots: &[Custom
     let ams_temp_max = t.iter().map_over_time(TempEntry::ams_temp_max);
     let water_temp_converter = t.iter().map_over_time(TempEntry::water_temp_converter);
     let water_temp_motor = t.iter().map_over_time(TempEntry::water_temp_motor);
+    let d = Arc::from(d);
+    let t = Arc::from(t);
     let custom = custom_plots
         .iter()
-        .map(|p| {
-            let r = eval::eval(&p.expr, &d, &t);
-            CustomValues::from_result(r)
-        })
+        .map(|p| CustomValues::Result(eval::eval(&p.expr, Arc::clone(&d), Arc::clone(&t))))
         .collect();
 
     PlotData {

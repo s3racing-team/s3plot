@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use cods::{Asts, Context, Ident, IdentSpan, Scopes, Span, Stack, Val, VarRef};
 use egui::plot::Value;
 use serde::{Deserialize, Serialize};
@@ -129,7 +131,7 @@ pub enum Var {
     HeatsinkTempRr,
 }
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Default, Clone, Serialize, Deserialize)]
 pub struct Expr {
     pub x: String,
     pub y: String,
@@ -141,7 +143,11 @@ pub struct ExprError {
     pub y: Option<cods::Error>,
 }
 
-pub fn eval(expr: &Expr, data: &[DataEntry], temp: &[TempEntry]) -> Result<Vec<Value>, ExprError> {
+pub fn eval(
+    expr: &Expr,
+    data: Arc<[DataEntry]>,
+    temp: Arc<[TempEntry]>,
+) -> Result<Vec<Value>, ExprError> {
     let mut ctx_x = Context::default();
     let mut ctx_y = Context::default();
     for v in Var::iter() {

@@ -1,7 +1,8 @@
 use std::ops::Range;
+use std::sync::Arc;
 
 use cods::{Pos, UserFacing};
-use egui::plot::{Legend, Plot};
+use egui::plot::{Legend, Line, Plot, Value, Values};
 use egui::style::Margin;
 use egui::text::{LayoutJob, LayoutSection};
 use egui::{
@@ -11,8 +12,8 @@ use egui::{
 use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
 
-use crate::app::{CustomValues, PlotData};
-use crate::eval::{self, Expr, Var};
+use crate::app::{CustomValues, Job, PlotData};
+use crate::eval::{Expr, Var};
 use crate::util::{self, format_time};
 
 use super::line;
@@ -92,7 +93,7 @@ pub fn custom_plot(ui: &mut Ui, data: &mut PlotData, cfg: &mut CustomConfig) {
     CentralPanel::default()
         .frame(Frame::none())
         .show_inside(ui, |ui| {
-            Plot::new("rr_motor")
+            Plot::new("custom")
                 .data_aspect(cfg.aspect_ratio)
                 .label_formatter(|_, v| {
                     let x = format_time(v.x);
@@ -101,8 +102,20 @@ pub fn custom_plot(ui: &mut Ui, data: &mut PlotData, cfg: &mut CustomConfig) {
                 })
                 .legend(Legend::default())
                 .show(ui, |ui| {
-                    for (d, p) in data.custom.iter().zip(cfg.plots.iter()) {
-                        ui.line(line(d.values.clone()).name(&p.name));
+                    for (c, p) in data.custom.iter_mut().zip(cfg.plots.iter()) {
+                        if let CustomValues::Job(j) = c {
+                            if j.is_done() {
+                                let job = std::mem::replace(c, CustomValues::empty());
+                                *c = CustomValues::Result(job.as_job().unwrap().join());
+                            } else {
+                                ui.ctx().request_repaint();
+                            }
+                        }
+
+                        match c {
+                            CustomValues::Result(Ok(d)) => ui.line(line(d.clone()).name(&p.name)),
+                            _ => ui.line(line(vec![Value::new(0.0, f64::NAN)]).name(&p.name)),
+                        }
                     }
                 });
         });
@@ -117,11 +130,14 @@ fn sidebar(ui: &mut Ui, data: &mut PlotData, cfg: &mut CustomConfig) {
 
         if input.removed {
             cfg.plots.remove(i);
-            data.custom.remove(i);
+            let _ = data.custom.remove(i);
         } else {
             if input.x_changed || input.y_changed {
-                let r = eval::eval(&p.expr, &data.raw_data, &data.raw_temp);
-                data.custom[i] = CustomValues::from_result(r);
+                data.custom[i] = CustomValues::Job(Job::start(
+                    p.expr.clone(),
+                    Arc::clone(&data.raw_data),
+                    Arc::clone(&data.raw_temp),
+                ));
             }
             i += 1;
         }
@@ -129,7 +145,7 @@ fn sidebar(ui: &mut Ui, data: &mut PlotData, cfg: &mut CustomConfig) {
 
     if ui.button(" + ").clicked() {
         cfg.plots.push(CustomPlot::named(format!("{}.", i + 1)));
-        data.custom.push(CustomValues::default());
+        data.custom.push(CustomValues::Result(Ok(Vec::new())));
     }
     ui.add_space(10.0);
 
@@ -147,7 +163,7 @@ struct ExprInput {
     y_changed: bool,
 }
 
-fn expr_inputs(ui: &mut Ui, p: &mut CustomPlot, d: &CustomValues) -> ExprInput {
+fn expr_inputs(ui: &mut Ui, p: &mut CustomPlot, c: &CustomValues) -> ExprInput {
     let removed = ui.horizontal(|ui| {
         let r = ui.button(" − ").clicked();
         ui.add(
@@ -155,13 +171,19 @@ fn expr_inputs(ui: &mut Ui, p: &mut CustomPlot, d: &CustomValues) -> ExprInput {
                 .desired_width(ui.available_width())
                 .frame(false),
         );
+        // if let CustomValues::Job(_) = c {
+        //     ui.spinner();
+        // }
         r
     });
 
     let mut x_layouter = |ui: &egui::Ui, string: &str, wrap_width: f32| {
-        let mut layout_job = match &d.error.x {
-            Some(e) => mark_errors(string, e),
-            None => LayoutJob::single_section(string.to_string(), TextFormat::default()),
+        let mut layout_job = match c {
+            CustomValues::Result(Err(e)) => match &e.x {
+                Some(e) => mark_errors(string, e),
+                None => LayoutJob::single_section(string.to_string(), TextFormat::default()),
+            },
+            _ => LayoutJob::single_section(string.to_string(), TextFormat::default()),
         };
         layout_job.wrap.max_width = wrap_width;
         ui.fonts().layout_job(layout_job)
@@ -177,14 +199,19 @@ fn expr_inputs(ui: &mut Ui, p: &mut CustomPlot, d: &CustomValues) -> ExprInput {
         )
         .changed()
     });
-    if let Some(e) = &d.error.x {
-        ui.colored_label(RED, e.to_string());
+    if let CustomValues::Result(Err(e)) = c {
+        if let Some(e) = &e.x {
+            ui.colored_label(RED, e.to_string());
+        }
     }
 
     let mut y_layouter = |ui: &egui::Ui, string: &str, wrap_width: f32| {
-        let mut layout_job = match &d.error.y {
-            Some(e) => mark_errors(string, e),
-            None => LayoutJob::single_section(string.to_string(), TextFormat::default()),
+        let mut layout_job = match c {
+            CustomValues::Result(Err(e)) => match &e.y {
+                Some(e) => mark_errors(string, e),
+                None => LayoutJob::single_section(string.to_string(), TextFormat::default()),
+            },
+            _ => LayoutJob::single_section(string.to_string(), TextFormat::default()),
         };
         layout_job.wrap.max_width = wrap_width;
         ui.fonts().layout_job(layout_job)
@@ -200,8 +227,10 @@ fn expr_inputs(ui: &mut Ui, p: &mut CustomPlot, d: &CustomValues) -> ExprInput {
         )
         .changed()
     });
-    if let Some(e) = &d.error.y {
-        ui.colored_label(RED, e.to_string());
+    if let CustomValues::Result(Err(e)) = c {
+        if let Some(e) = &e.y {
+            ui.colored_label(RED, e.to_string());
+        }
     }
 
     ui.add_space(10.0);
