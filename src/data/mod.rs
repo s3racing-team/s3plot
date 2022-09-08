@@ -1,4 +1,5 @@
 use std::f64::consts::PI;
+use std::string::FromUtf8Error;
 use std::sync::Arc;
 use std::{fmt, io};
 
@@ -9,8 +10,6 @@ use strum::{Display, EnumIter};
 use crate::app::{CustomValues, PlotData, WheelValues};
 use crate::eval;
 use crate::plot::CustomPlot;
-
-pub use read::{read_extend_data, read_extend_temp};
 
 mod read;
 
@@ -33,6 +32,9 @@ pub trait TimeStamped {
 #[derive(Debug)]
 pub enum Error {
     IO(io::Error),
+    Utf8(FromUtf8Error),
+    InvalidMagic(String),
+    UnknownDatatype(u8),
     SanityCheck(&'static str),
 }
 
@@ -41,11 +43,14 @@ impl std::error::Error for Error {}
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::IO(error) => write!(f, "Error reading files: {}", error),
+            Self::Utf8(error) => write!(f, "Error decoding utf8 string: {}", error),
+            Self::InvalidMagic(magic) => write!(f, "Invalid magic number: {}", magic),
+            Self::UnknownDatatype(code) => write!(f, "Unknown datatype code: {}", code),
             Self::SanityCheck(message) => write!(
                 f,
                 "Sanity check failed: {message}. Maybe try selecting another version and reopening"
             ),
-            Self::IO(error) => write!(f, "Error reading files: {}", error),
         }
     }
 }
@@ -53,6 +58,12 @@ impl fmt::Display for Error {
 impl From<io::Error> for Error {
     fn from(inner: io::Error) -> Self {
         Self::IO(inner)
+    }
+}
+
+impl From<FromUtf8Error> for Error {
+    fn from(inner: FromUtf8Error) -> Self {
+        Self::Utf8(inner)
     }
 }
 
