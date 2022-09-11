@@ -91,10 +91,10 @@ pub fn power_plot(ui: &mut Ui, data: &PlotData, cfg: &PowerConfig) {
     wheel_plot(
         ui,
         cfg,
-        [(line(data.power.fl.clone()), "")],
-        [(line(data.power.fr.clone()), "")],
-        [(line(data.power.rl.clone()), "")],
-        [(line(data.power.rr.clone()), "")],
+        [(line(&data.power.fl), "")],
+        [(line(&data.power.fr), "")],
+        [(line(&data.power.rl), "")],
+        [(line(&data.power.rr), "")],
     );
 }
 
@@ -102,10 +102,10 @@ pub fn velocity_plot(ui: &mut Ui, data: &PlotData, cfg: &VelocityConfig) {
     wheel_plot(
         ui,
         cfg,
-        [(line(data.velocity.fl.clone()), "")],
-        [(line(data.velocity.fr.clone()), "")],
-        [(line(data.velocity.rl.clone()), "")],
-        [(line(data.velocity.rr.clone()), "")],
+        [(line(&data.velocity.fl), "")],
+        [(line(&data.velocity.fr), "")],
+        [(line(&data.velocity.rl), "")],
+        [(line(&data.velocity.rr), "")],
     );
 }
 
@@ -114,20 +114,20 @@ pub fn torque_plot(ui: &mut Ui, data: &PlotData, cfg: &TorqueConfig) {
         ui,
         cfg,
         [
-            (line(data.torque_set.fl.clone()), "set"),
-            (line(data.torque_real.fl.clone()), "real"),
+            (line(&data.torque_set.fl), "set"),
+            (line(&data.torque_real.fl), "real"),
         ],
         [
-            (line(data.torque_set.fr.clone()), "set"),
-            (line(data.torque_real.fr.clone()), "real"),
+            (line(&data.torque_set.fr), "set"),
+            (line(&data.torque_real.fr), "real"),
         ],
         [
-            (line(data.torque_set.rl.clone()), "set"),
-            (line(data.torque_real.rl.clone()), "real"),
+            (line(&data.torque_set.rl), "set"),
+            (line(&data.torque_real.rl), "real"),
         ],
         [
-            (line(data.torque_set.rr.clone()), "set"),
-            (line(data.torque_real.rr.clone()), "real"),
+            (line(&data.torque_set.rr), "set"),
+            (line(&data.torque_real.rr), "real"),
         ],
     );
 }

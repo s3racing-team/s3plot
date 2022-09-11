@@ -1,5 +1,5 @@
 use derive_more::{Deref, DerefMut};
-use egui::plot::{Legend, LinkedAxisGroup, Plot, PlotPoint};
+use egui::plot::{Legend, LinkedAxisGroup, Plot, PlotPoint, PlotUi};
 use egui::Ui;
 use serde::{Deserialize, Serialize};
 
@@ -40,24 +40,24 @@ pub fn temp1_plot(ui: &mut Ui, data: &PlotData, cfg: &Temp1Config) {
         ui,
         cfg,
         [
-            (line(data.temp.fl.clone()), "temp"),
-            (line(data.room_temp.fl.clone()), "room temp"),
-            (line(data.heatsink_temp.fl.clone()), "heatsink temp"),
+            (line(&data.temp.fl), "temp"),
+            (line(&data.room_temp.fl), "room temp"),
+            (line(&data.heatsink_temp.fl), "heatsink temp"),
         ],
         [
-            (line(data.temp.fr.clone()), "temp"),
-            (line(data.room_temp.fr.clone()), "room temp"),
-            (line(data.heatsink_temp.fr.clone()), "heatsink temp"),
+            (line(&data.temp.fr), "temp"),
+            (line(&data.room_temp.fr), "room temp"),
+            (line(&data.heatsink_temp.fr), "heatsink temp"),
         ],
         [
-            (line(data.temp.rl.clone()), "temp"),
-            (line(data.room_temp.rl.clone()), "room temp"),
-            (line(data.heatsink_temp.rl.clone()), "heatsink temp"),
+            (line(&data.temp.rl), "temp"),
+            (line(&data.room_temp.rl), "room temp"),
+            (line(&data.heatsink_temp.rl), "heatsink temp"),
         ],
         [
-            (line(data.temp.rr.clone()), "temp"),
-            (line(data.room_temp.rr.clone()), "room temp"),
-            (line(data.heatsink_temp.rr.clone()), "heatsink temp"),
+            (line(&data.temp.rr), "temp"),
+            (line(&data.room_temp.rr), "room temp"),
+            (line(&data.heatsink_temp.rr), "heatsink temp"),
         ],
     );
 }
@@ -79,14 +79,14 @@ pub fn temp2_config(ui: &mut Ui, cfg: &mut Temp2Config) {
     util::ratio_slider(ui, &mut cfg.aspect_ratio, TEMP_ASPECT_RATIO, 100.0);
 }
 
-pub fn temp2_plot(ui: &mut Ui, data: &PlotData, cfg: &Temp2Config) {
+pub fn temp2_plot<'a>(ui: &mut Ui, data: &'a PlotData, cfg: &Temp2Config) {
     Plot::new("temp2")
         .data_aspect(cfg.aspect_ratio)
         .label_formatter(move |n, v| Temp1Config::format_label(n, v))
         .legend(Legend::default())
-        .show(ui, |ui| {
-            ui.line(line(data.ams_temp_max.clone()).name("ams temp max"));
-            ui.line(line(data.water_temp_converter.clone()).name("water temp converter"));
-            ui.line(line(data.water_temp_motor.clone()).name("water temp motor"));
+        .show(ui, |ui: &mut PlotUi<'a>| {
+            ui.line(line(&data.ams_temp_max).name("ams temp max"));
+            ui.line(line(&data.water_temp_converter).name("water temp converter"));
+            ui.line(line(&data.water_temp_motor).name("water temp motor"));
         });
 }

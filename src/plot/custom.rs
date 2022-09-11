@@ -113,7 +113,7 @@ pub fn custom_plot(ui: &mut Ui, data: &mut PlotData, cfg: &mut CustomConfig) {
                         }
 
                         match c {
-                            CustomValues::Result(Ok(d)) => ui.line(line(d.clone()).name(&p.name)),
+                            CustomValues::Result(Ok(d)) => ui.line(line(d).name(&p.name)),
                             _ => ui.line(Line::new([0.0, f64::NAN]).name(&p.name)),
                         }
                     }

@@ -46,8 +46,8 @@ pub fn wheel_config<T: WheelPlotConfig>(ui: &mut Ui, cfg: &mut T) {
     cfg.axis_group.set_link_y(linked);
 }
 
-fn line(values: Vec<PlotPoint>) -> Line {
-    Line::new(PlotPoints::Owned(values))
+fn line<'a>(values: &'a [PlotPoint]) -> Line<'a> {
+    Line::new(PlotPoints::Borrowed(values))
 }
 
 fn wheel_plot<T: WheelPlotConfig, const COUNT: usize>(
