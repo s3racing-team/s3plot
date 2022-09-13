@@ -5,22 +5,22 @@ use egui::plot::PlotPoint;
 use serde::{Deserialize, Serialize};
 use strum::{Display, EnumIter, EnumString, IntoEnumIterator, IntoStaticStr};
 
-use crate::data::{DataEntry, TempEntry, TimeStamped};
+use crate::data::{DataEntry, LogFile};
 
-fn lerp(d: &DataEntry, t: &[TempEntry], f: impl Fn(&TempEntry) -> f64) -> f64 {
-    match t {
-        [a] => f(a),
-        [a, b] => {
-            let range = b.time() - a.time();
-            let pos = d.time() - a.time();
+fn lerp(time: f64, timed_values: &[(f64, f64)]) -> f64 {
+    match timed_values {
+        [(t, v)] => v,
+        [(t1, v1), (t2, v2)] => {
+            let range = t2 - t1;
+            let pos = time - t1;
             let factor = pos / range;
-            f(a) + factor * (f(b) - f(a))
+            v1 + factor * (v2 - v1)
         }
         _ => f64::NAN,
     }
 }
 
-fn get_value(var: Var, d: &DataEntry, t: &[TempEntry]) -> Val {
+fn get_value(var: Var, d: &DataEntry) -> Val {
     let val = match var {
         Var::Time => d.time(),
         // data
@@ -143,11 +143,7 @@ pub struct ExprError {
     pub y: Option<cods::Error>,
 }
 
-pub fn eval(
-    expr: &Expr,
-    data: Arc<[DataEntry]>,
-    temp: Arc<[TempEntry]>,
-) -> Result<Vec<PlotPoint>, Box<ExprError>> {
+pub fn eval(expr: &Expr, data: Arc<[LogFile]>) -> Result<Vec<PlotPoint>, Box<ExprError>> {
     let mut ctx_x = Context::default();
     let mut ctx_y = Context::default();
     for v in Var::iter() {

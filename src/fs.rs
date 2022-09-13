@@ -6,33 +6,39 @@ use std::path::{Path, PathBuf};
 use egui::{Align2, Color32, Context, Id, LayerId, Order, Pos2, Rect, TextStyle, Vec2};
 use serde::{Deserialize, Serialize};
 
-use crate::data::{self, DataEntry, TempEntry, TimeStamped, Version};
+use crate::data::{self, DataEntry, LogFile, SanityError};
 use crate::PlotApp;
 
 #[derive(Serialize, Deserialize, Default, Clone, Debug)]
 pub struct Files {
     pub dir: PathBuf,
-    pub files: Vec<PathBuf>,
+    pub items: Vec<PathBuf>,
 }
 
 pub struct SelectableFiles {
     pub dir: PathBuf,
-    pub files: Vec<SelectableFile<DataEntry>>,
+    pub items: Vec<SelectableFile>,
 }
 
-pub struct SelectableFile<T: TimeStamped> {
+pub struct SelectableFile {
     pub selected: bool,
     pub file: PathBuf,
-    pub result: Result<Vec<T>, data::Error>,
-    pub sanity_check: Option<>,
+    pub result: Result<LogFile, data::Error>,
+    pub sanity_check: Result<(), SanityError>,
 }
 
-impl<T: TimeStamped> SelectableFile<T> {
-    pub fn new(seleted: bool, file: PathBuf, result: Result<Vec<T>, data::Error>) -> Self {
+impl SelectableFile {
+    pub fn new(
+        seleted: bool,
+        file: PathBuf,
+        result: Result<LogFile, data::Error>,
+        sanity_check: Result<(), SanityError>,
+    ) -> Self {
         Self {
             selected: seleted,
             file,
             result,
+            sanity_check,
         }
     }
 }
@@ -228,36 +234,21 @@ pub fn find_files(dir: PathBuf) -> Result<Files, data::Error> {
     })
 }
 
-fn open_files(files: Files, version: Version) -> SelectableFiles {
+fn open_files(files: Files) -> SelectableFiles {
     let mut data = Vec::new();
-    for p in files.data.iter() {
-        let result = open_data(p, version);
+    for p in files.items.iter() {
+        let result = open_file(p, version);
         data.push(SelectableFile::new(true, p.to_owned(), result));
-    }
-
-    let mut temp = Vec::new();
-    for p in files.temp.iter() {
-        let result = open_temp(p, version);
-        temp.push(SelectableFile::new(true, p.to_owned(), result));
     }
 
     SelectableFiles {
         dir: files.dir,
-        data,
-        temp,
+        items,
     }
 }
 
-fn open_data(path: &Path, version: Version) -> Result<Vec<DataEntry>, data::Error> {
-    let mut data = Vec::new();
+fn open_file(path: &Path) -> Result<Vec<DataEntry>, data::Error> {
     let mut reader = BufReader::new(File::open(path)?);
-    data::read_extend_data(&mut reader, &mut data, version)?;
+    data::read_extend_data(&mut reader, &mut data)?;
     Ok(data)
-}
-
-fn open_temp(path: &Path, version: Version) -> Result<Vec<TempEntry>, data::Error> {
-    let mut temp = Vec::new();
-    let mut reader = BufReader::new(File::open(path)?);
-    data::read_extend_temp(&mut reader, &mut temp, version)?;
-    Ok(temp)
 }

@@ -1,26 +1,36 @@
 use std::string::FromUtf8Error;
 use std::{fmt, io};
 
-use egui::plot::PlotPoint;
-
-pub use read::*;
-
 mod read;
 
-impl<'a, T, E: 'a> MapOverTime<'a, E> for T
-where
-    T: Iterator<Item = &'a E> + Sized,
-    E: TimeStamped,
-{
-}
-pub trait MapOverTime<'a, T: TimeStamped + 'a>: Iterator<Item = &'a T> + Sized {
-    fn map_over_time(self, f: impl Fn(&T) -> f64) -> Vec<PlotPoint> {
-        self.map(|e| PlotPoint::new(e.time(), f(e))).collect()
-    }
+pub struct LogFile {
+    version: u16,
+    /// time in ms
+    time: Vec<u32>,
+    entries: Vec<DataEntry>,
 }
 
-pub trait TimeStamped {
-    fn time(&self) -> f64;
+pub struct DataEntry {
+    name: String,
+    kind: EntryKind,
+}
+
+#[derive(Clone, Debug)]
+pub enum EntryKind {
+    Bool(Vec<bool>),
+
+    U8(Vec<u8>),
+    U16(Vec<u16>),
+    U32(Vec<u32>),
+    U64(Vec<u64>),
+
+    I8(Vec<i8>),
+    I16(Vec<i16>),
+    I32(Vec<i32>),
+    I64(Vec<i64>),
+
+    F32(Vec<f32>),
+    F64(Vec<f64>),
 }
 
 #[derive(Debug)]
@@ -28,6 +38,7 @@ pub enum Error {
     IO(io::Error),
     Utf8(FromUtf8Error),
     InvalidMagic(String),
+    UnknownVersion(u16),
     UnknownDatatype(u8),
 }
 
@@ -39,11 +50,8 @@ impl fmt::Display for Error {
             Self::IO(error) => write!(f, "Error reading files: {}", error),
             Self::Utf8(error) => write!(f, "Error decoding utf8 string: {}", error),
             Self::InvalidMagic(magic) => write!(f, "Invalid magic number: {}", magic),
+            Self::UnknownVersion(version) => write!(f, "Unknown version: {}", version),
             Self::UnknownDatatype(code) => write!(f, "Unknown datatype code: {}", code),
-            Self::SanityCheck(message) => write!(
-                f,
-                "Sanity check failed: {message}. Maybe try selecting another version and reopening"
-            ),
         }
     }
 }
@@ -60,7 +68,7 @@ impl From<FromUtf8Error> for Error {
     }
 }
 
-struct SanityError(String);
+pub struct SanityError(String);
 
 fn sanity_check(entries: &[DataEntry]) -> Option<SanityError> {
     for e in entries {

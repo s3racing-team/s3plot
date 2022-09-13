@@ -8,7 +8,7 @@ use egui_extras::{Size, TableBuilder};
 use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
 
-use crate::data::{DataEntry, TimeStamped};
+use crate::data::{DataEntry, LogFile};
 use crate::eval::{self, Expr, ExprError};
 use crate::fs::{Files, SelectableFile, SelectableFiles};
 use crate::plot::{
@@ -81,7 +81,7 @@ pub struct Job {
 }
 
 impl Job {
-    pub fn start(expr: Expr, data: Arc<[DataEntry]>) -> Self {
+    pub fn start(expr: Expr, data: Arc<[LogFile]>) -> Self {
         let handle = std::thread::spawn(move || eval::eval(&expr, data));
         Self { handle }
     }
@@ -109,7 +109,6 @@ impl Default for PlotApp {
             selectable_files: None,
             data: None,
             selected_tab: Tab::Power,
-            version: Version::default(),
             power: PowerConfig::default(),
             velocity: VelocityConfig::default(),
             torque: TorqueConfig::default(),
@@ -151,22 +150,10 @@ impl eframe::App for PlotApp {
                     }
                 });
 
-                ui.menu_button(format!("Version ( {} )", self.version), |ui| {
-                    let mut clicked = false;
-                    for v in Version::iter() {
-                        clicked |= ui
-                            .selectable_value(&mut self.version, v, v.to_string())
-                            .clicked();
-                    }
-                    if clicked {
-                        ui.close_menu();
-                    }
-                });
-
                 ui.add_space(40.0);
 
                 if let Some(files) = &self.files {
-                    let files_iter = files.data.iter().chain(files.temp.iter());
+                    let files_iter = files.items.iter();
                     let prefix = match util::common_parent_dir(files_iter) {
                         Some(p) => {
                             ui.label(format!("{}/", p.display()));
@@ -176,11 +163,7 @@ impl eframe::App for PlotApp {
                         None => "".as_ref(),
                     };
 
-                    for p in files.data.iter() {
-                        let text = p.strip_prefix(prefix).unwrap().display().to_string();
-                        ui.label(RichText::new(text).strong());
-                    }
-                    for p in files.temp.iter() {
+                    for p in files.items.iter() {
                         let text = p.strip_prefix(prefix).unwrap().display().to_string();
                         ui.label(RichText::new(text).strong());
                     }
@@ -250,20 +233,19 @@ impl eframe::App for PlotApp {
 }
 
 pub fn select_files_dialog(ui: &mut Ui, opened_files: &mut SelectableFiles) -> bool {
-    let data_files_iter = opened_files.data.iter().map(|f| &f.file);
-    let temp_files_iter = opened_files.temp.iter().map(|f| &f.file);
-    let common_prefix = match util::common_parent_dir(data_files_iter.chain(temp_files_iter)) {
+    let data_files_iter = opened_files.items.iter().map(|f| &f.file);
+    let common_prefix = match util::common_parent_dir(data_files_iter) {
         Some(p) => p.to_owned(),
         None => PathBuf::new(),
     };
 
-    ui.push_id("data files table", |ui| {
-        select_files_table(ui, &mut opened_files.data, &common_prefix);
-    });
-    ui.add_space(20.0);
+    let by_header = Vec::new();
+    for f in files {
 
-    ui.push_id("temp files table", |ui| {
-        select_files_table(ui, &mut opened_files.temp, &common_prefix);
+    }
+
+    ui.push_id("data files table", |ui| {
+        select_files_table(ui, &mut opened_files.items, &common_prefix);
     });
     ui.add_space(20.0);
 
@@ -275,11 +257,7 @@ enum MoveDirection {
     Down(usize),
 }
 
-fn select_files_table(
-    ui: &mut Ui,
-    files: &mut Vec<SelectableFile<impl TimeStamped>>,
-    common_prefix: &Path,
-) {
+fn select_files_table(ui: &mut Ui, files: &mut Vec<SelectableFile>, common_prefix: &Path) {
     let mut move_row = None;
 
     TableBuilder::new(ui)

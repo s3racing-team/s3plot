@@ -1,29 +1,6 @@
 use std::io::{self, Read, Seek, SeekFrom};
 
-use super::Error;
-
-pub struct DataEntry {
-    name: String,
-    kind: EntryKind,
-}
-
-#[derive(Clone, Debug)]
-pub enum EntryKind {
-    Bool(Vec<bool>),
-
-    U8(Vec<u8>),
-    U16(Vec<u16>),
-    U32(Vec<u32>),
-    U64(Vec<u64>),
-
-    I8(Vec<i8>),
-    I16(Vec<i16>),
-    I32(Vec<i32>),
-    I64(Vec<i64>),
-
-    F32(Vec<f32>),
-    F64(Vec<f64>),
-}
+use super::{DataEntry, EntryKind, Error, LogFile};
 
 impl EntryKind {
     fn size(&self) -> u8 {
@@ -39,6 +16,22 @@ impl EntryKind {
             Self::I64(_) => 8,
             Self::F32(_) => 4,
             Self::F64(_) => 8,
+        }
+    }
+
+    fn reserve(&mut self, additional: usize) {
+        match self {
+            EntryKind::Bool(v) => v.reserve(additional),
+            EntryKind::U8(v) => v.reserve(additional),
+            EntryKind::U16(v) => v.reserve(additional),
+            EntryKind::U32(v) => v.reserve(additional),
+            EntryKind::U64(v) => v.reserve(additional),
+            EntryKind::I8(v) => v.reserve(additional),
+            EntryKind::I16(v) => v.reserve(additional),
+            EntryKind::I32(v) => v.reserve(additional),
+            EntryKind::I64(v) => v.reserve(additional),
+            EntryKind::F32(v) => v.reserve(additional),
+            EntryKind::F64(v) => v.reserve(additional),
         }
     }
 }
@@ -70,7 +63,7 @@ struct BoolContext {
     mask: u8,
 }
 
-fn read_data(reader: &mut (impl Read + Seek)) -> Result<Vec<DataEntry>, Error> {
+fn read_data(reader: &mut (impl Read + Seek)) -> Result<LogFile, Error> {
     let mut stream_len = reader.len()?;
 
     let magic = read_string(reader, 4)?;
@@ -78,41 +71,72 @@ fn read_data(reader: &mut (impl Read + Seek)) -> Result<Vec<DataEntry>, Error> {
         return Err(Error::InvalidMagic(magic));
     }
 
+    let version = read_u16(reader)?;
+    if version != 1 {
+        return Err(Error::UnknownVersion(version));
+    }
+
     let num_entries = read_u16(reader)?;
-    let entries = Vec::with_capacity(num_entries as usize);
 
-    let mut pos = 6;
+    let mut log_file = LogFile {
+        version,
+        time: Vec::new(),
+        entries: Vec::with_capacity(num_entries as usize),
+    };
 
+    let mut pos: u64 = 8;
     for _ in 0..num_entries {
         let code = read_u8(reader)?;
         let kind = EntryKind::try_from(code)?;
-        let name_len = read_u8(reader)? as usize;
-        let name = read_string(reader, name_len)?;
+        let name_len = read_u8(reader)?;
+        let name = read_string(reader, name_len as usize)?;
 
-        entries.push(DataEntry { name, kind });
+        log_file.entries.push(DataEntry { name, kind });
 
-        pos += 2 + name_len;
+        pos += 2 + name_len as u64;
+    }
+
+    // preallocate data arrays
+    let mut data_entry_size = 4;
+    for e in log_file.entries.iter() {
+        data_entry_size += e.kind.size() as u64;
+    }
+
+    let num_data_entries = (stream_len - pos) / data_entry_size;
+    log_file.time.reserve(num_data_entries as usize);
+    for e in log_file.entries.iter_mut() {
+        e.kind.reserve(num_data_entries as usize);
     }
 
     let mut bool_ctx = None;
     while pos < stream_len {
-        let mut read_bool = false;
+        log_file.time.push(read_u32(reader)?);
 
-        for e in entries.iter_mut() {
+        let mut is_bool_entry = false;
+
+        for e in log_file.entries.iter_mut() {
             let mut read_bytes = e.kind.size();
 
             match &mut e.kind {
                 EntryKind::Bool(v) => {
-                    read_bool = true;
-                    read_bytes = 0;
+                    is_bool_entry = true;
+                    let read_bytes;
 
-                    let ctx = bool_ctx.get_or_insert_with(|| {
-                        read_bytes = 1;
-                        BoolContext {
-                            bit_fields: read_u8(reader)?,
-                            mask: 1,
+                    let ctx = match &mut bool_ctx {
+                        Some(ctx) => {
+                            read_bytes = 0;
+                            ctx
                         }
-                    });
+                        None => {
+                            read_bytes = 1;
+                            bool_ctx = Some(BoolContext {
+                                bit_fields: read_u8(reader)?,
+                                mask: 1,
+                            });
+
+                            bool_ctx.as_mut().unwrap()
+                        }
+                    };
 
                     let masked = ctx.bit_fields & ctx.mask;
                     v.push(masked != 0);
@@ -135,15 +159,15 @@ fn read_data(reader: &mut (impl Read + Seek)) -> Result<Vec<DataEntry>, Error> {
                 EntryKind::F64(v) => v.push(read_f64(reader)?),
             }
 
-            pos += read_bytes;
+            pos += read_bytes as u64;
         }
 
-        if !read_bool {
+        if !is_bool_entry {
             bool_ctx = None;
         }
     }
 
-    Ok(entries)
+    Ok(log_file)
 }
 
 fn read_entries(reader: &mut (impl Read + Seek), entries: &mut Vec<DataEntry>) {
