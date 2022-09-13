@@ -12,20 +12,19 @@ use crate::PlotApp;
 #[derive(Serialize, Deserialize, Default, Clone, Debug)]
 pub struct Files {
     pub dir: PathBuf,
-    pub data: Vec<PathBuf>,
-    pub temp: Vec<PathBuf>,
+    pub files: Vec<PathBuf>,
 }
 
 pub struct SelectableFiles {
     pub dir: PathBuf,
-    pub data: Vec<SelectableFile<DataEntry>>,
-    pub temp: Vec<SelectableFile<TempEntry>>,
+    pub files: Vec<SelectableFile<DataEntry>>,
 }
 
 pub struct SelectableFile<T: TimeStamped> {
     pub selected: bool,
     pub file: PathBuf,
     pub result: Result<Vec<T>, data::Error>,
+    pub sanity_check: Option<>,
 }
 
 impl<T: TimeStamped> SelectableFile<T> {

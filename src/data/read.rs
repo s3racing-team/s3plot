@@ -4,11 +4,11 @@ use super::Error;
 
 pub struct DataEntry {
     name: String,
-    kind: EntryType,
+    kind: EntryKind,
 }
 
 #[derive(Clone, Debug)]
-pub enum EntryType {
+pub enum EntryKind {
     Bool(Vec<bool>),
 
     U8(Vec<u8>),
@@ -25,7 +25,25 @@ pub enum EntryType {
     F64(Vec<f64>),
 }
 
-impl TryFrom<u8> for EntryType {
+impl EntryKind {
+    fn size(&self) -> u8 {
+        match self {
+            Self::Bool(_) => 1,
+            Self::U8(_) => 1,
+            Self::U16(_) => 2,
+            Self::U32(_) => 4,
+            Self::U64(_) => 8,
+            Self::I8(_) => 1,
+            Self::I16(_) => 2,
+            Self::I32(_) => 4,
+            Self::I64(_) => 8,
+            Self::F32(_) => 4,
+            Self::F64(_) => 8,
+        }
+    }
+}
+
+impl TryFrom<u8> for EntryKind {
     type Error = Error;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
@@ -47,7 +65,14 @@ impl TryFrom<u8> for EntryType {
     }
 }
 
-fn read_header(reader: &mut impl Read) -> Result<Vec<DataEntry>, Error> {
+struct BoolContext {
+    bit_fields: u8,
+    mask: u8,
+}
+
+fn read_data(reader: &mut (impl Read + Seek)) -> Result<Vec<DataEntry>, Error> {
+    let mut stream_len = reader.len()?;
+
     let magic = read_string(reader, 4)?;
     if magic != "s3lg" {
         return Err(Error::InvalidMagic(magic));
@@ -56,13 +81,66 @@ fn read_header(reader: &mut impl Read) -> Result<Vec<DataEntry>, Error> {
     let num_entries = read_u16(reader)?;
     let entries = Vec::with_capacity(num_entries as usize);
 
+    let mut pos = 6;
+
     for _ in 0..num_entries {
         let code = read_u8(reader)?;
-        let kind = EntryType::try_from(code)?;
-        let name_len = read_u8(reader)?;
-        let name = read_string(reader, name_len as usize)?;
+        let kind = EntryKind::try_from(code)?;
+        let name_len = read_u8(reader)? as usize;
+        let name = read_string(reader, name_len)?;
 
-        entries.push(DataEntry { name, kind })
+        entries.push(DataEntry { name, kind });
+
+        pos += 2 + name_len;
+    }
+
+    let mut bool_ctx = None;
+    while pos < stream_len {
+        let mut read_bool = false;
+
+        for e in entries.iter_mut() {
+            let mut read_bytes = e.kind.size();
+
+            match &mut e.kind {
+                EntryKind::Bool(v) => {
+                    read_bool = true;
+                    read_bytes = 0;
+
+                    let ctx = bool_ctx.get_or_insert_with(|| {
+                        read_bytes = 1;
+                        BoolContext {
+                            bit_fields: read_u8(reader)?,
+                            mask: 1,
+                        }
+                    });
+
+                    let masked = ctx.bit_fields & ctx.mask;
+                    v.push(masked != 0);
+
+                    if ctx.mask >= 0x80 {
+                        bool_ctx = None;
+                    } else {
+                        ctx.mask <<= 1;
+                    }
+                }
+                EntryKind::U8(v) => v.push(read_u8(reader)?),
+                EntryKind::U16(v) => v.push(read_u16(reader)?),
+                EntryKind::U32(v) => v.push(read_u32(reader)?),
+                EntryKind::U64(v) => v.push(read_u64(reader)?),
+                EntryKind::I8(v) => v.push(read_i8(reader)?),
+                EntryKind::I16(v) => v.push(read_i16(reader)?),
+                EntryKind::I32(v) => v.push(read_i32(reader)?),
+                EntryKind::I64(v) => v.push(read_i64(reader)?),
+                EntryKind::F32(v) => v.push(read_f32(reader)?),
+                EntryKind::F64(v) => v.push(read_f64(reader)?),
+            }
+
+            pos += read_bytes;
+        }
+
+        if !read_bool {
+            bool_ctx = None;
+        }
     }
 
     Ok(entries)
@@ -107,41 +185,3 @@ fn read_string(reader: &mut impl Read, len: usize) -> Result<String, Error> {
     reader.read_exact(&mut buf)?;
     Ok(String::from_utf8(buf)?)
 }
-
-macro_rules! impl_sanity_check_int {
-    ($ident:ident, $ty:ty) => {
-        fn $ident(val: $ty) -> Result<(), Error> {
-            if val == <$ty>::MAX {
-                return Err(Error::SanityCheck("Value is max"));
-            }
-            if val == <$ty>::MIN {
-                return Err(Error::SanityCheck("Value is min"));
-            }
-            Ok(())
-        }
-    };
-}
-impl_sanity_check_int!(sanity_check_u8, u8);
-impl_sanity_check_int!(sanity_check_u16, u16);
-impl_sanity_check_int!(sanity_check_u32, u32);
-impl_sanity_check_int!(sanity_check_u64, u64);
-impl_sanity_check_int!(sanity_check_i8, i8);
-impl_sanity_check_int!(sanity_check_i16, i16);
-impl_sanity_check_int!(sanity_check_i32, i32);
-impl_sanity_check_int!(sanity_check_i64, i64);
-
-macro_rules! Impl_sanity_check_float {
-    ($ident:ident, $ty:ty) => {
-        fn $ident(val: $ty) -> Result<(), Error> {
-            if val.is_nan() {
-                return Err(Error::SanityCheck("Value is nan"));
-            }
-            if val.is_infinite() {
-                return Err(Error::SanityCheck("Value is infinite"));
-            }
-            Ok(())
-        }
-    };
-}
-Impl_sanity_check_float!(sanity_check_f32, f32);
-Impl_sanity_check_float!(sanity_check_f64, f64);

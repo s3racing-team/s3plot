@@ -8,7 +8,7 @@ use egui_extras::{Size, TableBuilder};
 use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
 
-use crate::data::{DataEntry, TempEntry, TimeStamped, Version};
+use crate::data::{DataEntry, TimeStamped};
 use crate::eval::{self, Expr, ExprError};
 use crate::fs::{Files, SelectableFile, SelectableFiles};
 use crate::plot::{
@@ -21,7 +21,6 @@ use crate::util;
 pub struct PlotApp {
     pub files: Option<Files>,
     selected_tab: Tab,
-    pub version: Version,
     pub power: PowerConfig,
     pub velocity: VelocityConfig,
     pub torque: TorqueConfig,
@@ -46,7 +45,6 @@ enum Tab {
 
 pub struct PlotData {
     pub raw_data: Arc<[DataEntry]>,
-    pub raw_temp: Arc<[TempEntry]>,
     pub power: WheelValues,
     pub velocity: WheelValues,
     pub torque_set: WheelValues,
@@ -83,8 +81,8 @@ pub struct Job {
 }
 
 impl Job {
-    pub fn start(expr: Expr, data: Arc<[DataEntry]>, temp: Arc<[TempEntry]>) -> Self {
-        let handle = std::thread::spawn(move || eval::eval(&expr, data, temp));
+    pub fn start(expr: Expr, data: Arc<[DataEntry]>) -> Self {
+        let handle = std::thread::spawn(move || eval::eval(&expr, data));
         Self { handle }
     }
 
