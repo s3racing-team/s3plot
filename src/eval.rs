@@ -5,7 +5,7 @@ use egui::plot::PlotPoint;
 use serde::{Deserialize, Serialize};
 use strum::{Display, EnumIter, EnumString, IntoEnumIterator, IntoStaticStr};
 
-use crate::data::{DataEntry, LogFile};
+use crate::data::{DataEntry, LogStream};
 
 fn lerp(time: f64, timed_values: &[(f64, f64)]) -> f64 {
     match timed_values {
@@ -143,7 +143,7 @@ pub struct ExprError {
     pub y: Option<cods::Error>,
 }
 
-pub fn eval(expr: &Expr, data: Arc<[LogFile]>) -> Result<Vec<PlotPoint>, Box<ExprError>> {
+pub fn eval(expr: &Expr, data: Arc<[LogStream]>) -> Result<Vec<PlotPoint>, Box<ExprError>> {
     let mut ctx_x = Context::default();
     let mut ctx_y = Context::default();
     for v in Var::iter() {

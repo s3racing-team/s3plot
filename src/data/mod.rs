@@ -9,14 +9,14 @@ use crate::app::CustomValues;
 mod read;
 mod sanity;
 
-pub struct LogFile {
+pub struct LogStream {
     pub version: u16,
     /// time in ms
     pub time: Vec<u32>,
     pub entries: Vec<DataEntry>,
 }
 
-impl Default for LogFile {
+impl Default for LogStream {
     fn default() -> Self {
         Self {
             version: 1,
@@ -26,7 +26,7 @@ impl Default for LogFile {
     }
 }
 
-impl LogFile {
+impl LogStream {
     pub fn len(&self) -> usize {
         self.time.len()
     }
@@ -43,6 +43,20 @@ impl LogFile {
         }
 
         true
+    }
+
+    pub fn reserve(&mut self, additional: usize) {
+        self.time.reserve(additional);
+        for e in self.entries.iter_mut() {
+            e.kind.reserve(additional);
+        }
+    }
+
+    pub fn extend(&mut self, other: &Self) {
+        self.time.extend_from_slice(&other.time);
+        for (e, o) in self.entries.iter_mut().zip(other.entries.iter()) {
+            e.kind.extend(&o.kind);
+        }
     }
 }
 

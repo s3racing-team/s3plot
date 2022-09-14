@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use egui::{Align2, Color32, Context, Id, LayerId, Order, Pos2, Rect, TextStyle, Vec2};
 use serde::{Deserialize, Serialize};
 
-use crate::data::{self, LogFile, SanityError};
+use crate::data::{self, LogStream, SanityError};
 use crate::PlotApp;
 
 #[derive(Serialize, Deserialize, Default, Clone, Debug)]
@@ -24,7 +24,7 @@ pub struct SelectableFiles {
 pub struct SelectableFile {
     pub selected: bool,
     pub file: PathBuf,
-    pub result: Result<LogFile, data::Error>,
+    pub result: Result<LogStream, data::Error>,
     pub sanity_check: Result<(), SanityError>,
 }
 
@@ -32,7 +32,7 @@ impl SelectableFile {
     pub fn new(
         seleted: bool,
         file: PathBuf,
-        result: Result<LogFile, data::Error>,
+        result: Result<LogStream, data::Error>,
         sanity_check: Result<(), SanityError>,
     ) -> Self {
         Self {
@@ -127,7 +127,11 @@ impl PlotApp {
     pub fn try_open_files(&mut self, files: Files, always_show_dialog: bool) {
         let selectable_files = open_files(files);
 
-        let all_succeeded = selectable_files.items.iter().all(|f| f.result.is_ok());
+        let all_succeeded = selectable_files.with_error.is_empty();
+        let sanity_check_passed = selectable_files
+            .by_header
+            .iter()
+            .all(|g| g.iter().all(|f| f.sanity_check.is_ok()));
 
         if all_succeeded && !always_show_dialog {
             self.concat_and_show(selectable_files);
@@ -137,23 +141,27 @@ impl PlotApp {
     }
 
     pub fn concat_and_show(&mut self, selectable_files: SelectableFiles) {
-        let data_len = selectable_files
-            .items
-            .iter()
-            .filter(|f| f.selected)
-            .filter_map(|f| f.result.as_ref().ok())
-            .map(|d| d.len())
-            .sum();
-        let mut data = LogFile::default();
-        let mut files = Vec::with_capacity(data_len);
-        for (p, d) in selectable_files
-            .items
-            .into_iter()
-            .filter(|f| f.selected)
-            .filter_map(|f| f.result.ok().map(|d| (f.file, d)))
-        {
-            data.extend_from_slice(&d);
-            files.push(p);
+        let mut streams = Vec::with_capacity(selectable_files.by_header.len());
+        let mut files = Vec::new();
+        for group in selectable_files.by_header.into_iter() {
+            let mut group = group
+                .into_iter()
+                .filter(|f| f.selected)
+                .filter_map(|f| f.result.ok().map(|s| (f.file, s)))
+                .collect::<Vec<_>>();
+
+            let (first_file, first) = group.remove(0);
+            files.push(first_file);
+
+            let additional = group.iter().map(|(_, d)| d.len()).sum();
+            first.reserve(additional);
+
+            for (f, s) in group.into_iter() {
+                first.extend(&s);
+                files.push(f);
+            }
+
+            streams.push(group.remove(0));
         }
 
         let files = Files {
@@ -163,7 +171,7 @@ impl PlotApp {
 
         self.selectable_files = None;
         self.files = Some(files);
-        self.data = Some(data::process_data(temp, &self.custom.plots));
+        self.data = Some(data::process_data(files, &self.custom.plots));
     }
 }
 

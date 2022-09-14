@@ -1,6 +1,6 @@
 use std::io::{self, Read, Seek, SeekFrom};
 
-use super::{DataEntry, EntryKind, Error, LogFile};
+use super::{DataEntry, EntryKind, Error, LogStream};
 
 impl EntryKind {
     fn size(&self) -> u8 {
@@ -47,7 +47,7 @@ struct BoolContext {
     mask: u8,
 }
 
-pub fn read_file(reader: &mut (impl Read + Seek)) -> Result<LogFile, Error> {
+pub fn read_file(reader: &mut (impl Read + Seek)) -> Result<LogStream, Error> {
     let mut stream_len = reader.len()?;
 
     let magic = read_string(reader, 4)?;
@@ -62,7 +62,7 @@ pub fn read_file(reader: &mut (impl Read + Seek)) -> Result<LogFile, Error> {
 
     let num_entries = read_u16(reader)?;
 
-    let mut log_file = LogFile {
+    let mut log_file = LogStream {
         version,
         time: Vec::new(),
         entries: Vec::with_capacity(num_entries as usize),

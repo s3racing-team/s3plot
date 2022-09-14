@@ -7,7 +7,7 @@ use egui::{menu, Align2, CentralPanel, Color32, Key, RichText, TopBottomPanel, U
 use egui_extras::{Size, TableBuilder};
 use serde::{Deserialize, Serialize};
 
-use crate::data::{DataEntry, LogFile};
+use crate::data::{DataEntry, LogStream};
 use crate::eval::{self, Expr, ExprError};
 use crate::fs::{Files, SelectableFile, SelectableFiles};
 use crate::plot::{
@@ -43,7 +43,7 @@ enum Tab {
 }
 
 pub struct PlotData {
-    pub raw_data: Arc<[LogFile]>,
+    pub raw_data: Arc<[LogStream]>,
     pub power: WheelValues,
     pub velocity: WheelValues,
     pub torque_set: WheelValues,
@@ -80,7 +80,7 @@ pub struct Job {
 }
 
 impl Job {
-    pub fn start(expr: Expr, data: Arc<[LogFile]>) -> Self {
+    pub fn start(expr: Expr, data: Arc<[LogStream]>) -> Self {
         let handle = std::thread::spawn(move || eval::eval(&expr, data));
         Self { handle }
     }
