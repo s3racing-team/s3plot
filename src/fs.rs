@@ -119,15 +119,14 @@ impl PlotApp {
 
     pub fn try_open_dir(&mut self, dir: PathBuf) {
         if let Ok(files) = find_files(dir) {
-            self.selectable_files = Some(open_files(files, self.version));
+            self.selectable_files = Some(open_files(files));
         }
     }
 
     pub fn try_open_files(&mut self, files: Files, always_show_dialog: bool) {
-        let selectable_files = open_files(files, self.version);
+        let selectable_files = open_files(files);
 
-        let all_succeeded = selectable_files.data.iter().all(|f| f.result.is_ok())
-            && selectable_files.data.iter().all(|f| f.result.is_ok());
+        let all_succeeded = selectable_files.items.iter().all(|f| f.result.is_ok());
 
         if all_succeeded && !always_show_dialog {
             self.concat_and_open(selectable_files);
@@ -138,47 +137,27 @@ impl PlotApp {
 
     pub fn concat_and_open(&mut self, selectable_files: SelectableFiles) {
         let data_len = selectable_files
-            .data
+            .items
             .iter()
             .filter(|f| f.selected)
             .filter_map(|f| f.result.as_ref().ok())
             .map(|d| d.len())
             .sum();
         let mut data = Vec::with_capacity(data_len);
-        let mut data_files = Vec::with_capacity(data_len);
+        let mut files = Vec::with_capacity(data_len);
         for (p, d) in selectable_files
-            .data
+            .items
             .into_iter()
             .filter(|f| f.selected)
             .filter_map(|f| f.result.ok().map(|d| (f.file, d)))
         {
-            data.extend_from_slice(&*d);
-            data_files.push(p);
-        }
-
-        let temp_len = selectable_files
-            .temp
-            .iter()
-            .filter(|f| f.selected)
-            .filter_map(|f| f.result.as_ref().ok())
-            .map(|t| t.len())
-            .sum();
-        let mut temp = Vec::with_capacity(temp_len);
-        let mut temp_files = Vec::with_capacity(temp_len);
-        for (p, t) in selectable_files
-            .temp
-            .into_iter()
-            .filter(|f| f.selected)
-            .filter_map(|f| f.result.ok().map(|d| (f.file, d)))
-        {
-            temp.extend_from_slice(&*t);
-            temp_files.push(p);
+            data.extend_from_slice(&d);
+            files.push(p);
         }
 
         let files = Files {
             dir: selectable_files.dir,
-            data: data_files,
-            temp: temp_files,
+            items: files,
         };
 
         self.selectable_files = None;
@@ -196,7 +175,6 @@ pub fn find_files(dir: PathBuf) -> Result<Files, data::Error> {
     }
 
     let mut data_paths: Vec<(String, PathBuf)> = Vec::new();
-    let mut temp_paths: Vec<(String, PathBuf)> = Vec::new();
     for entry in std::fs::read_dir(&dir)? {
         let entry = entry?;
         let path = entry.path();
@@ -229,8 +207,7 @@ pub fn find_files(dir: PathBuf) -> Result<Files, data::Error> {
 
     Ok(Files {
         dir,
-        data: data_paths.into_iter().map(|(_, p)| p).collect(),
-        temp: temp_paths.into_iter().map(|(_, p)| p).collect(),
+        items: data_paths.into_iter().map(|(_, p)| p).collect(),
     })
 }
 

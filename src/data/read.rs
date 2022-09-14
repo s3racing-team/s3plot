@@ -18,22 +18,6 @@ impl EntryKind {
             Self::F64(_) => 8,
         }
     }
-
-    fn reserve(&mut self, additional: usize) {
-        match self {
-            EntryKind::Bool(v) => v.reserve(additional),
-            EntryKind::U8(v) => v.reserve(additional),
-            EntryKind::U16(v) => v.reserve(additional),
-            EntryKind::U32(v) => v.reserve(additional),
-            EntryKind::U64(v) => v.reserve(additional),
-            EntryKind::I8(v) => v.reserve(additional),
-            EntryKind::I16(v) => v.reserve(additional),
-            EntryKind::I32(v) => v.reserve(additional),
-            EntryKind::I64(v) => v.reserve(additional),
-            EntryKind::F32(v) => v.reserve(additional),
-            EntryKind::F64(v) => v.reserve(additional),
-        }
-    }
 }
 
 impl TryFrom<u8> for EntryKind {

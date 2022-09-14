@@ -6,7 +6,6 @@ use egui::plot::PlotPoint;
 use egui::{menu, Align2, CentralPanel, Color32, Key, RichText, TopBottomPanel, Ui, Vec2, Window};
 use egui_extras::{Size, TableBuilder};
 use serde::{Deserialize, Serialize};
-use strum::IntoEnumIterator;
 
 use crate::data::{DataEntry, LogFile};
 use crate::eval::{self, Expr, ExprError};
@@ -233,15 +232,24 @@ impl eframe::App for PlotApp {
 }
 
 pub fn select_files_dialog(ui: &mut Ui, opened_files: &mut SelectableFiles) -> bool {
-    let data_files_iter = opened_files.items.iter().map(|f| &f.file);
-    let common_prefix = match util::common_parent_dir(data_files_iter) {
+    let common_prefix = match util::common_parent_dir(opened_files.items.iter().map(|f| &f.file)) {
         Some(p) => p.to_owned(),
         None => PathBuf::new(),
     };
 
-    let by_header = Vec::new();
-    for f in files {
-
+    let mut files_by_header: Vec<Vec<SelectableFile>> = Vec::new();
+    let mut files_with_error = Vec::new();
+    for f in opened_files.items.into_iter() {
+        match &f.result {
+            Ok(l) => {
+                for h in files_by_header.iter_mut() {
+                    if l.header_matches(h[0].result.as_ref().unwrap()) {
+                        h.push(f);
+                    }
+                }
+            }
+            Err(_) => files_with_error.push(f),
+        }
     }
 
     ui.push_id("data files table", |ui| {
@@ -297,7 +305,12 @@ fn select_files_table(ui: &mut Ui, files: &mut Vec<SelectableFile>, common_prefi
                     row.col(|ui| {
                         ui.horizontal_centered(|ui| {
                             match f.result {
-                                Ok(_) => ui.checkbox(&mut f.selected, ""),
+                                Ok(_) => {
+                                    if f.sanity_check.is_err() {
+                                        f.selected = false;
+                                    }
+                                    ui.checkbox(&mut f.selected, "")
+                                }
                                 Err(_) => ui.label("(ignored)"),
                             };
                         });
@@ -312,9 +325,11 @@ fn select_files_table(ui: &mut Ui, files: &mut Vec<SelectableFile>, common_prefi
                         ui.horizontal_centered(|ui| {
                             match &f.result {
                                 Ok(d) => {
-                                    if let (Some(first), Some(last)) = (d.first(), d.last()) {
-                                        let start = util::format_time(first.time());
-                                        let end = util::format_time(last.time());
+                                    if let (Some(start), Some(end)) =
+                                        (d.time.first(), d.time.last())
+                                    {
+                                        let start = util::format_time(*start as f64 / 1000.0);
+                                        let end = util::format_time(*end as f64 / 1000.0);
                                         ui.label(format!("{start} - {end}"));
                                     } else {
                                         ui.label("File is empty");

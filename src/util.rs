@@ -12,10 +12,10 @@ pub fn ratio_slider(ui: &mut Ui, value: &mut f32, default_ratio: f32, range: f32
     );
 }
 
-pub fn format_time(t: f64) -> String {
-    let sub_sec = (t.fract() * 100.0).round() as usize;
+pub fn format_time(seconds: f64) -> String {
+    let sub_sec = (seconds.fract() * 100.0).round() as usize;
 
-    let secs = t as usize;
+    let secs = seconds as usize;
     let s = secs % 60;
     let m = secs / 60 % 60;
     let h = secs / (60 * 60);

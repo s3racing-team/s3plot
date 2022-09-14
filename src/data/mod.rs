@@ -4,10 +4,30 @@ use std::{fmt, io};
 mod read;
 
 pub struct LogFile {
-    version: u16,
+    pub version: u16,
     /// time in ms
-    time: Vec<u32>,
-    entries: Vec<DataEntry>,
+    pub time: Vec<u32>,
+    pub entries: Vec<DataEntry>,
+}
+
+impl LogFile {
+    pub fn len(&self) -> usize {
+        self.time.len()
+    }
+
+    pub fn header_matches(&self, other: &Self) -> bool {
+        if self.entries.len() != other.entries.len() {
+            return false;
+        }
+
+        for (a, b) in self.entries.iter().zip(other.entries.iter()) {
+            if !a.kind.matches(&b.kind) {
+                return false;
+            }
+        }
+
+        true
+    }
 }
 
 pub struct DataEntry {
@@ -31,6 +51,57 @@ pub enum EntryKind {
 
     F32(Vec<f32>),
     F64(Vec<f64>),
+}
+
+impl EntryKind {
+    pub fn reserve(&mut self, additional: usize) {
+        match self {
+            EntryKind::Bool(v) => v.reserve(additional),
+            EntryKind::U8(v) => v.reserve(additional),
+            EntryKind::U16(v) => v.reserve(additional),
+            EntryKind::U32(v) => v.reserve(additional),
+            EntryKind::U64(v) => v.reserve(additional),
+            EntryKind::I8(v) => v.reserve(additional),
+            EntryKind::I16(v) => v.reserve(additional),
+            EntryKind::I32(v) => v.reserve(additional),
+            EntryKind::I64(v) => v.reserve(additional),
+            EntryKind::F32(v) => v.reserve(additional),
+            EntryKind::F64(v) => v.reserve(additional),
+        }
+    }
+
+    pub fn matches(&self, other: &Self) -> bool {
+        match (self, other) {
+            (EntryKind::Bool(_), EntryKind::Bool(_))
+            | (EntryKind::U8(_), EntryKind::U8(_))
+            | (EntryKind::U16(_), EntryKind::U16(_))
+            | (EntryKind::U32(_), EntryKind::U32(_))
+            | (EntryKind::U64(_), EntryKind::U64(_))
+            | (EntryKind::I8(_), EntryKind::I8(_))
+            | (EntryKind::I16(_), EntryKind::I16(_))
+            | (EntryKind::I32(_), EntryKind::I32(_))
+            | (EntryKind::I64(_), EntryKind::I64(_))
+            | (EntryKind::F32(_), EntryKind::F32(_))
+            | (EntryKind::F64(_), EntryKind::F64(_)) => true,
+            _ => false,
+        }
+    }
+
+    pub fn extend(&mut self, other: &Self) {
+        match (self, other) {
+            (EntryKind::Bool(a), EntryKind::Bool(b)) => a.extend_from_slice(b),
+            (EntryKind::U8(a), EntryKind::U8(b)) => a.extend_from_slice(b),
+            (EntryKind::U16(a), EntryKind::U16(b)) => a.extend_from_slice(b),
+            (EntryKind::U32(a), EntryKind::U32(b)) => a.extend_from_slice(b),
+            (EntryKind::U64(a), EntryKind::U64(b)) => a.extend_from_slice(b),
+            (EntryKind::I8(a), EntryKind::I8(b)) => a.extend_from_slice(b),
+            (EntryKind::I16(a), EntryKind::I16(b)) => a.extend_from_slice(b),
+            (EntryKind::I32(a), EntryKind::I32(b)) => a.extend_from_slice(b),
+            (EntryKind::I64(a), EntryKind::I64(b)) => a.extend_from_slice(b),
+            (EntryKind::F32(a), EntryKind::F32(b)) => a.extend_from_slice(b),
+            (EntryKind::F64(a), EntryKind::F64(b)) => a.extend_from_slice(b),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -70,10 +141,10 @@ impl From<FromUtf8Error> for Error {
 
 pub struct SanityError(String);
 
-fn sanity_check(entries: &[DataEntry]) -> Option<SanityError> {
+fn sanity_check(entries: &[DataEntry]) -> Result<(), SanityError> {
     for e in entries {
-        match &e.kind {
-            EntryKind::Bool(v) => None,
+        let r = match &e.kind {
+            EntryKind::Bool(v) => Ok(()),
             EntryKind::U8(v) => check_all(v, &e.name, sanity_check_u8),
             EntryKind::U16(v) => check_all(v, &e.name, sanity_check_u16),
             EntryKind::U32(v) => check_all(v, &e.name, sanity_check_u32),
@@ -84,17 +155,20 @@ fn sanity_check(entries: &[DataEntry]) -> Option<SanityError> {
             EntryKind::I64(v) => check_all(v, &e.name, sanity_check_i64),
             EntryKind::F32(v) => check_all(v, &e.name, sanity_check_f32),
             EntryKind::F64(v) => check_all(v, &e.name, sanity_check_f64),
-        }
+        };
+
+        r?;
     }
+    Ok(())
 }
 
 fn check_all<T>(
     values: &[T],
     name: &str,
-    check: impl Fn(&T, &str) -> Result<(), SanityError>,
+    check: impl Fn(T, &str) -> Result<(), SanityError>,
 ) -> Result<(), SanityError> {
     for entry in values {
-        check(entry, name)?;
+        check(*entry, name)?;
     }
     Ok(())
 }
