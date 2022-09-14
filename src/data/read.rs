@@ -47,7 +47,7 @@ struct BoolContext {
     mask: u8,
 }
 
-fn read_data(reader: &mut (impl Read + Seek)) -> Result<LogFile, Error> {
+pub fn read_file(reader: &mut (impl Read + Seek)) -> Result<LogFile, Error> {
     let mut stream_len = reader.len()?;
 
     let magic = read_string(reader, 4)?;

@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use egui::{Align2, Color32, Context, Id, LayerId, Order, Pos2, Rect, TextStyle, Vec2};
 use serde::{Deserialize, Serialize};
 
-use crate::data::{self, DataEntry, LogFile, SanityError};
+use crate::data::{self, LogFile, SanityError};
 use crate::PlotApp;
 
 #[derive(Serialize, Deserialize, Default, Clone, Debug)]
@@ -17,7 +17,8 @@ pub struct Files {
 
 pub struct SelectableFiles {
     pub dir: PathBuf,
-    pub items: Vec<SelectableFile>,
+    pub by_header: Vec<Vec<SelectableFile>>,
+    pub with_error: Vec<SelectableFile>,
 }
 
 pub struct SelectableFile {
@@ -129,13 +130,13 @@ impl PlotApp {
         let all_succeeded = selectable_files.items.iter().all(|f| f.result.is_ok());
 
         if all_succeeded && !always_show_dialog {
-            self.concat_and_open(selectable_files);
+            self.concat_and_show(selectable_files);
         } else {
             self.selectable_files = Some(selectable_files);
         }
     }
 
-    pub fn concat_and_open(&mut self, selectable_files: SelectableFiles) {
+    pub fn concat_and_show(&mut self, selectable_files: SelectableFiles) {
         let data_len = selectable_files
             .items
             .iter()
@@ -143,7 +144,7 @@ impl PlotApp {
             .filter_map(|f| f.result.as_ref().ok())
             .map(|d| d.len())
             .sum();
-        let mut data = Vec::with_capacity(data_len);
+        let mut data = LogFile::default();
         let mut files = Vec::with_capacity(data_len);
         for (p, d) in selectable_files
             .items
@@ -162,19 +163,12 @@ impl PlotApp {
 
         self.selectable_files = None;
         self.files = Some(files);
-        self.data = Some(data::process_data(data, temp, &self.custom.plots));
+        self.data = Some(data::process_data(temp, &self.custom.plots));
     }
 }
 
-pub fn find_files(dir: PathBuf) -> Result<Files, data::Error> {
-    fn filename(file: &Path) -> Option<&str> {
-        if file.extension()? != "bin" {
-            return None;
-        }
-        file.file_stem()?.to_str()
-    }
-
-    let mut data_paths: Vec<(String, PathBuf)> = Vec::new();
+fn find_files(dir: PathBuf) -> Result<Files, data::Error> {
+    let mut items = Vec::new();
     for entry in std::fs::read_dir(&dir)? {
         let entry = entry?;
         let path = entry.path();
@@ -182,50 +176,53 @@ pub fn find_files(dir: PathBuf) -> Result<Files, data::Error> {
             continue;
         }
 
-        if let Some(name) = filename(&path) {
-            if let Some(name) = name.strip_prefix("temperature") {
-                let mut i = 0;
-                for (other, _) in temp_paths.iter() {
-                    if name < other.as_str() {
-                        break;
-                    }
-                    i += 1;
-                }
-                temp_paths.insert(i, (name.to_string(), path));
-            } else {
-                let mut i = 0;
-                for (other, _) in data_paths.iter() {
-                    if name < other.as_str() {
-                        break;
-                    }
-                    i += 1;
-                }
-                data_paths.insert(i, (name.to_string(), path));
-            }
+        if path.extension().map_or(false, |e| e == "s3lg") {
+            items.push(path);
         }
     }
 
-    Ok(Files {
-        dir,
-        items: data_paths.into_iter().map(|(_, p)| p).collect(),
-    })
+    items.sort();
+
+    Ok(Files { dir, items })
 }
 
 fn open_files(files: Files) -> SelectableFiles {
-    let mut data = Vec::new();
-    for p in files.items.iter() {
-        let result = open_file(p, version);
-        data.push(SelectableFile::new(true, p.to_owned(), result));
+    let mut by_header: Vec<Vec<SelectableFile>> = Vec::new();
+    let mut with_error = Vec::new();
+    for f in files.items.iter() {
+        let selectable_file = open_file(f);
+        match &selectable_file.result {
+            Ok(log_file) => {
+                for group in by_header.iter_mut() {
+                    if log_file.header_matches(group[0].result.as_ref().unwrap()) {
+                        group.push(selectable_file);
+                    }
+                }
+            }
+            Err(_) => with_error.push(selectable_file),
+        }
     }
 
     SelectableFiles {
         dir: files.dir,
-        items,
+        by_header,
+        with_error,
     }
 }
 
-fn open_file(path: &Path) -> Result<Vec<DataEntry>, data::Error> {
-    let mut reader = BufReader::new(File::open(path)?);
-    data::read_extend_data(&mut reader, &mut data)?;
-    Ok(data)
+fn open_file(path: &Path) -> SelectableFile {
+    let result = File::open(path).map_err(From::from).and_then(|f| {
+        let mut reader = BufReader::new(f);
+        data::read_file(&mut reader)
+    });
+    let sanity_check = match &result {
+        Ok(l) => data::sanity_check(&l.entries),
+        Err(_) => Ok(()),
+    };
+    SelectableFile {
+        selected: sanity_check.is_ok(),
+        file: path.to_path_buf(),
+        result,
+        sanity_check,
+    }
 }

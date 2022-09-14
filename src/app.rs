@@ -43,7 +43,7 @@ enum Tab {
 }
 
 pub struct PlotData {
-    pub raw_data: Arc<[DataEntry]>,
+    pub raw_data: Arc<[LogFile]>,
     pub power: WheelValues,
     pub velocity: WheelValues,
     pub torque_set: WheelValues,
@@ -220,7 +220,7 @@ impl eframe::App for PlotApp {
                 Some(r) if open => {
                     if let Some(true) = r.inner {
                         let files = self.selectable_files.take().unwrap();
-                        self.concat_and_open(files);
+                        self.concat_and_show(files);
                     }
                 }
                 _ => self.selectable_files = None,
