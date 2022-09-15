@@ -6,19 +6,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::data::LogStream;
 
-// fn lerp(time: f64, timed_values: &[(f64, f64)]) -> f64 {
-//     match timed_values {
-//         [(t, v)] => *v,
-//         [(t1, v1), (t2, v2)] => {
-//             let range = t2 - t1;
-//             let pos = time - t1;
-//             let factor = pos / range;
-//             v1 + factor * (v2 - v1)
-//         }
-//         _ => f64::NAN,
-//     }
-// }
-
 #[derive(Default, Clone, Serialize, Deserialize)]
 pub struct Expr {
     pub x: String,
@@ -59,30 +46,34 @@ pub fn eval(expr: &Expr, data: Arc<[LogStream]>) -> Result<Vec<PlotPoint>, Box<E
     stack_x.resize(vars_x.len());
     stack_y.resize(vars_y.len());
 
+    let mut lerp_values = Vec::with_capacity(data.len() - 1);
+    for d in data.iter().skip(1) {
+        lerp_values.push((0, &d.time[0..1]));
+    }
     for (i, &time) in data[0].time.iter().enumerate() {
-        // TODO: figure out which stream has the highest frequency,
-        //       use that as the time axis and lerp the other streams values.
-        //
-        // while let Some(t) = temp.get(temp_index) {
-        //     if t.ms == d.ms || t.ms > d.ms && temp_index == 0 {
-        //         temp_entries = std::slice::from_ref(t);
-        //     } else if t.ms > d.ms {
-        //         temp_entries = &temp[temp_index - 1..temp_index + 1];
-        //     } else if temp_index + 1 == temp.len() {
-        //         temp_entries = std::slice::from_ref(t);
-        //     } else {
-        //         temp_index += 1;
-        //         continue;
-        //     }
-        //     break;
-        // }
+        for (j, d) in data.iter().skip(1).enumerate() {
+            let mut d_index = 0;
+            while let Some(&t) = d.time.get(d_index) {
+                if t == time || t > time && d_index == 0 {
+                    lerp_values[j] = (d_index, &d.time[d_index..d_index + 1]);
+                } else if t > time {
+                    lerp_values[j] = (d_index - 1, &d.time[d_index - 1..d_index + 1]);
+                } else if d_index + 1 == d.len() {
+                    lerp_values[j] = (d_index, &d.time[d_index..d_index + 1]);
+                } else {
+                    d_index += 1;
+                    continue;
+                }
+                break;
+            }
+        }
 
         for (var, id) in vars_x.iter() {
-            let val = get_value(&data, *id, i, time);
+            let val = get_value(&data, *id, i, time, &lerp_values);
             stack_x.set(var, val);
         }
         for (var, id) in vars_y.iter() {
-            let val = get_value(&data, *id, i, time);
+            let val = get_value(&data, *id, i, time, &lerp_values);
             stack_y.set(var, val);
         }
 
@@ -157,9 +148,28 @@ fn cast_float(val: Val) -> Option<f64> {
     }
 }
 
-fn get_value(data: &[LogStream], id: (usize, usize), index: usize, time: u32) -> Val {
-    if id.0 < data.len() {
+fn get_value(
+    data: &[LogStream],
+    id: (usize, usize),
+    index: usize,
+    time: u32,
+    lerp_values: &[(usize, &[u32])],
+) -> Val {
+    if id.0 == 0 {
         Val::Float(data[id.0].entries[id.1].kind.get_f64(index))
+    } else if id.0 < data.len() {
+        match lerp_values[id.0 - 1] {
+            (index, [_time]) => Val::Float(data[id.0].entries[id.1].kind.get_f64(index)),
+            (index, [time0, time1]) => {
+                let range = time1 - time0;
+                let pos = time - time0;
+                let factor = pos as f64 / range as f64;
+                let val0 = data[id.0].entries[id.1].kind.get_f64(index);
+                let val1 = data[id.0].entries[id.1].kind.get_f64(index + 1);
+                Val::Float(val0 + factor * (val1 - val0))
+            }
+            _ => Val::Float(f64::NAN),
+        }
     } else {
         Val::Float(time as f64 / 1000.0)
     }

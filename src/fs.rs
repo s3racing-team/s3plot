@@ -160,8 +160,24 @@ impl PlotApp {
         };
 
         self.selectable_files = None;
-        self.files = Some(files);
-        self.data = Some(data::process_data(streams, &self.config));
+        if streams.is_empty() {
+            self.files = None;
+            self.data = None;
+        } else {
+            let mut lowest_delta = (0, 0);
+            for (i, s) in streams.iter().enumerate() {
+                let delta = s.time.windows(2).take(20).map(|w| w[1] - w[0]).sum::<u32>()
+                    / std::cmp::min(20, s.time.len() as u32);
+                if delta < lowest_delta.1 {
+                    lowest_delta = (i, delta);
+                }
+            }
+
+            streams.swap(0, lowest_delta.0);
+
+            self.files = Some(files);
+            self.data = Some(data::process_data(streams, &self.config));
+        }
     }
 }
 
