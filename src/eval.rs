@@ -115,9 +115,10 @@ fn parse(
     let csts = ctx.parse(items)?;
 
     let mut checker = Checker::default();
+    let mut id = 0;
     for (i, group) in data.iter().enumerate() {
         for j in 0..group.entries.len() {
-            let ident = IdentSpan::new(Ident(i), Span::pos(0, 0));
+            let ident = IdentSpan::new(Ident(id), Span::pos(0, 0));
             let inner = ctx.def_var(
                 &mut checker.scopes,
                 ident,
@@ -126,6 +127,8 @@ fn parse(
                 false,
             );
             vars.push((inner, (i, j)));
+
+            id += 1;
         }
     }
     let ident = IdentSpan::new(Ident(vars.len()), Span::pos(0, 0));
