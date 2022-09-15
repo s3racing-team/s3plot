@@ -1,14 +1,18 @@
 use std::string::FromUtf8Error;
+use std::sync::Arc;
 use std::{fmt, io};
 
 pub use read::read_file;
 pub use sanity::sanity_check;
 
-use crate::app::CustomValues;
+use crate::app::{CustomValues, PlotData};
+use crate::eval;
+use crate::plot::CustomConfig;
 
 mod read;
 mod sanity;
 
+#[derive(Debug)]
 pub struct LogStream {
     pub version: u16,
     /// time in ms
@@ -60,9 +64,10 @@ impl LogStream {
     }
 }
 
+#[derive(Debug)]
 pub struct DataEntry {
-    name: String,
-    kind: EntryKind,
+    pub name: String,
+    pub kind: EntryKind,
 }
 
 #[derive(Clone, Debug)]
@@ -130,6 +135,23 @@ impl EntryKind {
             (EntryKind::I64(a), EntryKind::I64(b)) => a.extend_from_slice(b),
             (EntryKind::F32(a), EntryKind::F32(b)) => a.extend_from_slice(b),
             (EntryKind::F64(a), EntryKind::F64(b)) => a.extend_from_slice(b),
+            _ => (),
+        }
+    }
+
+    pub fn get_f64(&self, index: usize) -> f64 {
+        match self {
+            EntryKind::Bool(v) => v[index] as u8 as f64,
+            EntryKind::U8(v) => v[index] as f64,
+            EntryKind::U16(v) => v[index] as f64,
+            EntryKind::U32(v) => v[index] as f64,
+            EntryKind::U64(v) => v[index] as f64,
+            EntryKind::I8(v) => v[index] as f64,
+            EntryKind::I16(v) => v[index] as f64,
+            EntryKind::I32(v) => v[index] as f64,
+            EntryKind::I64(v) => v[index] as f64,
+            EntryKind::F32(v) => v[index] as f64,
+            EntryKind::F64(v) => v[index],
         }
     }
 }
@@ -138,7 +160,7 @@ impl EntryKind {
 pub enum Error {
     IO(io::Error),
     Utf8(FromUtf8Error),
-    InvalidMagic(String),
+    InvalidMagic([u8; 4]),
     UnknownVersion(u16),
     UnknownDatatype(u8),
 }
@@ -150,7 +172,10 @@ impl fmt::Display for Error {
         match self {
             Self::IO(error) => write!(f, "Error reading files: {}", error),
             Self::Utf8(error) => write!(f, "Error decoding utf8 string: {}", error),
-            Self::InvalidMagic(magic) => write!(f, "Invalid magic number: {}", magic),
+            Self::InvalidMagic(magic) => match std::str::from_utf8(magic) {
+                Ok(m) => write!(f, "Invalid magic number: {m}"),
+                Err(_) => write!(f, "Invalid magic number: {:?}", magic),
+            },
             Self::UnknownVersion(version) => write!(f, "Unknown version: {}", version),
             Self::UnknownDatatype(code) => write!(f, "Unknown datatype code: {}", code),
         }
@@ -169,8 +194,15 @@ impl From<FromUtf8Error> for Error {
     }
 }
 
+#[derive(Debug)]
 pub struct SanityError(String);
 
-pub fn process_data() -> Vec<CustomValues> {
-    todo!()
+pub fn process_data(streams: Vec<LogStream>, config: &CustomConfig) -> PlotData {
+    let streams = streams.into();
+    let plots = config
+        .plots
+        .iter()
+        .map(|p| CustomValues::Result(eval::eval(&p.expr, Arc::clone(&streams))))
+        .collect();
+    PlotData { streams, plots }
 }

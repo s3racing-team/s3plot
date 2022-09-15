@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::Arc;
 use std::thread::JoinHandle;
 
@@ -7,54 +7,26 @@ use egui::{menu, Align2, CentralPanel, Color32, Key, RichText, TopBottomPanel, U
 use egui_extras::{Size, TableBuilder};
 use serde::{Deserialize, Serialize};
 
-use crate::data::{DataEntry, LogStream};
+use crate::data::LogStream;
 use crate::eval::{self, Expr, ExprError};
-use crate::fs::{Files, SelectableFile, SelectableFiles};
-use crate::plot::{
-    self, CustomConfig, PowerConfig, Temp1Config, Temp2Config, TorqueConfig, VelocityConfig,
-};
+use crate::fs::{ErrorFile, Files, SelectableFile, SelectableFiles};
+use crate::plot::{self, CustomConfig};
 use crate::util;
 
 #[derive(Serialize, Deserialize)]
 #[serde(default)]
 pub struct PlotApp {
     pub files: Option<Files>,
-    selected_tab: Tab,
-    pub power: PowerConfig,
-    pub velocity: VelocityConfig,
-    pub torque: TorqueConfig,
-    pub temp1: Temp1Config,
-    pub temp2: Temp2Config,
-    pub custom: CustomConfig,
+    pub config: CustomConfig,
     #[serde(skip)]
     pub selectable_files: Option<SelectableFiles>,
     #[serde(skip)]
     pub data: Option<PlotData>,
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Eq)]
-enum Tab {
-    Power,
-    Velocity,
-    Torque,
-    Temp1,
-    Temp2,
-    Custom,
-}
-
 pub struct PlotData {
-    pub raw_data: Arc<[LogStream]>,
-    pub power: WheelValues,
-    pub velocity: WheelValues,
-    pub torque_set: WheelValues,
-    pub torque_real: WheelValues,
-    pub temp: WheelValues,
-    pub room_temp: WheelValues,
-    pub heatsink_temp: WheelValues,
-    pub ams_temp_max: Vec<PlotPoint>,
-    pub water_temp_converter: Vec<PlotPoint>,
-    pub water_temp_motor: Vec<PlotPoint>,
-    pub custom: Vec<CustomValues>,
+    pub streams: Arc<[LogStream]>,
+    pub plots: Vec<CustomValues>,
 }
 
 pub enum CustomValues {
@@ -94,26 +66,13 @@ impl Job {
     }
 }
 
-pub struct WheelValues {
-    pub fl: Vec<PlotPoint>,
-    pub fr: Vec<PlotPoint>,
-    pub rl: Vec<PlotPoint>,
-    pub rr: Vec<PlotPoint>,
-}
-
 impl Default for PlotApp {
     fn default() -> Self {
         Self {
             files: None,
+            config: CustomConfig::default(),
             selectable_files: None,
             data: None,
-            selected_tab: Tab::Power,
-            power: PowerConfig::default(),
-            velocity: VelocityConfig::default(),
-            torque: TorqueConfig::default(),
-            temp1: Temp1Config::default(),
-            temp2: Temp2Config::default(),
-            custom: CustomConfig::default(),
         }
     }
 }
@@ -175,32 +134,10 @@ impl eframe::App for PlotApp {
                 ui.label("...");
             } else if let Some(d) = &mut self.data {
                 ui.horizontal(|ui| {
-                    ui.selectable_value(&mut self.selected_tab, Tab::Power, "Power");
-                    ui.selectable_value(&mut self.selected_tab, Tab::Velocity, "Velocity");
-                    ui.selectable_value(&mut self.selected_tab, Tab::Torque, "Torque");
-                    ui.selectable_value(&mut self.selected_tab, Tab::Temp1, "Temp 1");
-                    ui.selectable_value(&mut self.selected_tab, Tab::Temp2, "Temp 2");
-                    ui.selectable_value(&mut self.selected_tab, Tab::Custom, "Custom");
-                    ui.add_space(30.0);
-
-                    match self.selected_tab {
-                        Tab::Power => plot::wheel_config(ui, &mut self.power),
-                        Tab::Velocity => plot::wheel_config(ui, &mut self.velocity),
-                        Tab::Torque => plot::wheel_config(ui, &mut self.torque),
-                        Tab::Temp1 => plot::wheel_config(ui, &mut self.temp1),
-                        Tab::Temp2 => plot::temp2_config(ui, &mut self.temp2),
-                        Tab::Custom => plot::custom_config(ui, &mut self.custom),
-                    }
+                    plot::custom_config(ui, &mut self.config);
                 });
 
-                match self.selected_tab {
-                    Tab::Power => plot::power_plot(ui, d, &self.power),
-                    Tab::Velocity => plot::velocity_plot(ui, d, &self.velocity),
-                    Tab::Torque => plot::torque_plot(ui, d, &self.torque),
-                    Tab::Temp1 => plot::temp1_plot(ui, d, &self.temp1),
-                    Tab::Temp2 => plot::temp2_plot(ui, d, &self.temp2),
-                    Tab::Custom => plot::custom_plot(ui, d, &mut self.custom),
-                }
+                plot::custom_plot(ui, d, &mut self.config);
             } else {
                 ui.label("Open or drag and drop a directory");
             }
@@ -232,29 +169,17 @@ impl eframe::App for PlotApp {
 }
 
 pub fn select_files_dialog(ui: &mut Ui, opened_files: &mut SelectableFiles) -> bool {
-    let common_prefix = match util::common_parent_dir(opened_files.items.iter().map(|f| &f.file)) {
-        Some(p) => p.to_owned(),
-        None => PathBuf::new(),
-    };
+    let common_prefix = opened_files.dir.as_path();
 
-    let mut files_by_header: Vec<Vec<SelectableFile>> = Vec::new();
-    let mut files_with_error = Vec::new();
-    for f in opened_files.items.into_iter() {
-        match &f.result {
-            Ok(l) => {
-                for h in files_by_header.iter_mut() {
-                    if l.header_matches(h[0].result.as_ref().unwrap()) {
-                        h.push(f);
-                    }
-                }
-            }
-            Err(_) => files_with_error.push(f),
-        }
+    for (i, group) in opened_files.by_header.iter_mut().enumerate() {
+        ui.push_id(i, |ui| {
+            select_files_table(ui, group, common_prefix);
+        });
+        ui.add_space(20.0);
     }
 
-    ui.push_id("data files table", |ui| {
-        select_files_table(ui, &mut opened_files.items, &common_prefix);
-    });
+    error_files_table(ui, &opened_files.with_error, common_prefix);
+
     ui.add_space(20.0);
 
     ui.horizontal(|ui| ui.button("Ok").clicked()).inner
@@ -272,7 +197,7 @@ fn select_files_table(ui: &mut Ui, files: &mut Vec<SelectableFile>, common_prefi
         .column(Size::exact(50.0)) // arrows
         .column(Size::exact(60.0)) // select/deselect
         .column(Size::exact(400.0)) // file name
-        .column(Size::exact(500.0)) // start end or error
+        .column(Size::exact(500.0)) // start end
         .resizable(false)
         .striped(true)
         .header(20.0, |mut header| {
@@ -286,7 +211,7 @@ fn select_files_table(ui: &mut Ui, files: &mut Vec<SelectableFile>, common_prefi
                 ui.heading("File");
             });
             header.col(|ui| {
-                ui.heading("Info");
+                ui.heading("Time");
             });
         })
         .body(|mut body| {
@@ -304,15 +229,7 @@ fn select_files_table(ui: &mut Ui, files: &mut Vec<SelectableFile>, common_prefi
                     });
                     row.col(|ui| {
                         ui.horizontal_centered(|ui| {
-                            match f.result {
-                                Ok(_) => {
-                                    if f.sanity_check.is_err() {
-                                        f.selected = false;
-                                    }
-                                    ui.checkbox(&mut f.selected, "")
-                                }
-                                Err(_) => ui.label("(ignored)"),
-                            };
+                            ui.checkbox(&mut f.selected, "");
                         });
                     });
                     row.col(|ui| {
@@ -323,22 +240,15 @@ fn select_files_table(ui: &mut Ui, files: &mut Vec<SelectableFile>, common_prefi
                     });
                     row.col(|ui| {
                         ui.horizontal_centered(|ui| {
-                            match &f.result {
-                                Ok(d) => {
-                                    if let (Some(start), Some(end)) =
-                                        (d.time.first(), d.time.last())
-                                    {
-                                        let start = util::format_time(*start as f64 / 1000.0);
-                                        let end = util::format_time(*end as f64 / 1000.0);
-                                        ui.label(format!("{start} - {end}"));
-                                    } else {
-                                        ui.label("File is empty");
-                                    }
-                                }
-                                Err(e) => {
-                                    ui.label(RichText::new(e.to_string()).color(Color32::RED));
-                                }
-                            };
+                            if let (Some(start), Some(end)) =
+                                (f.stream.time.first(), f.stream.time.last())
+                            {
+                                let start = util::format_time(*start as f64 / 1000.0);
+                                let end = util::format_time(*end as f64 / 1000.0);
+                                ui.label(format!("{start} - {end}"));
+                            } else {
+                                ui.label("File is empty");
+                            }
                         });
                     });
                 });
@@ -366,6 +276,39 @@ fn select_files_table(ui: &mut Ui, files: &mut Vec<SelectableFile>, common_prefi
     }
 }
 
+fn error_files_table(ui: &mut Ui, files: &[ErrorFile], common_prefix: &Path) {
+    TableBuilder::new(ui)
+        .column(Size::exact(400.0)) // file name
+        .column(Size::exact(500.0)) // error
+        .resizable(false)
+        .striped(true)
+        .header(20.0, |mut header| {
+            header.col(|ui| {
+                ui.heading("File");
+            });
+            header.col(|ui| {
+                ui.heading("Error");
+            });
+        })
+        .body(|mut body| {
+            for e in files.iter() {
+                body.row(20.0, |mut row| {
+                    row.col(|ui| {
+                        ui.horizontal_centered(|ui| {
+                            let name = e.file.strip_prefix(common_prefix).unwrap();
+                            ui.label(name.display().to_string());
+                        });
+                    });
+                    row.col(|ui| {
+                        ui.horizontal_centered(|ui| {
+                            ui.label(RichText::new(e.error.to_string()).color(Color32::RED));
+                        });
+                    });
+                });
+            }
+        });
+}
+
 impl PlotApp {
     pub fn new(context: &eframe::CreationContext) -> Self {
         let mut app = context
@@ -374,7 +317,6 @@ impl PlotApp {
             .unwrap_or_default();
 
         if let Some(f) = app.files.clone() {
-            // TODO: don't show selection dialog if all files are opened successfully
             app.try_open_files(f, false);
         }
         app

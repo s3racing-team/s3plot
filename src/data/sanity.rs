@@ -1,9 +1,9 @@
-use super::{SanityError, DataEntry, EntryKind};
+use super::{DataEntry, EntryKind, SanityError};
 
 pub fn sanity_check(entries: &[DataEntry]) -> Result<(), SanityError> {
     for e in entries {
         let r = match &e.kind {
-            EntryKind::Bool(v) => Ok(()),
+            EntryKind::Bool(_) => Ok(()),
             EntryKind::U8(v) => check_all(v, &e.name, sanity_check_u8),
             EntryKind::U16(v) => check_all(v, &e.name, sanity_check_u16),
             EntryKind::U32(v) => check_all(v, &e.name, sanity_check_u32),
@@ -21,7 +21,7 @@ pub fn sanity_check(entries: &[DataEntry]) -> Result<(), SanityError> {
     Ok(())
 }
 
-fn check_all<T>(
+fn check_all<T: Copy>(
     values: &[T],
     name: &str,
     check: impl Fn(T, &str) -> Result<(), SanityError>,

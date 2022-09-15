@@ -15,33 +15,25 @@ pub struct Files {
     pub items: Vec<PathBuf>,
 }
 
+#[derive(Debug)]
 pub struct SelectableFiles {
     pub dir: PathBuf,
     pub by_header: Vec<Vec<SelectableFile>>,
-    pub with_error: Vec<SelectableFile>,
+    pub with_error: Vec<ErrorFile>,
 }
 
+#[derive(Debug)]
 pub struct SelectableFile {
     pub selected: bool,
     pub file: PathBuf,
-    pub result: Result<LogStream, data::Error>,
+    pub stream: LogStream,
     pub sanity_check: Result<(), SanityError>,
 }
 
-impl SelectableFile {
-    pub fn new(
-        seleted: bool,
-        file: PathBuf,
-        result: Result<LogStream, data::Error>,
-        sanity_check: Result<(), SanityError>,
-    ) -> Self {
-        Self {
-            selected: seleted,
-            file,
-            result,
-            sanity_check,
-        }
-    }
+#[derive(Debug)]
+pub struct ErrorFile {
+    pub file: PathBuf,
+    pub error: data::Error,
 }
 
 impl PlotApp {
@@ -133,7 +125,7 @@ impl PlotApp {
             .iter()
             .all(|g| g.iter().all(|f| f.sanity_check.is_ok()));
 
-        if all_succeeded && !always_show_dialog {
+        if all_succeeded && sanity_check_passed && !always_show_dialog {
             self.concat_and_show(selectable_files);
         } else {
             self.selectable_files = Some(selectable_files);
@@ -144,24 +136,22 @@ impl PlotApp {
         let mut streams = Vec::with_capacity(selectable_files.by_header.len());
         let mut files = Vec::new();
         for group in selectable_files.by_header.into_iter() {
-            let mut group = group
-                .into_iter()
-                .filter(|f| f.selected)
-                .filter_map(|f| f.result.ok().map(|s| (f.file, s)))
-                .collect::<Vec<_>>();
+            let additional = group.iter().skip(1).map(|s| s.stream.len()).sum();
+            let mut group_iter = group.into_iter().filter(|f| f.selected);
 
-            let (first_file, first) = group.remove(0);
-            files.push(first_file);
+            let mut first = match group_iter.next() {
+                Some(f) => f,
+                None => continue,
+            };
+            first.stream.reserve(additional);
+            files.push(first.file);
 
-            let additional = group.iter().map(|(_, d)| d.len()).sum();
-            first.reserve(additional);
-
-            for (f, s) in group.into_iter() {
-                first.extend(&s);
-                files.push(f);
+            for s in group_iter {
+                first.stream.extend(&s.stream);
+                files.push(s.file);
             }
 
-            streams.push(group.remove(0));
+            streams.push(first.stream);
         }
 
         let files = Files {
@@ -171,7 +161,7 @@ impl PlotApp {
 
         self.selectable_files = None;
         self.files = Some(files);
-        self.data = Some(data::process_data(files, &self.custom.plots));
+        self.data = Some(data::process_data(streams, &self.config));
     }
 }
 
@@ -197,17 +187,19 @@ fn find_files(dir: PathBuf) -> Result<Files, data::Error> {
 fn open_files(files: Files) -> SelectableFiles {
     let mut by_header: Vec<Vec<SelectableFile>> = Vec::new();
     let mut with_error = Vec::new();
-    for f in files.items.iter() {
-        let selectable_file = open_file(f);
-        match &selectable_file.result {
-            Ok(log_file) => {
+    'outer: for f in files.items.iter() {
+        let opened_file = open_file(f);
+        match opened_file {
+            Ok(selectable_file) => {
                 for group in by_header.iter_mut() {
-                    if log_file.header_matches(group[0].result.as_ref().unwrap()) {
+                    if selectable_file.stream.header_matches(&group[0].stream) {
                         group.push(selectable_file);
+                        continue 'outer;
                     }
                 }
+                by_header.push(vec![selectable_file]);
             }
-            Err(_) => with_error.push(selectable_file),
+            Err(error_file) => with_error.push(error_file),
         }
     }
 
@@ -218,19 +210,24 @@ fn open_files(files: Files) -> SelectableFiles {
     }
 }
 
-fn open_file(path: &Path) -> SelectableFile {
+fn open_file(path: &Path) -> Result<SelectableFile, ErrorFile> {
     let result = File::open(path).map_err(From::from).and_then(|f| {
         let mut reader = BufReader::new(f);
         data::read_file(&mut reader)
     });
-    let sanity_check = match &result {
-        Ok(l) => data::sanity_check(&l.entries),
-        Err(_) => Ok(()),
-    };
-    SelectableFile {
-        selected: sanity_check.is_ok(),
-        file: path.to_path_buf(),
-        result,
-        sanity_check,
-    }
+
+    result
+        .map(|stream| {
+            let sanity_check = data::sanity_check(&stream.entries);
+            SelectableFile {
+                selected: sanity_check.is_ok(),
+                file: path.to_path_buf(),
+                stream,
+                sanity_check,
+            }
+        })
+        .map_err(|error| ErrorFile {
+            file: path.to_path_buf(),
+            error,
+        })
 }

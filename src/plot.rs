@@ -1,24 +1,23 @@
+use egui::plot::{Line, PlotPoints};
+
 use std::ops::Range;
 use std::sync::Arc;
 
 use cods::{Pos, UserFacing};
-use egui::plot::{Legend, Line, Plot};
+use egui::plot::{Legend, Plot};
 use egui::style::Margin;
 use egui::text::{LayoutJob, LayoutSection};
 use egui::{
     CentralPanel, Color32, Frame, Label, RichText, Rounding, ScrollArea, SidePanel, TextEdit,
-    TextFormat, TextStyle, Ui,
+    TextFormat, Ui,
 };
 use serde::{Deserialize, Serialize};
-use strum::IntoEnumIterator;
 
 use crate::app::{CustomValues, Job, PlotData};
-use crate::eval::{Expr, Var};
+use crate::eval::Expr;
 use crate::util::{self, format_time};
 
-use super::line;
-
-const CUSTOM_ASPECT_RATIO: f32 = 0.1;
+const DEFAULT_ASPECT_RATIO: f32 = 0.1;
 const RED: Color32 = Color32::from_rgb(0xf0, 0x56, 0x56);
 
 #[derive(Serialize, Deserialize)]
@@ -30,20 +29,20 @@ pub struct CustomConfig {
 impl Default for CustomConfig {
     fn default() -> Self {
         Self {
-            aspect_ratio: CUSTOM_ASPECT_RATIO,
+            aspect_ratio: DEFAULT_ASPECT_RATIO,
             plots: vec![
                 CustomPlot {
                     name: "1.".into(),
                     expr: Expr {
-                        x: "t".into(),
-                        y: "sin(t / PI) * sqrt(abs(P_fl))".into(),
+                        x: "time".into(),
+                        y: "sin(time / PI)".into(),
                     },
                 },
                 CustomPlot {
                     name: "2.".into(),
                     expr: Expr {
-                        x: "t".into(),
-                        y: "cos(t / PI - PI) * sqrt(abs(P_fl))".into(),
+                        x: "time".into(),
+                        y: "cos(time / PI - PI)".into(),
                     },
                 },
             ],
@@ -67,7 +66,7 @@ impl CustomPlot {
 }
 
 pub fn custom_config(ui: &mut Ui, cfg: &mut CustomConfig) {
-    util::ratio_slider(ui, &mut cfg.aspect_ratio, CUSTOM_ASPECT_RATIO, 1000.0);
+    util::ratio_slider(ui, &mut cfg.aspect_ratio, DEFAULT_ASPECT_RATIO, 1000.0);
 }
 
 pub fn custom_plot(ui: &mut Ui, data: &mut PlotData, cfg: &mut CustomConfig) {
@@ -102,7 +101,7 @@ pub fn custom_plot(ui: &mut Ui, data: &mut PlotData, cfg: &mut CustomConfig) {
                 })
                 .legend(Legend::default())
                 .show(ui, |ui| {
-                    for (c, p) in data.custom.iter_mut().zip(cfg.plots.iter()) {
+                    for (c, p) in data.plots.iter_mut().zip(cfg.plots.iter()) {
                         if let CustomValues::Job(j) = c {
                             if j.is_done() {
                                 let job = std::mem::replace(c, CustomValues::empty());
@@ -113,7 +112,9 @@ pub fn custom_plot(ui: &mut Ui, data: &mut PlotData, cfg: &mut CustomConfig) {
                         }
 
                         match c {
-                            CustomValues::Result(Ok(d)) => ui.line(line(d.clone()).name(&p.name)),
+                            CustomValues::Result(Ok(d)) => {
+                                ui.line(Line::new(PlotPoints::Owned(d.clone())).name(&p.name));
+                            }
                             _ => ui.line(Line::new([0.0, f64::NAN]).name(&p.name)),
                         }
                     }
@@ -125,19 +126,16 @@ fn sidebar(ui: &mut Ui, data: &mut PlotData, cfg: &mut CustomConfig) {
     let mut i = 0;
     while i < cfg.plots.len() {
         let p = &mut cfg.plots[i];
-        let d = &data.custom[i];
+        let d = &data.plots[i];
         let input = expr_inputs(ui, p, d);
 
         if input.removed {
             cfg.plots.remove(i);
-            let _ = data.custom.remove(i);
+            let _ = data.plots.remove(i);
         } else {
             if input.x_changed || input.y_changed {
-                data.custom[i] = CustomValues::Job(Job::start(
-                    p.expr.clone(),
-                    Arc::clone(&data.raw_data),
-                    Arc::clone(&data.raw_temp),
-                ));
+                data.plots[i] =
+                    CustomValues::Job(Job::start(p.expr.clone(), Arc::clone(&data.streams)));
             }
             i += 1;
         }
@@ -145,16 +143,17 @@ fn sidebar(ui: &mut Ui, data: &mut PlotData, cfg: &mut CustomConfig) {
 
     if ui.button(" + ").clicked() {
         cfg.plots.push(CustomPlot::named(format!("{}.", i + 1)));
-        data.custom.push(CustomValues::Result(Ok(Vec::new())));
+        data.plots.push(CustomValues::Result(Ok(Vec::new())));
     }
     ui.add_space(10.0);
 
-    ui.add(Label::new(
-        RichText::new("Variables").text_style(TextStyle::Heading),
-    ));
-    for v in Var::iter() {
-        ui.add(Label::new(RichText::new(v.to_string()).monospace()));
-    }
+    // TODO: add list of variables
+    // ui.add(Label::new(
+    //     RichText::new("Variables").text_style(TextStyle::Heading),
+    // ));
+    // for v in Var::iter() {
+    //     ui.add(Label::new(RichText::new(v.to_string()).monospace()));
+    // }
 }
 
 struct ExprInput {

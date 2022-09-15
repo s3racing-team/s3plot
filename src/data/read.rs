@@ -48,10 +48,11 @@ struct BoolContext {
 }
 
 pub fn read_file(reader: &mut (impl Read + Seek)) -> Result<LogStream, Error> {
-    let mut stream_len = reader.len()?;
+    let stream_len = reader.len()?;
 
-    let magic = read_string(reader, 4)?;
-    if magic != "s3lg" {
+    let mut magic = [0; 4];
+    reader.read_exact(&mut magic)?;
+    if &magic != b"s3lg" {
         return Err(Error::InvalidMagic(magic));
     }
 
@@ -74,6 +75,7 @@ pub fn read_file(reader: &mut (impl Read + Seek)) -> Result<LogStream, Error> {
         let kind = EntryKind::try_from(code)?;
         let name_len = read_u8(reader)?;
         let name = read_string(reader, name_len as usize)?;
+        let name = name.replace('.', "_");
 
         log_file.entries.push(DataEntry { name, kind });
 
@@ -85,7 +87,6 @@ pub fn read_file(reader: &mut (impl Read + Seek)) -> Result<LogStream, Error> {
     for e in log_file.entries.iter() {
         data_entry_size += e.kind.size() as u64;
     }
-
     let num_data_entries = (stream_len - pos) / data_entry_size;
     log_file.time.reserve(num_data_entries as usize);
     for e in log_file.entries.iter_mut() {
@@ -93,26 +94,19 @@ pub fn read_file(reader: &mut (impl Read + Seek)) -> Result<LogStream, Error> {
     }
 
     let mut bool_ctx = None;
-    while pos < stream_len {
+    for _ in 0..num_data_entries {
         log_file.time.push(read_u32(reader)?);
 
         let mut is_bool_entry = false;
 
         for e in log_file.entries.iter_mut() {
-            let mut read_bytes = e.kind.size();
-
             match &mut e.kind {
                 EntryKind::Bool(v) => {
                     is_bool_entry = true;
-                    let read_bytes;
 
                     let ctx = match &mut bool_ctx {
-                        Some(ctx) => {
-                            read_bytes = 0;
-                            ctx
-                        }
+                        Some(ctx) => ctx,
                         None => {
-                            read_bytes = 1;
                             bool_ctx = Some(BoolContext {
                                 bit_fields: read_u8(reader)?,
                                 mask: 1,
@@ -142,8 +136,6 @@ pub fn read_file(reader: &mut (impl Read + Seek)) -> Result<LogStream, Error> {
                 EntryKind::F32(v) => v.push(read_f32(reader)?),
                 EntryKind::F64(v) => v.push(read_f64(reader)?),
             }
-
-            pos += read_bytes as u64;
         }
 
         if !is_bool_entry {
@@ -151,11 +143,9 @@ pub fn read_file(reader: &mut (impl Read + Seek)) -> Result<LogStream, Error> {
         }
     }
 
-    Ok(log_file)
-}
+    dbg!(&log_file);
 
-fn read_entries(reader: &mut (impl Read + Seek), entries: &mut Vec<DataEntry>) {
-    let len = reader.len();
+    Ok(log_file)
 }
 
 impl<T: Seek> SeekUtils for T {}
