@@ -97,13 +97,11 @@ pub fn read_file(reader: &mut (impl Read + Seek)) -> Result<LogStream, Error> {
     for _ in 0..num_data_entries {
         log_file.time.push(read_u32(reader)?);
 
-        let mut is_bool_entry = false;
-
         for e in log_file.entries.iter_mut() {
+            let mut is_bool_entry = false;
+
             match &mut e.kind {
                 EntryKind::Bool(v) => {
-                    is_bool_entry = true;
-
                     let ctx = match &mut bool_ctx {
                         Some(ctx) => ctx,
                         None => {
@@ -124,6 +122,8 @@ pub fn read_file(reader: &mut (impl Read + Seek)) -> Result<LogStream, Error> {
                     } else {
                         ctx.mask <<= 1;
                     }
+
+                    is_bool_entry = true;
                 }
                 EntryKind::U8(v) => v.push(read_u8(reader)?),
                 EntryKind::U16(v) => v.push(read_u16(reader)?),
@@ -136,14 +136,12 @@ pub fn read_file(reader: &mut (impl Read + Seek)) -> Result<LogStream, Error> {
                 EntryKind::F32(v) => v.push(read_f32(reader)?),
                 EntryKind::F64(v) => v.push(read_f64(reader)?),
             }
-        }
 
-        if !is_bool_entry {
-            bool_ctx = None;
+            if !is_bool_entry {
+                bool_ctx = None;
+            }
         }
     }
-
-    dbg!(&log_file);
 
     Ok(log_file)
 }
