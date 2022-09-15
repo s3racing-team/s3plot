@@ -9,7 +9,7 @@ use egui::style::Margin;
 use egui::text::{LayoutJob, LayoutSection};
 use egui::{
     CentralPanel, Color32, Frame, Label, RichText, Rounding, ScrollArea, SidePanel, TextEdit,
-    TextFormat, Ui,
+    TextFormat, TextStyle, Ui,
 };
 use serde::{Deserialize, Serialize};
 
@@ -23,6 +23,7 @@ const RED: Color32 = Color32::from_rgb(0xf0, 0x56, 0x56);
 #[derive(Serialize, Deserialize)]
 pub struct CustomConfig {
     pub aspect_ratio: f32,
+    pub show_help: bool,
     pub plots: Vec<CustomPlot>,
 }
 
@@ -30,6 +31,7 @@ impl Default for CustomConfig {
     fn default() -> Self {
         Self {
             aspect_ratio: DEFAULT_ASPECT_RATIO,
+            show_help: true,
             plots: vec![
                 CustomPlot {
                     name: "1.".into(),
@@ -75,7 +77,7 @@ pub fn custom_plot(ui: &mut Ui, data: &mut PlotData, cfg: &mut CustomConfig) {
     } else {
         Color32::from_gray(0xf0)
     };
-    SidePanel::left("side_panel")
+    SidePanel::left("expressions")
         .resizable(true)
         .frame(Frame {
             inner_margin: Margin::same(6.0),
@@ -88,6 +90,35 @@ pub fn custom_plot(ui: &mut Ui, data: &mut PlotData, cfg: &mut CustomConfig) {
                 sidebar(ui, data, cfg);
             });
         });
+
+    if cfg.show_help {
+        SidePanel::right("help")
+            .resizable(true)
+            .frame(Frame {
+                inner_margin: Margin::same(6.0),
+                rounding: Rounding::same(5.0),
+                fill: panel_fill,
+                ..Default::default()
+            })
+            .show_inside(ui, |ui| {
+                ScrollArea::vertical().show(ui, |ui| {
+                    ui.heading("Variables");
+
+                    let mut text = String::new();
+                    for e in data.streams.iter().flat_map(|s| &s.entries) {
+                        text += &e.name;
+                        text += "\n";
+                    }
+                    TextEdit::multiline(&mut text)
+                        .font(TextStyle::Monospace)
+                        .interactive(false)
+                        .desired_width(ui.available_width())
+                        .desired_rows(1)
+                        .frame(false)
+                        .show(ui);
+                });
+            });
+    }
 
     CentralPanel::default()
         .frame(Frame::none())
@@ -145,15 +176,6 @@ fn sidebar(ui: &mut Ui, data: &mut PlotData, cfg: &mut CustomConfig) {
         cfg.plots.push(CustomPlot::named(format!("{}.", i + 1)));
         data.plots.push(CustomValues::Result(Ok(Vec::new())));
     }
-    ui.add_space(10.0);
-
-    // TODO: add list of variables
-    // ui.add(Label::new(
-    //     RichText::new("Variables").text_style(TextStyle::Heading),
-    // ));
-    // for v in Var::iter() {
-    //     ui.add(Label::new(RichText::new(v.to_string()).monospace()));
-    // }
 }
 
 struct ExprInput {
@@ -193,7 +215,7 @@ fn expr_inputs(ui: &mut Ui, p: &mut CustomPlot, c: &CustomValues) -> ExprInput {
             TextEdit::multiline(&mut p.expr.x)
                 .desired_width(ui.available_width())
                 .desired_rows(1)
-                .code_editor()
+                .font(TextStyle::Monospace)
                 .layouter(&mut x_layouter),
         )
         .changed()
@@ -221,7 +243,7 @@ fn expr_inputs(ui: &mut Ui, p: &mut CustomPlot, c: &CustomValues) -> ExprInput {
             TextEdit::multiline(&mut p.expr.y)
                 .desired_width(ui.available_width())
                 .desired_rows(1)
-                .code_editor()
+                .font(TextStyle::Monospace)
                 .layouter(&mut y_layouter),
         )
         .changed()

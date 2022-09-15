@@ -3,7 +3,10 @@ use std::sync::Arc;
 use std::thread::JoinHandle;
 
 use egui::plot::PlotPoint;
-use egui::{menu, Align2, CentralPanel, Color32, Key, RichText, TopBottomPanel, Ui, Vec2, Window};
+use egui::{
+    menu, Align, Align2, CentralPanel, Color32, Key, Layout, RichText, TopBottomPanel, Ui, Vec2,
+    Window,
+};
 use egui_extras::{Size, TableBuilder};
 use serde::{Deserialize, Serialize};
 
@@ -135,6 +138,10 @@ impl eframe::App for PlotApp {
             } else if let Some(d) = &mut self.data {
                 ui.horizontal(|ui| {
                     plot::custom_config(ui, &mut self.config);
+
+                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                        ui.toggle_value(&mut self.config.show_help, "?");
+                    });
                 });
 
                 plot::custom_plot(ui, d, &mut self.config);
