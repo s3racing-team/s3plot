@@ -203,8 +203,9 @@ fn select_files_table(ui: &mut Ui, files: &mut Vec<SelectableFile>, common_prefi
     TableBuilder::new(ui)
         .column(Size::exact(50.0)) // arrows
         .column(Size::exact(60.0)) // select/deselect
-        .column(Size::exact(400.0)) // file name
-        .column(Size::exact(500.0)) // start end
+        .column(Size::exact(200.0)) // file name
+        .column(Size::exact(400.0)) // sanity check
+        .column(Size::exact(200.0)) // start end
         .resizable(false)
         .striped(true)
         .header(20.0, |mut header| {
@@ -216,6 +217,9 @@ fn select_files_table(ui: &mut Ui, files: &mut Vec<SelectableFile>, common_prefi
             });
             header.col(|ui| {
                 ui.heading("File");
+            });
+            header.col(|ui| {
+                ui.heading("Sanity check");
             });
             header.col(|ui| {
                 ui.heading("Time");
@@ -243,6 +247,12 @@ fn select_files_table(ui: &mut Ui, files: &mut Vec<SelectableFile>, common_prefi
                         ui.horizontal_centered(|ui| {
                             let name = f.file.strip_prefix(common_prefix).unwrap();
                             ui.label(name.display().to_string());
+                        });
+                    });
+                    row.col(|ui| {
+                        ui.horizontal_centered(|ui| match &f.sanity_check {
+                            Ok(_) => ui.label("ok"),
+                            Err(e) => ui.colored_label(Color32::YELLOW, &e.0),
                         });
                     });
                     row.col(|ui| {

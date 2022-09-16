@@ -195,7 +195,7 @@ impl From<FromUtf8Error> for Error {
 }
 
 #[derive(Debug)]
-pub struct SanityError(String);
+pub struct SanityError(pub String);
 
 pub fn process_data(streams: Vec<LogStream>, config: &CustomConfig) -> PlotData {
     let streams = streams.into();

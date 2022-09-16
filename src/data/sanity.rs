@@ -32,27 +32,38 @@ fn check_all<T: Copy>(
     Ok(())
 }
 
-macro_rules! impl_sanity_check_int {
+macro_rules! impl_sanity_check_unsigned_int {
     ($ident:ident, $ty:ty) => {
         fn $ident(val: $ty, name: &str) -> Result<(), SanityError> {
             if val == <$ty>::MAX {
                 return Err(SanityError(format!("'{name}' is max")));
             }
+            Ok(())
+        }
+    };
+}
+impl_sanity_check_unsigned_int!(sanity_check_u8, u8);
+impl_sanity_check_unsigned_int!(sanity_check_u16, u16);
+impl_sanity_check_unsigned_int!(sanity_check_u32, u32);
+impl_sanity_check_unsigned_int!(sanity_check_u64, u64);
+
+macro_rules! impl_sanity_check_signed_int {
+    ($ident:ident, $ty:ty) => {
+        fn $ident(val: $ty, name: &str) -> Result<(), SanityError> {
             if val == <$ty>::MIN {
                 return Err(SanityError(format!("'{name}' is min")));
+            }
+            if val == <$ty>::MAX {
+                return Err(SanityError(format!("'{name}' is max")));
             }
             Ok(())
         }
     };
 }
-impl_sanity_check_int!(sanity_check_u8, u8);
-impl_sanity_check_int!(sanity_check_u16, u16);
-impl_sanity_check_int!(sanity_check_u32, u32);
-impl_sanity_check_int!(sanity_check_u64, u64);
-impl_sanity_check_int!(sanity_check_i8, i8);
-impl_sanity_check_int!(sanity_check_i16, i16);
-impl_sanity_check_int!(sanity_check_i32, i32);
-impl_sanity_check_int!(sanity_check_i64, i64);
+impl_sanity_check_signed_int!(sanity_check_i8, i8);
+impl_sanity_check_signed_int!(sanity_check_i16, i16);
+impl_sanity_check_signed_int!(sanity_check_i32, i32);
+impl_sanity_check_signed_int!(sanity_check_i64, i64);
 
 macro_rules! Impl_sanity_check_float {
     ($ident:ident, $ty:ty) => {
