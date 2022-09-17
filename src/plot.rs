@@ -8,8 +8,8 @@ use egui::plot::{Legend, Plot};
 use egui::style::Margin;
 use egui::text::{LayoutJob, LayoutSection};
 use egui::{
-    CentralPanel, Color32, Frame, Label, RichText, Rounding, ScrollArea, SidePanel, TextEdit,
-    TextFormat, TextStyle, Ui,
+    CentralPanel, CollapsingHeader, Color32, Frame, Label, RichText, Rounding, ScrollArea,
+    SidePanel, TextEdit, TextFormat, TextStyle, Ui,
 };
 use serde::{Deserialize, Serialize};
 
@@ -101,22 +101,22 @@ pub fn custom_plot(ui: &mut Ui, data: &mut PlotData, cfg: &mut CustomConfig) {
                 ..Default::default()
             })
             .show_inside(ui, |ui| {
-                ScrollArea::vertical().show(ui, |ui| {
-                    ui.heading("Variables");
-
-                    let mut text = String::new();
-                    for e in data.streams.iter().flat_map(|s| &s.entries) {
-                        text += &e.name;
-                        text += "\n";
-                    }
-                    TextEdit::multiline(&mut text)
-                        .font(TextStyle::Monospace)
-                        .interactive(false)
-                        .desired_width(ui.available_width())
-                        .desired_rows(1)
-                        .frame(false)
-                        .show(ui);
-                });
+                ScrollArea::vertical()
+                    .auto_shrink([false, false])
+                    .show(ui, |ui| {
+                        CollapsingHeader::new(
+                            RichText::new("Variables").text_style(TextStyle::Heading),
+                        )
+                        .default_open(true)
+                        .show(ui, |ui| {
+                            for s in data.streams.iter() {
+                                for e in s.entries.iter() {
+                                    ui.label(&e.name);
+                                }
+                                ui.add_space(10.0);
+                            }
+                        });
+                    });
             });
     }
 
