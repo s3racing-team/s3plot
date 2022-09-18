@@ -8,67 +8,178 @@ use egui::plot::{Legend, Plot};
 use egui::style::Margin;
 use egui::text::{LayoutJob, LayoutSection};
 use egui::{
-    CentralPanel, CollapsingHeader, Color32, Frame, Label, RichText, Rounding, ScrollArea,
-    SidePanel, TextEdit, TextFormat, TextStyle, Ui, Vec2,
+    Align, Button, CentralPanel, CollapsingHeader, Color32, Frame, Label, Layout, RichText,
+    Rounding, ScrollArea, SidePanel, TextEdit, TextFormat, TextStyle, Ui, Vec2,
 };
 use serde::{Deserialize, Serialize};
 
-use crate::app::{CustomValues, Job, PlotData};
+use crate::app::{Job, PlotData, PlotValues};
 use crate::eval::Expr;
 use crate::util::{self, format_time};
 
+const TAB_CROSS_WIDTH: f32 = 20.0;
+const TAB_BUTTON_WIDTH: f32 = 80.0;
+const TAB_WIDTH: f32 = TAB_BUTTON_WIDTH + TAB_CROSS_WIDTH;
+
 const DEFAULT_ASPECT_RATIO: f32 = 0.1;
-const RED: Color32 = Color32::from_rgb(0xf0, 0x56, 0x56);
+const ERROR_RED: Color32 = Color32::from_rgb(0xf0, 0x56, 0x56);
 
 #[derive(Serialize, Deserialize)]
-pub struct CustomConfig {
-    pub aspect_ratio: f32,
+pub struct Config {
     pub show_help: bool,
-    pub plots: Vec<CustomPlot>,
+    pub selected_tab: usize,
+    pub tabs: Vec<TabConfig>,
 }
 
-impl Default for CustomConfig {
+impl Default for Config {
     fn default() -> Self {
         Self {
-            aspect_ratio: DEFAULT_ASPECT_RATIO,
             show_help: true,
-            plots: vec![
-                CustomPlot {
-                    name: "1.".into(),
-                    expr: Expr {
-                        x: "time".into(),
-                        y: "sin(time / PI) * 10.0".into(),
+            selected_tab: 0,
+            tabs: vec![TabConfig {
+                name: "Tab 1".into(),
+                aspect_ratio: DEFAULT_ASPECT_RATIO,
+                plots: vec![
+                    NamedPlot {
+                        name: "1.".into(),
+                        expr: Expr {
+                            x: "time".into(),
+                            y: "sin(time / PI) * 10.0".into(),
+                        },
                     },
-                },
-                CustomPlot {
-                    name: "2.".into(),
-                    expr: Expr {
-                        x: "time".into(),
-                        y: "cos(time / PI - PI) * 10.0".into(),
+                    NamedPlot {
+                        name: "2.".into(),
+                        expr: Expr {
+                            x: "time".into(),
+                            y: "cos(time / PI - PI) * 10.0".into(),
+                        },
                     },
-                },
-            ],
+                ],
+            }],
         }
     }
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct CustomPlot {
+pub struct TabConfig {
+    pub name: String,
+    pub aspect_ratio: f32,
+    pub plots: Vec<NamedPlot>,
+}
+
+impl TabConfig {
+    pub fn named(name: String) -> Self {
+        Self {
+            name,
+            aspect_ratio: DEFAULT_ASPECT_RATIO,
+            plots: Vec::new(),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct NamedPlot {
     pub name: String,
     pub expr: Expr,
 }
 
-impl CustomPlot {
+impl NamedPlot {
     fn new(name: String, expr: Expr) -> Self {
         Self { name, expr }
     }
 }
 
-pub fn custom_config(ui: &mut Ui, cfg: &mut CustomConfig) {
-    util::ratio_slider(ui, &mut cfg.aspect_ratio, DEFAULT_ASPECT_RATIO, 1000.0);
+pub fn tab_bar(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
+    ui.horizontal(|ui| {
+        let mut i = 0;
+        while i < cfg.tabs.len() {
+            let t = &mut cfg.tabs[i];
+            let selected = cfg.selected_tab == i;
+
+            let mut remove = false;
+
+            let tab_fill = if selected {
+                ui.visuals().selection.bg_fill
+            } else {
+                ui.visuals().faint_bg_color
+            };
+            Frame::default()
+                .rounding(Rounding::same(5.0))
+                .fill(tab_fill)
+                .show(ui, |ui| {
+                    ui.set_width(TAB_WIDTH);
+
+                    let mut rect = ui.available_rect_before_wrap();
+
+                    if selected {
+                        TextEdit::singleline(&mut t.name)
+                            .desired_width(TAB_BUTTON_WIDTH - ui.spacing().button_padding.x * 2.0)
+                            .frame(false)
+                            .show(ui);
+                    } else {
+                        // tab text
+                        ui.add_space(ui.spacing().button_padding.x);
+                        ui.label(&t.name);
+
+                        // clickable area
+                        ui.allocate_ui_at_rect(rect, |ui| {
+                            let resp = ui.add_sized(
+                                Vec2::new(TAB_BUTTON_WIDTH, ui.available_height()),
+                                Button::new("").frame(false),
+                            );
+                            if resp.clicked() {
+                                cfg.selected_tab = i;
+                            }
+                        });
+                    }
+
+                    *rect.left_mut() += TAB_BUTTON_WIDTH;
+
+                    // clickable area
+                    ui.allocate_ui_at_rect(rect, |ui| {
+                        let resp = ui.add_sized(
+                            Vec2::new(TAB_CROSS_WIDTH, ui.available_height()),
+                            Button::new(" 🗙 ").frame(false),
+                        );
+                        remove = resp.clicked();
+                    });
+                });
+
+            if remove && cfg.tabs.len() > 1 {
+                cfg.tabs.remove(i);
+                data.plots.remove(i);
+
+                if cfg.selected_tab > i || cfg.selected_tab == cfg.tabs.len() {
+                    cfg.selected_tab -= 1;
+                }
+            } else {
+                i += 1;
+            }
+        }
+
+        if ui
+            .add(Button::new(" + ").fill(ui.visuals().faint_bg_color))
+            .clicked()
+        {
+            cfg.tabs
+                .push(TabConfig::named(format!("Tab {}", cfg.tabs.len() + 1)));
+            data.plots.push(Vec::new());
+        }
+
+        util::ratio_slider(
+            ui,
+            &mut cfg.tabs[cfg.selected_tab].aspect_ratio,
+            DEFAULT_ASPECT_RATIO,
+            1000.0,
+        );
+
+        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+            ui.toggle_value(&mut cfg.show_help, "?");
+        });
+    });
 }
 
-pub fn custom_plot(ui: &mut Ui, data: &mut PlotData, cfg: &mut CustomConfig) {
+pub fn tab_plot(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
     let panel_fill = if ui.style().visuals.dark_mode {
         Color32::from_gray(0x20)
     } else {
@@ -84,9 +195,11 @@ pub fn custom_plot(ui: &mut Ui, data: &mut PlotData, cfg: &mut CustomConfig) {
             ..Default::default()
         })
         .show_inside(ui, |ui| {
-            ScrollArea::vertical().show(ui, |ui| {
-                sidebar(ui, data, cfg);
-            });
+            ScrollArea::vertical()
+                .auto_shrink([false, false])
+                .show(ui, |ui| {
+                    sidebar(ui, data, cfg);
+                });
         });
 
     if cfg.show_help {
@@ -122,8 +235,10 @@ pub fn custom_plot(ui: &mut Ui, data: &mut PlotData, cfg: &mut CustomConfig) {
     CentralPanel::default()
         .frame(Frame::none())
         .show_inside(ui, |ui| {
+            let tab_cfg = &mut cfg.tabs[cfg.selected_tab];
+
             Plot::new("custom")
-                .data_aspect(cfg.aspect_ratio)
+                .data_aspect(tab_cfg.aspect_ratio)
                 .label_formatter(|_, v| {
                     let x = format_time(v.x);
                     let y = (v.y * 1000.0).round() / 1000.0;
@@ -131,18 +246,21 @@ pub fn custom_plot(ui: &mut Ui, data: &mut PlotData, cfg: &mut CustomConfig) {
                 })
                 .legend(Legend::default())
                 .show(ui, |ui| {
-                    for (c, p) in data.plots.iter_mut().zip(cfg.plots.iter()) {
-                        if let CustomValues::Job(j) = c {
+                    for (c, p) in data.plots[cfg.selected_tab]
+                        .iter_mut()
+                        .zip(tab_cfg.plots.iter())
+                    {
+                        if let PlotValues::Job(j) = c {
                             if j.is_done() {
-                                let job = std::mem::replace(c, CustomValues::empty());
-                                *c = CustomValues::Result(job.into_job().unwrap().join());
+                                let job = std::mem::replace(c, PlotValues::empty());
+                                *c = PlotValues::Result(job.into_job().unwrap().join());
                             } else {
                                 ui.ctx().request_repaint();
                             }
                         }
 
                         match c {
-                            CustomValues::Result(Ok(d)) => {
+                            PlotValues::Result(Ok(d)) => {
                                 ui.line(Line::new(PlotPoints::Owned(d.clone())).name(&p.name));
                             }
                             _ => ui.line(Line::new([0.0, f64::NAN]).name(&p.name)),
@@ -152,20 +270,21 @@ pub fn custom_plot(ui: &mut Ui, data: &mut PlotData, cfg: &mut CustomConfig) {
         });
 }
 
-fn sidebar(ui: &mut Ui, data: &mut PlotData, cfg: &mut CustomConfig) {
+fn sidebar(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
+    let tab_cfg = &mut cfg.tabs[cfg.selected_tab];
     let mut i = 0;
-    while i < cfg.plots.len() {
-        let p = &mut cfg.plots[i];
-        let d = &data.plots[i];
+    while i < tab_cfg.plots.len() {
+        let p = &mut tab_cfg.plots[i];
+        let d = &data.plots[cfg.selected_tab][i];
         let input = expr_inputs(ui, p, d);
 
         if input.removed {
-            cfg.plots.remove(i);
-            let _ = data.plots.remove(i);
+            tab_cfg.plots.remove(i);
+            let _ = data.plots[cfg.selected_tab].remove(i);
         } else {
             if input.x_changed || input.y_changed {
-                data.plots[i] =
-                    CustomValues::Job(Job::start(p.expr.clone(), Arc::clone(&data.streams)));
+                data.plots[cfg.selected_tab][i] =
+                    PlotValues::Job(Job::start(p.expr.clone(), Arc::clone(&data.streams)));
             }
             i += 1;
         }
@@ -173,11 +292,11 @@ fn sidebar(ui: &mut Ui, data: &mut PlotData, cfg: &mut CustomConfig) {
 
     ui.horizontal(|ui| {
         if ui.button(" + ").clicked() {
-            cfg.plots.push(CustomPlot::new(
+            tab_cfg.plots.push(NamedPlot::new(
                 format!("{}.", i + 1),
                 Expr::new("time".into(), "".into()),
             ));
-            data.plots.push(CustomValues::Result(Ok(Vec::new())));
+            data.plots[cfg.selected_tab].push(PlotValues::Result(Ok(Vec::new())));
         }
 
         ui.menu_button("...", |ui| {
@@ -185,15 +304,15 @@ fn sidebar(ui: &mut Ui, data: &mut PlotData, cfg: &mut CustomConfig) {
                 ui.allocate_ui(Vec2::new(300.0, 500.0), |ui| {
                     for e in data.streams.iter().flat_map(|s| s.entries.iter()) {
                         if ui.button(&e.name).clicked() {
-                            let plot = CustomPlot::new(
+                            let plot = NamedPlot::new(
                                 e.name.clone(),
                                 Expr::new("time".into(), e.name.clone()),
                             );
-                            data.plots.push(CustomValues::Job(Job::start(
+                            data.plots[cfg.selected_tab].push(PlotValues::Job(Job::start(
                                 plot.expr.clone(),
                                 Arc::clone(&data.streams),
                             )));
-                            cfg.plots.push(plot);
+                            tab_cfg.plots.push(plot);
 
                             ui.close_menu();
                         }
@@ -210,23 +329,24 @@ struct ExprInput {
     y_changed: bool,
 }
 
-fn expr_inputs(ui: &mut Ui, p: &mut CustomPlot, c: &CustomValues) -> ExprInput {
+fn expr_inputs(ui: &mut Ui, p: &mut NamedPlot, c: &PlotValues) -> ExprInput {
     let removed = ui.horizontal(|ui| {
         let r = ui.button(" − ").clicked();
-        ui.add(
-            TextEdit::singleline(&mut p.name)
-                .desired_width(ui.available_width())
-                .frame(false),
-        );
-        // if let CustomValues::Job(_) = c {
-        //     ui.spinner();
-        // }
+        let width = ui.available_width() - ui.spacing().interact_size.x;
+        TextEdit::singleline(&mut p.name)
+            .desired_width(width)
+            .frame(false)
+            .show(ui);
+
+        if let PlotValues::Job(_) = c {
+            ui.spinner();
+        }
         r
     });
 
     let mut x_layouter = |ui: &egui::Ui, string: &str, wrap_width: f32| {
         let mut layout_job = match c {
-            CustomValues::Result(Err(e)) => match &e.x {
+            PlotValues::Result(Err(e)) => match &e.x {
                 Some(e) => mark_errors(string, e),
                 None => LayoutJob::single_section(string.to_string(), TextFormat::default()),
             },
@@ -236,7 +356,10 @@ fn expr_inputs(ui: &mut Ui, p: &mut CustomPlot, c: &CustomValues) -> ExprInput {
         ui.fonts().layout_job(layout_job)
     };
     let x_changed = ui.horizontal(|ui| {
-        ui.add(Label::new(RichText::new(" X ").monospace()));
+        ui.add_sized(
+            Vec2::new(20.0, 10.0),
+            Label::new(RichText::new(" X ").monospace()),
+        );
         ui.add(
             TextEdit::multiline(&mut p.expr.x)
                 .desired_width(ui.available_width())
@@ -246,15 +369,15 @@ fn expr_inputs(ui: &mut Ui, p: &mut CustomPlot, c: &CustomValues) -> ExprInput {
         )
         .changed()
     });
-    if let CustomValues::Result(Err(e)) = c {
+    if let PlotValues::Result(Err(e)) = c {
         if let Some(e) = &e.x {
-            ui.colored_label(RED, e.to_string());
+            ui.colored_label(ERROR_RED, e.to_string());
         }
     }
 
     let mut y_layouter = |ui: &egui::Ui, string: &str, wrap_width: f32| {
         let mut layout_job = match c {
-            CustomValues::Result(Err(e)) => match &e.y {
+            PlotValues::Result(Err(e)) => match &e.y {
                 Some(e) => mark_errors(string, e),
                 None => LayoutJob::single_section(string.to_string(), TextFormat::default()),
             },
@@ -264,7 +387,10 @@ fn expr_inputs(ui: &mut Ui, p: &mut CustomPlot, c: &CustomValues) -> ExprInput {
         ui.fonts().layout_job(layout_job)
     };
     let y_changed = ui.horizontal(|ui| {
-        ui.add(Label::new(RichText::new(" Y ").monospace()));
+        ui.add_sized(
+            Vec2::new(20.0, 10.0),
+            Label::new(RichText::new(" Y ").monospace()),
+        );
         ui.add(
             TextEdit::multiline(&mut p.expr.y)
                 .desired_width(ui.available_width())
@@ -274,9 +400,9 @@ fn expr_inputs(ui: &mut Ui, p: &mut CustomPlot, c: &CustomValues) -> ExprInput {
         )
         .changed()
     });
-    if let CustomValues::Result(Err(e)) = c {
+    if let PlotValues::Result(Err(e)) = c {
         if let Some(e) = &e.y {
-            ui.colored_label(RED, e.to_string());
+            ui.colored_label(ERROR_RED, e.to_string());
         }
     }
 
@@ -358,7 +484,7 @@ fn error_section(range: Range<usize>) -> LayoutSection {
         format: TextFormat {
             underline: egui::Stroke {
                 width: 2.0,
-                color: RED,
+                color: ERROR_RED,
             },
             ..Default::default()
         },

@@ -3,24 +3,21 @@ use std::sync::Arc;
 use std::thread::JoinHandle;
 
 use egui::plot::PlotPoint;
-use egui::{
-    menu, Align, Align2, CentralPanel, Color32, Key, Layout, RichText, TopBottomPanel, Ui, Vec2,
-    Window,
-};
+use egui::{menu, Align2, CentralPanel, Color32, Key, RichText, TopBottomPanel, Ui, Vec2, Window};
 use egui_extras::{Size, TableBuilder};
 use serde::{Deserialize, Serialize};
 
 use crate::data::LogStream;
 use crate::eval::{self, Expr, ExprError};
 use crate::fs::{ErrorFile, Files, SelectableFile, SelectableFiles};
-use crate::plot::{self, CustomConfig};
+use crate::plot::{self, Config};
 use crate::util;
 
 #[derive(Serialize, Deserialize)]
 #[serde(default)]
 pub struct PlotApp {
+    pub config: Config,
     pub files: Option<Files>,
-    pub config: CustomConfig,
     #[serde(skip)]
     pub selectable_files: Option<SelectableFiles>,
     #[serde(skip)]
@@ -29,15 +26,15 @@ pub struct PlotApp {
 
 pub struct PlotData {
     pub streams: Arc<[LogStream]>,
-    pub plots: Vec<CustomValues>,
+    pub plots: Vec<Vec<PlotValues>>,
 }
 
-pub enum CustomValues {
+pub enum PlotValues {
     Job(Job),
     Result(Result<Vec<PlotPoint>, Box<ExprError>>),
 }
 
-impl CustomValues {
+impl PlotValues {
     pub const fn empty() -> Self {
         Self::Result(Ok(Vec::new()))
     }
@@ -73,7 +70,7 @@ impl Default for PlotApp {
     fn default() -> Self {
         Self {
             files: None,
-            config: CustomConfig::default(),
+            config: Config::default(),
             selectable_files: None,
             data: None,
         }
@@ -135,16 +132,9 @@ impl eframe::App for PlotApp {
         CentralPanel::default().show(ctx, |ui| {
             if self.selectable_files.is_some() {
                 ui.label("...");
-            } else if let Some(d) = &mut self.data {
-                ui.horizontal(|ui| {
-                    plot::custom_config(ui, &mut self.config);
-
-                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                        ui.toggle_value(&mut self.config.show_help, "?");
-                    });
-                });
-
-                plot::custom_plot(ui, d, &mut self.config);
+            } else if let Some(data) = &mut self.data {
+                plot::tab_bar(ui, data, &mut self.config);
+                plot::tab_plot(ui, data, &mut self.config);
             } else {
                 ui.label("Open or drag and drop a directory");
             }
