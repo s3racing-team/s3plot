@@ -8,8 +8,8 @@ use egui::plot::{Legend, Plot};
 use egui::style::Margin;
 use egui::text::{LayoutJob, LayoutSection};
 use egui::{
-    CentralPanel, CollapsingHeader, Color32, Frame, Label, RichText, Rounding, ScrollArea,
-    SidePanel, TextEdit, TextFormat, TextStyle, Ui,
+    Button, CentralPanel, CollapsingHeader, Color32, Frame, Label, RichText, Rounding, ScrollArea,
+    SidePanel, TextEdit, TextFormat, TextStyle, Ui, Vec2,
 };
 use serde::{Deserialize, Serialize};
 
@@ -174,13 +174,37 @@ fn sidebar(ui: &mut Ui, data: &mut PlotData, cfg: &mut CustomConfig) {
         }
     }
 
-    if ui.button(" + ").clicked() {
-        cfg.plots.push(CustomPlot::new(
-            format!("{}.", i + 1),
-            Expr::new("time".into(), "".into()),
-        ));
-        data.plots.push(CustomValues::Result(Ok(Vec::new())));
-    }
+    ui.horizontal(|ui| {
+        if ui.button(" + ").clicked() {
+            cfg.plots.push(CustomPlot::new(
+                format!("{}.", i + 1),
+                Expr::new("time".into(), "".into()),
+            ));
+            data.plots.push(CustomValues::Result(Ok(Vec::new())));
+        }
+
+        ui.menu_button("...", |ui| {
+            ScrollArea::vertical().show(ui, |ui| {
+                ui.allocate_ui(Vec2::new(300.0, 500.0), |ui| {
+                    for e in data.streams.iter().flat_map(|s| s.entries.iter()) {
+                        if ui.button(&e.name).clicked() {
+                            let plot = CustomPlot::new(
+                                e.name.clone(),
+                                Expr::new("time".into(), e.name.clone()),
+                            );
+                            data.plots.push(CustomValues::Job(Job::start(
+                                plot.expr.clone(),
+                                Arc::clone(&data.streams),
+                            )));
+                            cfg.plots.push(plot);
+
+                            ui.close_menu();
+                        }
+                    }
+                });
+            });
+        });
+    });
 }
 
 struct ExprInput {
