@@ -12,6 +12,12 @@ pub struct Expr {
     pub y: String,
 }
 
+impl Expr {
+    pub fn new(x: String, y: String) -> Self {
+        Self { x, y }
+    }
+}
+
 #[derive(Default)]
 pub struct ExprError {
     pub x: Option<cods::Error>,

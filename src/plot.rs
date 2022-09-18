@@ -37,14 +37,14 @@ impl Default for CustomConfig {
                     name: "1.".into(),
                     expr: Expr {
                         x: "time".into(),
-                        y: "sin(time / PI)".into(),
+                        y: "sin(time / PI) * 10.0".into(),
                     },
                 },
                 CustomPlot {
                     name: "2.".into(),
                     expr: Expr {
                         x: "time".into(),
-                        y: "cos(time / PI - PI)".into(),
+                        y: "cos(time / PI - PI) * 10.0".into(),
                     },
                 },
             ],
@@ -59,10 +59,10 @@ pub struct CustomPlot {
 }
 
 impl CustomPlot {
-    fn named(name: impl Into<String>) -> Self {
+    fn new(name: String, expr: Expr) -> Self {
         Self {
             name: name.into(),
-            expr: Expr::default(),
+            expr: expr,
         }
     }
 }
@@ -79,6 +79,7 @@ pub fn custom_plot(ui: &mut Ui, data: &mut PlotData, cfg: &mut CustomConfig) {
     };
     SidePanel::left("expressions")
         .resizable(true)
+        .default_width(350.0)
         .frame(Frame {
             inner_margin: Margin::same(6.0),
             rounding: Rounding::same(5.0),
@@ -94,6 +95,7 @@ pub fn custom_plot(ui: &mut Ui, data: &mut PlotData, cfg: &mut CustomConfig) {
     if cfg.show_help {
         SidePanel::right("help")
             .resizable(true)
+            .default_width(300.0)
             .frame(Frame {
                 inner_margin: Margin::same(6.0),
                 rounding: Rounding::same(5.0),
@@ -173,7 +175,10 @@ fn sidebar(ui: &mut Ui, data: &mut PlotData, cfg: &mut CustomConfig) {
     }
 
     if ui.button(" + ").clicked() {
-        cfg.plots.push(CustomPlot::named(format!("{}.", i + 1)));
+        cfg.plots.push(CustomPlot::new(
+            format!("{}.", i + 1),
+            Expr::new("time".into(), "".into()),
+        ));
         data.plots.push(CustomValues::Result(Ok(Vec::new())));
     }
 }
