@@ -8,7 +8,7 @@ use egui::plot::{Legend, Plot};
 use egui::style::Margin;
 use egui::text::{LayoutJob, LayoutSection};
 use egui::{
-    Button, CentralPanel, CollapsingHeader, Color32, Frame, Label, RichText, Rounding, ScrollArea,
+    CentralPanel, CollapsingHeader, Color32, Frame, Label, RichText, Rounding, ScrollArea,
     SidePanel, TextEdit, TextFormat, TextStyle, Ui, Vec2,
 };
 use serde::{Deserialize, Serialize};
@@ -60,10 +60,7 @@ pub struct CustomPlot {
 
 impl CustomPlot {
     fn new(name: String, expr: Expr) -> Self {
-        Self {
-            name: name.into(),
-            expr: expr,
-        }
+        Self { name, expr }
     }
 }
 

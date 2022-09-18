@@ -106,20 +106,20 @@ impl EntryKind {
     }
 
     pub fn matches(&self, other: &Self) -> bool {
-        match (self, other) {
+        matches!(
+            (self, other),
             (EntryKind::Bool(_), EntryKind::Bool(_))
-            | (EntryKind::U8(_), EntryKind::U8(_))
-            | (EntryKind::U16(_), EntryKind::U16(_))
-            | (EntryKind::U32(_), EntryKind::U32(_))
-            | (EntryKind::U64(_), EntryKind::U64(_))
-            | (EntryKind::I8(_), EntryKind::I8(_))
-            | (EntryKind::I16(_), EntryKind::I16(_))
-            | (EntryKind::I32(_), EntryKind::I32(_))
-            | (EntryKind::I64(_), EntryKind::I64(_))
-            | (EntryKind::F32(_), EntryKind::F32(_))
-            | (EntryKind::F64(_), EntryKind::F64(_)) => true,
-            _ => false,
-        }
+                | (EntryKind::U8(_), EntryKind::U8(_))
+                | (EntryKind::U16(_), EntryKind::U16(_))
+                | (EntryKind::U32(_), EntryKind::U32(_))
+                | (EntryKind::U64(_), EntryKind::U64(_))
+                | (EntryKind::I8(_), EntryKind::I8(_))
+                | (EntryKind::I16(_), EntryKind::I16(_))
+                | (EntryKind::I32(_), EntryKind::I32(_))
+                | (EntryKind::I64(_), EntryKind::I64(_))
+                | (EntryKind::F32(_), EntryKind::F32(_))
+                | (EntryKind::F64(_), EntryKind::F64(_))
+        )
     }
 
     pub fn extend(&mut self, other: &Self) {
