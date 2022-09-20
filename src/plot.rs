@@ -8,8 +8,8 @@ use egui::plot::{Legend, Plot};
 use egui::style::Margin;
 use egui::text::{LayoutJob, LayoutSection};
 use egui::{
-    Align, Button, CentralPanel, CollapsingHeader, Color32, Frame, Label, Layout, RichText,
-    Rounding, ScrollArea, SidePanel, TextEdit, TextFormat, TextStyle, Ui, Vec2,
+    Align, Button, CentralPanel, CollapsingHeader, Color32, Frame, Key, Label, Layout, Modifiers,
+    RichText, Rounding, ScrollArea, SidePanel, TextEdit, TextFormat, TextStyle, Ui, Vec2,
 };
 use serde::{Deserialize, Serialize};
 
@@ -89,6 +89,57 @@ impl NamedPlot {
     }
 }
 
+pub fn add_tab(data: &mut PlotData, cfg: &mut Config) {
+    cfg.tabs
+        .push(TabConfig::named(format!("Tab {}", cfg.tabs.len() + 1)));
+    data.plots.push(Vec::new());
+    cfg.selected_tab = cfg.tabs.len() - 1;
+}
+
+pub fn remove_tab(data: &mut PlotData, cfg: &mut Config, tab: usize) -> bool {
+    if cfg.tabs.len() == 1 {
+        return false;
+    }
+    cfg.tabs.remove(tab);
+    data.plots.remove(tab);
+
+    if cfg.selected_tab > tab || cfg.selected_tab == cfg.tabs.len() {
+        cfg.selected_tab -= 1;
+    }
+
+    true
+}
+
+pub fn select_next_tab(cfg: &mut Config) {
+    cfg.selected_tab = (cfg.selected_tab + 1) % cfg.tabs.len()
+}
+
+pub fn select_prev_tab(cfg: &mut Config) {
+    cfg.selected_tab = (cfg.tabs.len() + cfg.selected_tab - 1) % cfg.tabs.len()
+}
+
+pub fn keybindings(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
+    let mut input = ui.input_mut();
+    if input.consume_key(Modifiers::CTRL, Key::T) {
+        add_tab(data, cfg);
+    }
+    if input.consume_key(Modifiers::CTRL, Key::W) {
+        let tab = cfg.selected_tab;
+        remove_tab(data, cfg, tab);
+    }
+
+    if input.consume_key(Modifiers::CTRL | Modifiers::SHIFT, Key::Tab)
+        || input.consume_key(Modifiers::ALT, Key::ArrowLeft)
+    {
+        select_prev_tab(cfg);
+    }
+    if input.consume_key(Modifiers::CTRL, Key::Tab)
+        || input.consume_key(Modifiers::ALT, Key::ArrowRight)
+    {
+        select_next_tab(cfg);
+    }
+}
+
 pub fn tab_bar(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
     ui.horizontal(|ui| {
         let mut i = 0;
@@ -145,25 +196,14 @@ pub fn tab_bar(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
                     });
                 });
 
-            if remove && cfg.tabs.len() > 1 {
-                cfg.tabs.remove(i);
-                data.plots.remove(i);
-
-                if cfg.selected_tab > i || cfg.selected_tab == cfg.tabs.len() {
-                    cfg.selected_tab -= 1;
-                }
-            } else {
+            if !(remove && remove_tab(data, cfg, i)) {
                 i += 1;
             }
         }
 
-        if ui
-            .add(Button::new(" + ").fill(ui.visuals().faint_bg_color))
-            .clicked()
-        {
-            cfg.tabs
-                .push(TabConfig::named(format!("Tab {}", cfg.tabs.len() + 1)));
-            data.plots.push(Vec::new());
+        let resp = ui.add(Button::new(" + ").fill(ui.visuals().faint_bg_color));
+        if resp.clicked() {
+            add_tab(data, cfg);
         }
 
         util::ratio_slider(

@@ -3,7 +3,9 @@ use std::sync::Arc;
 use std::thread::JoinHandle;
 
 use egui::plot::PlotPoint;
-use egui::{menu, Align2, CentralPanel, Color32, Key, RichText, TopBottomPanel, Ui, Vec2, Window};
+use egui::{
+    menu, Align2, CentralPanel, Color32, Key, Modifiers, RichText, TopBottomPanel, Ui, Vec2, Window,
+};
 use egui_extras::{Size, TableBuilder};
 use serde::{Deserialize, Serialize};
 
@@ -83,7 +85,7 @@ impl eframe::App for PlotApp {
     }
 
     fn update(&mut self, ctx: &egui::Context, _: &mut eframe::Frame) {
-        if ctx.input().modifiers.ctrl && ctx.input().key_pressed(Key::O) {
+        if ctx.input_mut().consume_key(Modifiers::CTRL, Key::O) {
             self.open_dir_dialog();
         }
 
@@ -133,6 +135,7 @@ impl eframe::App for PlotApp {
             if self.selectable_files.is_some() {
                 ui.label("...");
             } else if let Some(data) = &mut self.data {
+                plot::keybindings(ui, data, &mut self.config);
                 plot::tab_bar(ui, data, &mut self.config);
                 plot::tab_plot(ui, data, &mut self.config);
             } else {
