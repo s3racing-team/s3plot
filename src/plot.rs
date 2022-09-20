@@ -246,21 +246,21 @@ pub fn tab_plot(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
                 })
                 .legend(Legend::default())
                 .show(ui, |ui| {
-                    for (c, p) in data.plots[cfg.selected_tab]
+                    for (values, p) in data.plots[cfg.selected_tab]
                         .iter_mut()
                         .zip(tab_cfg.plots.iter())
                     {
-                        if let PlotValues::Job(j) = c {
+                        if let PlotValues::Job(j) = values {
                             if j.is_done() {
-                                let job = std::mem::replace(c, PlotValues::empty());
-                                *c = PlotValues::Result(job.into_job().unwrap().join());
+                                let job = std::mem::replace(values, PlotValues::empty());
+                                *values = PlotValues::Result(job.into_job().unwrap().join());
                             } else {
                                 ui.ctx().request_repaint();
                             }
                         }
 
-                        match c {
-                            PlotValues::Result(Ok(d)) => {
+                        match values {
+                            PlotValues::Result(Ok(d)) if !d.is_empty() => {
                                 ui.line(Line::new(PlotPoints::Owned(d.clone())).name(&p.name));
                             }
                             _ => ui.line(Line::new([0.0, f64::NAN]).name(&p.name)),
