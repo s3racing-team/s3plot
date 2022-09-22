@@ -379,7 +379,7 @@ dependencies = [
 [[package]]
 name = "cods"
 version = "0.2.0"
-source = "git+https://github.com/saecki/comeondosomething#4a9f5345a4658845f859b6085ac0f99430b71f39"
+source = "git+https://github.com/saecki/comeondosomething#271215cefcd8bb2f8054eaea0945b26ee0d38d1d"
 dependencies = [
  "cods-derive",
 ]
@@ -387,7 +387,7 @@ dependencies = [
 [[package]]
 name = "cods-derive"
 version = "0.1.0"
-source = "git+https://github.com/saecki/comeondosomething#4a9f5345a4658845f859b6085ac0f99430b71f39"
+source = "git+https://github.com/saecki/comeondosomething#271215cefcd8bb2f8054eaea0945b26ee0d38d1d"
 
 [[package]]
 name = "combine"

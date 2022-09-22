@@ -1,10 +1,9 @@
-use egui::plot::{Line, PlotPoints};
-
+use std::fmt::Write;
 use std::ops::Range;
 use std::sync::Arc;
 
-use cods::{Pos, UserFacing};
-use egui::plot::{Legend, Plot};
+use cods::{BuiltinFun, DataType, Pos, UserFacing};
+use egui::plot::{Legend, Line, Plot, PlotPoints};
 use egui::style::Margin;
 use egui::text::{LayoutJob, LayoutSection};
 use egui::{
@@ -245,7 +244,7 @@ pub fn tab_plot(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
     if cfg.show_help {
         SidePanel::right("help")
             .resizable(true)
-            .default_width(300.0)
+            .default_width(350.0)
             .frame(Frame {
                 inner_margin: Margin::same(6.0),
                 rounding: Rounding::same(5.0),
@@ -263,11 +262,17 @@ pub fn tab_plot(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
                         .show(ui, |ui| {
                             for s in data.streams.iter() {
                                 for e in s.entries.iter() {
-                                    ui.label(&e.name);
+                                    ui.label(RichText::new(&e.name).monospace());
                                 }
                                 ui.add_space(10.0);
                             }
                         });
+
+                        CollapsingHeader::new(
+                            RichText::new("Functions").text_style(TextStyle::Heading),
+                        )
+                        .default_open(true)
+                        .show(ui, builtin_funs);
                     });
             });
     }
@@ -528,5 +533,65 @@ fn error_section(range: Range<usize>) -> LayoutSection {
             },
             ..Default::default()
         },
+    }
+}
+
+fn builtin_funs(ui: &mut Ui) {
+    for f in BuiltinFun::members() {
+        let signatures: &[(_, _)] = match f {
+            BuiltinFun::Pow => &cods::POW_SIGNATURES,
+            BuiltinFun::Ln => &cods::LN_SIGNATURES,
+            BuiltinFun::Log => &cods::LOG_SIGNATURES,
+            BuiltinFun::Sqrt => &cods::SQRT_SIGNATURES,
+            BuiltinFun::Ncr => &cods::NCR_SIGNATURES,
+            BuiltinFun::ToDeg => &cods::TO_DEG_SIGNATURES,
+            BuiltinFun::ToRad => &cods::TO_RAD_SIGNATURES,
+            BuiltinFun::Sin => &cods::SIN_SIGNATURES,
+            BuiltinFun::Cos => &cods::COS_SIGNATURES,
+            BuiltinFun::Tan => &cods::TAN_SIGNATURES,
+            BuiltinFun::Asin => &cods::ASIN_SIGNATURES,
+            BuiltinFun::Acos => &cods::ACOS_SIGNATURES,
+            BuiltinFun::Atan => &cods::ATAN_SIGNATURES,
+            BuiltinFun::Gcd => &cods::GCD_SIGNATURES,
+            BuiltinFun::Min => &cods::MIN_SIGNATURES,
+            BuiltinFun::Max => &cods::MAX_SIGNATURES,
+            BuiltinFun::Clamp => &cods::CLAMP_SIGNATURES,
+            BuiltinFun::Abs => &cods::ABS_SIGNATURES,
+            BuiltinFun::Print => &cods::PRINT_SIGNATURES,
+            BuiltinFun::Println => &cods::PRINTLN_SIGNATURES,
+            BuiltinFun::Spill => continue,
+            BuiltinFun::SpillLocal => continue,
+            BuiltinFun::Assert => &cods::ASSERT_SIGNATURES,
+            BuiltinFun::AssertEq => &cods::ASSERT_EQ_SIGNATURES,
+        };
+
+        for (_, s) in signatures {
+            let mut text = format!("{f}(");
+            if let Some((first, others)) = s.params.split_first() {
+                let _ = write!(text, "{first}");
+                for d in others {
+                    let _ = write!(text, ", {d}");
+                }
+            }
+
+            match s.repetition {
+                cods::Repetition::One => (),
+                cods::Repetition::ZeroOrMore => {
+                    let _ = write!(text, "..");
+                }
+                cods::Repetition::OneOrMore => {
+                    let _ = write!(text, "...");
+                }
+            }
+
+            let _ = write!(text, ")");
+
+            if s.return_type != DataType::Unit {
+                let _ = write!(text, " -> {}", s.return_type);
+            }
+
+            ui.label(RichText::new(text).monospace());
+        }
+        ui.add_space(10.0);
     }
 }
