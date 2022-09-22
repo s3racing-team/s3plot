@@ -390,12 +390,16 @@ fn expr_inputs(ui: &mut Ui, p: &mut NamedPlot, c: &PlotValues) -> ExprInput {
     });
 
     let mut x_layouter = |ui: &egui::Ui, string: &str, wrap_width: f32| {
+        let format = TextFormat {
+            font_id: TextStyle::Monospace.resolve(ui.style()),
+            ..Default::default()
+        };
         let mut layout_job = match c {
             PlotValues::Result(Err(e)) => match &e.x {
-                Some(e) => mark_errors(string, e),
-                None => LayoutJob::single_section(string.to_string(), TextFormat::default()),
+                Some(e) => mark_errors(string, e, format),
+                None => LayoutJob::single_section(string.to_string(), format),
             },
-            _ => LayoutJob::single_section(string.to_string(), TextFormat::default()),
+            _ => LayoutJob::single_section(string.to_string(), format),
         };
         layout_job.wrap.max_width = wrap_width;
         ui.fonts().layout_job(layout_job)
@@ -409,7 +413,6 @@ fn expr_inputs(ui: &mut Ui, p: &mut NamedPlot, c: &PlotValues) -> ExprInput {
             TextEdit::multiline(&mut p.expr.x)
                 .desired_width(ui.available_width())
                 .desired_rows(1)
-                .font(TextStyle::Monospace)
                 .layouter(&mut x_layouter),
         )
         .changed()
@@ -421,12 +424,16 @@ fn expr_inputs(ui: &mut Ui, p: &mut NamedPlot, c: &PlotValues) -> ExprInput {
     }
 
     let mut y_layouter = |ui: &egui::Ui, string: &str, wrap_width: f32| {
+        let format = TextFormat {
+            font_id: TextStyle::Monospace.resolve(ui.style()),
+            ..Default::default()
+        };
         let mut layout_job = match c {
             PlotValues::Result(Err(e)) => match &e.y {
-                Some(e) => mark_errors(string, e),
-                None => LayoutJob::single_section(string.to_string(), TextFormat::default()),
+                Some(e) => mark_errors(string, e, format),
+                None => LayoutJob::single_section(string.to_string(), format),
             },
-            _ => LayoutJob::single_section(string.to_string(), TextFormat::default()),
+            _ => LayoutJob::single_section(string.to_string(), format),
         };
         layout_job.wrap.max_width = wrap_width;
         ui.fonts().layout_job(layout_job)
@@ -440,7 +447,6 @@ fn expr_inputs(ui: &mut Ui, p: &mut NamedPlot, c: &PlotValues) -> ExprInput {
             TextEdit::multiline(&mut p.expr.y)
                 .desired_width(ui.available_width())
                 .desired_rows(1)
-                .font(TextStyle::Monospace)
                 .layouter(&mut y_layouter),
         )
         .changed()
@@ -460,7 +466,7 @@ fn expr_inputs(ui: &mut Ui, p: &mut NamedPlot, c: &PlotValues) -> ExprInput {
     }
 }
 
-fn mark_errors(input: &str, error: &cods::Error) -> LayoutJob {
+fn mark_errors(input: &str, error: &cods::Error, format: TextFormat) -> LayoutJob {
     let spans = error.spans();
 
     let mut sections = Vec::new();
@@ -472,7 +478,7 @@ fn mark_errors(input: &str, error: &cods::Error) -> LayoutJob {
             if s.start == pos {
                 if errors == 0 && i != 0 {
                     range.end = i;
-                    sections.push(normal_section(range.clone()));
+                    sections.push(normal_section(range.clone(), format.clone()));
                     range.start = i;
                 }
                 errors += 1;
@@ -483,7 +489,7 @@ fn mark_errors(input: &str, error: &cods::Error) -> LayoutJob {
                 errors -= 1;
                 if errors == 0 {
                     range.end = i;
-                    sections.push(error_section(range.clone()));
+                    sections.push(error_section(range.clone(), format.clone()));
                     range.start = i;
                 }
             }
@@ -501,9 +507,9 @@ fn mark_errors(input: &str, error: &cods::Error) -> LayoutJob {
     if sections.is_empty() || sections.last().unwrap().byte_range.end < input.len() {
         range.end = input.len();
         if errors == 0 {
-            sections.push(normal_section(range));
+            sections.push(normal_section(range, format));
         } else {
-            sections.push(error_section(range));
+            sections.push(error_section(range, format));
         }
     }
 
@@ -514,15 +520,15 @@ fn mark_errors(input: &str, error: &cods::Error) -> LayoutJob {
     }
 }
 
-fn normal_section(range: Range<usize>) -> LayoutSection {
+fn normal_section(range: Range<usize>, format: TextFormat) -> LayoutSection {
     LayoutSection {
         leading_space: 0.0,
         byte_range: range,
-        format: TextFormat::default(),
+        format,
     }
 }
 
-fn error_section(range: Range<usize>) -> LayoutSection {
+fn error_section(range: Range<usize>, format: TextFormat) -> LayoutSection {
     LayoutSection {
         leading_space: 0.0,
         byte_range: range,
@@ -531,7 +537,7 @@ fn error_section(range: Range<usize>) -> LayoutSection {
                 width: 2.0,
                 color: ERROR_RED,
             },
-            ..Default::default()
+            ..format
         },
     }
 }
