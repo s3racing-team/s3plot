@@ -122,6 +122,13 @@ pub fn select_prev_tab(cfg: &mut Config) {
     cfg.selected_tab = (cfg.tabs.len() + cfg.selected_tab - 1) % cfg.tabs.len()
 }
 
+pub fn add_plot(data: &mut PlotData, cfg: &mut Config, tab: usize, y_expr: String) {
+    let plots = &mut cfg.tabs[tab].plots;
+    let name = format!("{}.", plots.len());
+    plots.push(NamedPlot::new(name, Expr::new("time".into(), y_expr)));
+    data.plots[tab].push(PlotValues::Result(Ok(Vec::new())));
+}
+
 pub fn keybindings(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
     let mut input = ui.input_mut();
     if input.consume_key(Modifiers::CTRL, Key::T) {
@@ -141,6 +148,13 @@ pub fn keybindings(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
         || input.consume_key(Modifiers::ALT, Key::ArrowRight)
     {
         select_next_tab(cfg);
+    }
+
+    if input.consume_key(Modifiers::CTRL, Key::H) {
+        cfg.show_help = !cfg.show_help;
+    }
+    if input.consume_key(Modifiers::CTRL, Key::N) {
+        add_plot(data, cfg, cfg.selected_tab, "".into());
     }
 }
 
@@ -246,10 +260,6 @@ pub fn tab_plot(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
                 });
         });
 
-    if ui.input_mut().consume_key(Modifiers::CTRL, Key::H) {
-        cfg.show_help = !cfg.show_help;
-    }
-
     if cfg.show_help {
         SidePanel::right("help")
             .resizable(true)
@@ -329,29 +339,20 @@ fn input_sidebar(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
 
     ui.horizontal(|ui| {
         if ui.button(" + ").clicked() {
-            tab_cfg.plots.push(NamedPlot::new(
-                format!("{}.", i + 1),
-                Expr::new("time".into(), "".into()),
-            ));
-            data.plots[cfg.selected_tab].push(PlotValues::Result(Ok(Vec::new())));
+            add_plot(data, cfg, cfg.selected_tab, "".into());
         }
 
         ui.menu_button("...", |ui| {
             ScrollArea::vertical().show(ui, |ui| {
                 ui.allocate_ui(Vec2::new(300.0, 500.0), |ui| {
-                    for e in data.streams.iter().flat_map(|s| s.entries.iter()) {
-                        if ui.button(&e.name).clicked() {
-                            let plot = NamedPlot::new(
-                                e.name.clone(),
-                                Expr::new("time".into(), e.name.clone()),
-                            );
-                            data.plots[cfg.selected_tab].push(PlotValues::Job(Job::start(
-                                plot.expr.clone(),
-                                Arc::clone(&data.streams),
-                            )));
-                            tab_cfg.plots.push(plot);
+                    for i in 0..data.streams.len() {
+                        for j in 0..data.streams[i].entries.len() {
+                            let name = &data.streams[i].entries[j].name;
+                            if ui.button(name).clicked() {
+                                add_plot(data, cfg, cfg.selected_tab, name.clone());
 
-                            ui.close_menu();
+                                ui.close_menu();
+                            }
                         }
                     }
                 });
