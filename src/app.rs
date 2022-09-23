@@ -15,7 +15,7 @@ use crate::fs::{ErrorFile, Files, SelectableFile, SelectableFiles};
 use crate::plot::{self, Config};
 use crate::util;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Default, Serialize, Deserialize)]
 #[serde(default)]
 pub struct PlotApp {
     pub config: Config,
@@ -65,17 +65,6 @@ impl Job {
 
     pub fn join(self) -> Result<Vec<PlotPoint>, Box<ExprError>> {
         self.handle.join().expect("failed to join worker thread")
-    }
-}
-
-impl Default for PlotApp {
-    fn default() -> Self {
-        Self {
-            files: None,
-            config: Config::default(),
-            selectable_files: None,
-            data: None,
-        }
     }
 }
 
