@@ -552,10 +552,13 @@ fn help_sidebar(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
         .default_open(true)
         .show(ui, |ui| {
             for s in data.streams.iter() {
+                let mut one_shown = false;
                 for e in s.entries.iter() {
-                    highlight_matches(ui, &e.name, query);
+                    one_shown |= highlight_matches(ui, &e.name, query);
                 }
-                ui.add_space(10.0);
+                if one_shown {
+                    ui.add_space(10.0);
+                }
             }
         });
 
@@ -590,6 +593,7 @@ fn help_sidebar(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
                     BuiltinFun::AssertEq => &cods::ASSERT_EQ_SIGNATURES,
                 };
 
+                let mut one_shown = false;
                 for (_, s) in signatures {
                     let mut text = format!("{f}(");
                     if let Some((first, others)) = s.params.split_first() {
@@ -615,58 +619,70 @@ fn help_sidebar(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
                         let _ = write!(text, " -> {}", s.return_type);
                     }
 
-                    highlight_matches(ui, &text, query);
+                    one_shown |= highlight_matches(ui, &text, query);
                 }
-                ui.add_space(10.0);
+                if one_shown {
+                    ui.add_space(10.0);
+                }
             }
         });
 }
 
-fn highlight_matches(ui: &mut Ui, text: &str, query: &str) {
-    let sections = match text.to_lowercase().find(query) {
-        Some(pos) if !query.is_empty() => vec![
-            LayoutSection {
-                byte_range: 0..pos,
+fn highlight_matches(ui: &mut Ui, text: &str, query: &str) -> bool {
+    if query.is_empty() {
+        ui.label(WidgetText::LayoutJob(LayoutJob {
+            text: text.into(),
+            sections: vec![LayoutSection {
+                byte_range: 0..text.len(),
                 format: TextFormat {
                     font_id: TextStyle::Monospace.resolve(ui.style()),
                     color: ui.visuals().text_color(),
                     ..Default::default()
                 },
                 leading_space: 0.0,
-            },
-            LayoutSection {
-                byte_range: pos..pos + query.len(),
-                format: TextFormat {
-                    font_id: TextStyle::Monospace.resolve(ui.style()),
-                    color: ui.visuals().text_color(),
-                    background: HL_YELLOW,
-                    ..Default::default()
-                },
-                leading_space: 0.0,
-            },
-            LayoutSection {
-                byte_range: pos + query.len()..text.len(),
-                format: TextFormat {
-                    font_id: TextStyle::Monospace.resolve(ui.style()),
-                    color: ui.visuals().text_color(),
-                    ..Default::default()
-                },
-                leading_space: 0.0,
-            },
-        ],
-        _ => vec![LayoutSection {
-            byte_range: 0..text.len(),
-            format: TextFormat {
-                font_id: TextStyle::Monospace.resolve(ui.style()),
-                color: ui.visuals().text_color(),
+            }],
+            ..Default::default()
+        }));
+    } else {
+        if let Some(pos) = text.to_lowercase().find(query) {
+            ui.label(WidgetText::LayoutJob(LayoutJob {
+                text: text.into(),
+                sections: vec![
+                    LayoutSection {
+                        byte_range: 0..pos,
+                        format: TextFormat {
+                            font_id: TextStyle::Monospace.resolve(ui.style()),
+                            color: ui.visuals().text_color(),
+                            ..Default::default()
+                        },
+                        leading_space: 0.0,
+                    },
+                    LayoutSection {
+                        byte_range: pos..pos + query.len(),
+                        format: TextFormat {
+                            font_id: TextStyle::Monospace.resolve(ui.style()),
+                            color: ui.visuals().text_color(),
+                            background: HL_YELLOW,
+                            ..Default::default()
+                        },
+                        leading_space: 0.0,
+                    },
+                    LayoutSection {
+                        byte_range: pos + query.len()..text.len(),
+                        format: TextFormat {
+                            font_id: TextStyle::Monospace.resolve(ui.style()),
+                            color: ui.visuals().text_color(),
+                            ..Default::default()
+                        },
+                        leading_space: 0.0,
+                    },
+                ],
                 ..Default::default()
-            },
-            leading_space: 0.0,
-        }],
-    };
-    ui.label(WidgetText::LayoutJob(LayoutJob {
-        text: text.into(),
-        sections,
-        ..Default::default()
-    }));
+            }));
+        } else {
+            return false;
+        }
+    }
+
+    true
 }
