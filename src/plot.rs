@@ -9,6 +9,7 @@ use egui::text::{LayoutJob, LayoutSection};
 use egui::{
     Align, Button, CentralPanel, CollapsingHeader, Color32, Frame, Key, Label, Layout, Modifiers,
     RichText, Rounding, ScrollArea, SidePanel, TextEdit, TextFormat, TextStyle, Ui, Vec2,
+    WidgetText,
 };
 use serde::{Deserialize, Serialize};
 
@@ -22,10 +23,13 @@ const TAB_WIDTH: f32 = TAB_BUTTON_WIDTH + TAB_CROSS_WIDTH;
 
 const DEFAULT_ASPECT_RATIO: f32 = 0.1;
 const ERROR_RED: Color32 = Color32::from_rgb(0xf0, 0x56, 0x56);
+const HL_YELLOW: Color32 = Color32::from_rgb(0xc0, 0xc0, 0x76);
 
 #[derive(Serialize, Deserialize)]
 pub struct Config {
     pub show_help: bool,
+    #[serde(skip)]
+    pub search_help: String,
     pub selected_tab: usize,
     pub tabs: Vec<TabConfig>,
 }
@@ -34,6 +38,7 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             show_help: true,
+            search_help: "".into(),
             selected_tab: 0,
             tabs: vec![TabConfig {
                 name: "Tab 1".into(),
@@ -237,9 +242,13 @@ pub fn tab_plot(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
             ScrollArea::vertical()
                 .auto_shrink([false, false])
                 .show(ui, |ui| {
-                    sidebar(ui, data, cfg);
+                    input_sidebar(ui, data, cfg);
                 });
         });
+
+    if ui.input_mut().consume_key(Modifiers::CTRL, Key::H) {
+        cfg.show_help = !cfg.show_help;
+    }
 
     if cfg.show_help {
         SidePanel::right("help")
@@ -255,24 +264,7 @@ pub fn tab_plot(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
                 ScrollArea::vertical()
                     .auto_shrink([false, false])
                     .show(ui, |ui| {
-                        CollapsingHeader::new(
-                            RichText::new("Variables").text_style(TextStyle::Heading),
-                        )
-                        .default_open(true)
-                        .show(ui, |ui| {
-                            for s in data.streams.iter() {
-                                for e in s.entries.iter() {
-                                    ui.label(RichText::new(&e.name).monospace());
-                                }
-                                ui.add_space(10.0);
-                            }
-                        });
-
-                        CollapsingHeader::new(
-                            RichText::new("Functions").text_style(TextStyle::Heading),
-                        )
-                        .default_open(true)
-                        .show(ui, builtin_funs);
+                        help_sidebar(ui, data, cfg);
                     });
             });
     }
@@ -315,7 +307,7 @@ pub fn tab_plot(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
         });
 }
 
-fn sidebar(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
+fn input_sidebar(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
     let tab_cfg = &mut cfg.tabs[cfg.selected_tab];
     let mut i = 0;
     while i < tab_cfg.plots.len() {
@@ -542,62 +534,138 @@ fn error_section(range: Range<usize>, format: TextFormat) -> LayoutSection {
     }
 }
 
-fn builtin_funs(ui: &mut Ui) {
-    for f in BuiltinFun::members() {
-        let signatures: &[(_, _)] = match f {
-            BuiltinFun::Pow => &cods::POW_SIGNATURES,
-            BuiltinFun::Ln => &cods::LN_SIGNATURES,
-            BuiltinFun::Log => &cods::LOG_SIGNATURES,
-            BuiltinFun::Sqrt => &cods::SQRT_SIGNATURES,
-            BuiltinFun::Ncr => &cods::NCR_SIGNATURES,
-            BuiltinFun::ToDeg => &cods::TO_DEG_SIGNATURES,
-            BuiltinFun::ToRad => &cods::TO_RAD_SIGNATURES,
-            BuiltinFun::Sin => &cods::SIN_SIGNATURES,
-            BuiltinFun::Cos => &cods::COS_SIGNATURES,
-            BuiltinFun::Tan => &cods::TAN_SIGNATURES,
-            BuiltinFun::Asin => &cods::ASIN_SIGNATURES,
-            BuiltinFun::Acos => &cods::ACOS_SIGNATURES,
-            BuiltinFun::Atan => &cods::ATAN_SIGNATURES,
-            BuiltinFun::Gcd => &cods::GCD_SIGNATURES,
-            BuiltinFun::Min => &cods::MIN_SIGNATURES,
-            BuiltinFun::Max => &cods::MAX_SIGNATURES,
-            BuiltinFun::Clamp => &cods::CLAMP_SIGNATURES,
-            BuiltinFun::Abs => &cods::ABS_SIGNATURES,
-            BuiltinFun::Print => &cods::PRINT_SIGNATURES,
-            BuiltinFun::Println => &cods::PRINTLN_SIGNATURES,
-            BuiltinFun::Spill => continue,
-            BuiltinFun::SpillLocal => continue,
-            BuiltinFun::Assert => &cods::ASSERT_SIGNATURES,
-            BuiltinFun::AssertEq => &cods::ASSERT_EQ_SIGNATURES,
-        };
+fn help_sidebar(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
+    let resp = TextEdit::singleline(&mut cfg.search_help)
+        .desired_width(ui.available_width())
+        .font(TextStyle::Monospace)
+        .hint_text("Search...")
+        .show(ui);
 
-        for (_, s) in signatures {
-            let mut text = format!("{f}(");
-            if let Some((first, others)) = s.params.split_first() {
-                let _ = write!(text, "{first}");
-                for d in others {
-                    let _ = write!(text, ", {d}");
-                }
-            }
-
-            match s.repetition {
-                cods::Repetition::One => (),
-                cods::Repetition::ZeroOrMore => {
-                    let _ = write!(text, "..");
-                }
-                cods::Repetition::OneOrMore => {
-                    let _ = write!(text, "...");
-                }
-            }
-
-            let _ = write!(text, ")");
-
-            if s.return_type != DataType::Unit {
-                let _ = write!(text, " -> {}", s.return_type);
-            }
-
-            ui.label(RichText::new(text).monospace());
-        }
-        ui.add_space(10.0);
+    if ui.input_mut().consume_key(Modifiers::CTRL, Key::F) {
+        resp.response.request_focus();
     }
+
+    let query = &cfg.search_help.to_lowercase();
+
+    CollapsingHeader::new(RichText::new("Variables").text_style(TextStyle::Heading))
+        .default_open(true)
+        .show(ui, |ui| {
+            for s in data.streams.iter() {
+                for e in s.entries.iter() {
+                    highlight_matches(ui, &e.name, query);
+                }
+                ui.add_space(10.0);
+            }
+        });
+
+    CollapsingHeader::new(RichText::new("Functions").text_style(TextStyle::Heading))
+        .default_open(true)
+        .show(ui, |ui| {
+            for f in BuiltinFun::members() {
+                let signatures: &[(_, _)] = match f {
+                    BuiltinFun::Pow => &cods::POW_SIGNATURES,
+                    BuiltinFun::Ln => &cods::LN_SIGNATURES,
+                    BuiltinFun::Log => &cods::LOG_SIGNATURES,
+                    BuiltinFun::Sqrt => &cods::SQRT_SIGNATURES,
+                    BuiltinFun::Ncr => &cods::NCR_SIGNATURES,
+                    BuiltinFun::ToDeg => &cods::TO_DEG_SIGNATURES,
+                    BuiltinFun::ToRad => &cods::TO_RAD_SIGNATURES,
+                    BuiltinFun::Sin => &cods::SIN_SIGNATURES,
+                    BuiltinFun::Cos => &cods::COS_SIGNATURES,
+                    BuiltinFun::Tan => &cods::TAN_SIGNATURES,
+                    BuiltinFun::Asin => &cods::ASIN_SIGNATURES,
+                    BuiltinFun::Acos => &cods::ACOS_SIGNATURES,
+                    BuiltinFun::Atan => &cods::ATAN_SIGNATURES,
+                    BuiltinFun::Gcd => &cods::GCD_SIGNATURES,
+                    BuiltinFun::Min => &cods::MIN_SIGNATURES,
+                    BuiltinFun::Max => &cods::MAX_SIGNATURES,
+                    BuiltinFun::Clamp => &cods::CLAMP_SIGNATURES,
+                    BuiltinFun::Abs => &cods::ABS_SIGNATURES,
+                    BuiltinFun::Print => &cods::PRINT_SIGNATURES,
+                    BuiltinFun::Println => &cods::PRINTLN_SIGNATURES,
+                    BuiltinFun::Spill => continue,
+                    BuiltinFun::SpillLocal => continue,
+                    BuiltinFun::Assert => &cods::ASSERT_SIGNATURES,
+                    BuiltinFun::AssertEq => &cods::ASSERT_EQ_SIGNATURES,
+                };
+
+                for (_, s) in signatures {
+                    let mut text = format!("{f}(");
+                    if let Some((first, others)) = s.params.split_first() {
+                        let _ = write!(text, "{first}");
+                        for d in others {
+                            let _ = write!(text, ", {d}");
+                        }
+                    }
+
+                    match s.repetition {
+                        cods::Repetition::One => (),
+                        cods::Repetition::ZeroOrMore => {
+                            let _ = write!(text, "..");
+                        }
+                        cods::Repetition::OneOrMore => {
+                            let _ = write!(text, "...");
+                        }
+                    }
+
+                    let _ = write!(text, ")");
+
+                    if s.return_type != DataType::Unit {
+                        let _ = write!(text, " -> {}", s.return_type);
+                    }
+
+                    highlight_matches(ui, &text, query);
+                }
+                ui.add_space(10.0);
+            }
+        });
+}
+
+fn highlight_matches(ui: &mut Ui, text: &str, query: &str) {
+    let sections = match text.to_lowercase().find(query) {
+        Some(pos) if !query.is_empty() => vec![
+            LayoutSection {
+                byte_range: 0..pos,
+                format: TextFormat {
+                    font_id: TextStyle::Monospace.resolve(ui.style()),
+                    color: ui.visuals().text_color(),
+                    ..Default::default()
+                },
+                leading_space: 0.0,
+            },
+            LayoutSection {
+                byte_range: pos..pos + query.len(),
+                format: TextFormat {
+                    font_id: TextStyle::Monospace.resolve(ui.style()),
+                    color: ui.visuals().text_color(),
+                    background: HL_YELLOW,
+                    ..Default::default()
+                },
+                leading_space: 0.0,
+            },
+            LayoutSection {
+                byte_range: pos + query.len()..text.len(),
+                format: TextFormat {
+                    font_id: TextStyle::Monospace.resolve(ui.style()),
+                    color: ui.visuals().text_color(),
+                    ..Default::default()
+                },
+                leading_space: 0.0,
+            },
+        ],
+        _ => vec![LayoutSection {
+            byte_range: 0..text.len(),
+            format: TextFormat {
+                font_id: TextStyle::Monospace.resolve(ui.style()),
+                color: ui.visuals().text_color(),
+                ..Default::default()
+            },
+            leading_space: 0.0,
+        }],
+    };
+    ui.label(WidgetText::LayoutJob(LayoutJob {
+        text: text.into(),
+        sections,
+        ..Default::default()
+    }));
 }
