@@ -23,7 +23,6 @@ const TAB_WIDTH: f32 = TAB_BUTTON_WIDTH + TAB_CROSS_WIDTH;
 
 const DEFAULT_ASPECT_RATIO: f32 = 0.1;
 const ERROR_RED: Color32 = Color32::from_rgb(0xf0, 0x56, 0x56);
-const HL_YELLOW: Color32 = Color32::from_rgb(0xc0, 0xc0, 0x76);
 
 #[derive(Serialize, Deserialize)]
 pub struct Config {
@@ -661,6 +660,11 @@ fn highlight_matches(ui: &mut Ui, text: &str, query: &str) -> bool {
         }));
     } else {
         if let Some(pos) = text.to_lowercase().find(query) {
+            let hl_color = if ui.style().visuals.dark_mode {
+                Color32::from_rgb(0xfa, 0xc6, 0x26)
+            } else {
+                Color32::from_rgb(0xfa, 0xc6, 0x96)
+            };
             ui.label(WidgetText::LayoutJob(LayoutJob {
                 text: text.into(),
                 sections: vec![
@@ -678,7 +682,7 @@ fn highlight_matches(ui: &mut Ui, text: &str, query: &str) -> bool {
                         format: TextFormat {
                             font_id: TextStyle::Monospace.resolve(ui.style()),
                             color: ui.visuals().text_color(),
-                            background: HL_YELLOW,
+                            background: hl_color,
                             ..Default::default()
                         },
                         leading_space: 0.0,
