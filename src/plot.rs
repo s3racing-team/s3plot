@@ -7,9 +7,9 @@ use egui::plot::{Legend, Line, Plot, PlotPoints};
 use egui::style::Margin;
 use egui::text::{LayoutJob, LayoutSection};
 use egui::{
-    Align, Button, CentralPanel, CollapsingHeader, Color32, Frame, Key, Label, Layout, Modifiers,
-    RichText, Rounding, ScrollArea, SidePanel, TextEdit, TextFormat, TextStyle, Ui, Vec2,
-    WidgetText,
+    Align, Button, CentralPanel, CollapsingHeader, Color32, CursorIcon, Frame, Id, Key, Label,
+    LayerId, Layout, Modifiers, Order, Pos2, Rect, RichText, Rounding, ScrollArea, Sense,
+    SidePanel, TextEdit, TextFormat, TextStyle, Ui, Vec2, WidgetText,
 };
 use serde::{Deserialize, Serialize};
 
@@ -19,7 +19,6 @@ use crate::util::{self, format_time};
 
 const TAB_CROSS_WIDTH: f32 = 20.0;
 const TAB_BUTTON_WIDTH: f32 = 80.0;
-const TAB_WIDTH: f32 = TAB_BUTTON_WIDTH + TAB_CROSS_WIDTH;
 
 const DEFAULT_ASPECT_RATIO: f32 = 0.1;
 const ERROR_RED: Color32 = Color32::from_rgb(0xf0, 0x56, 0x56);
@@ -31,6 +30,8 @@ pub struct Config {
     pub search_help: String,
     pub selected_tab: usize,
     pub tabs: Vec<TabConfig>,
+    #[serde(skip)]
+    pub dragged_tab: Option<(usize, Pos2)>,
 }
 
 impl Default for Config {
@@ -59,6 +60,7 @@ impl Default for Config {
                     },
                 ],
             }],
+            dragged_tab: None,
         }
     }
 }
@@ -113,6 +115,20 @@ pub fn remove_tab(data: &mut PlotData, cfg: &mut Config, tab: usize) -> bool {
     true
 }
 
+pub fn move_tab(data: &mut PlotData, cfg: &mut Config, from: usize, to: usize) {
+    if from < to {
+        for i in from..to {
+            cfg.tabs.swap(i, i + 1);
+            data.plots.swap(i, i + 1);
+        }
+    } else {
+        for i in (to..from).rev() {
+            cfg.tabs.swap(i + 1, i);
+            data.plots.swap(i + 1, i);
+        }
+    }
+}
+
 pub fn select_next_tab(cfg: &mut Config) {
     cfg.selected_tab = (cfg.selected_tab + 1) % cfg.tabs.len()
 }
@@ -162,63 +178,103 @@ pub fn keybindings(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
     }
 }
 
+fn tab_button_width() -> f32 {
+    // TextEdit margin
+    const MARGIN: f32 = 4.0;
+    TAB_BUTTON_WIDTH + MARGIN + MARGIN
+}
+
+fn tab_width(ui: &Ui) -> f32 {
+    tab_button_width() + ui.spacing().item_spacing.x + TAB_CROSS_WIDTH
+}
+
 pub fn tab_bar(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
     ui.horizontal(|ui| {
+        let tab_width = tab_width(ui);
+        let tab_spacing = ui.spacing().item_spacing.x;
+
         let mut i = 0;
         while i < cfg.tabs.len() {
-            let t = &mut cfg.tabs[i];
+            // check if the tab was clicked or dragged
+            let tab_pos = ui.cursor().min;
+            let size = Vec2::new(tab_width, ui.spacing().interact_size.y);
+            let rect = Rect::from_min_size(tab_pos, size);
+            let resp = ui.allocate_rect(rect, Sense::click_and_drag());
+
+            if resp.drag_started() {
+                if let Some(p) = resp.interact_pointer_pos() {
+                    cfg.dragged_tab = Some((i, p));
+                }
+            }
+
             let selected = cfg.selected_tab == i;
-
-            let mut remove = false;
-
-            let tab_fill = if selected {
-                ui.visuals().selection.bg_fill
-            } else {
-                ui.visuals().faint_bg_color
-            };
-            Frame::default()
-                .rounding(Rounding::same(5.0))
-                .fill(tab_fill)
-                .show(ui, |ui| {
-                    ui.set_width(TAB_WIDTH);
-
-                    let mut rect = ui.available_rect_before_wrap();
-
-                    if selected {
-                        TextEdit::singleline(&mut t.name)
-                            .desired_width(TAB_BUTTON_WIDTH - ui.spacing().button_padding.x * 2.0)
-                            .frame(false)
-                            .show(ui);
+            let t = &mut cfg.tabs[i];
+            let mut edit_name = false;
+            let mut removed = false;
+            if resp.clicked() {
+                if let Some(clicked_pos) = resp.interact_pointer_pos() {
+                    let relative_pos = clicked_pos - tab_pos;
+                    let close_button_start = tab_button_width() + tab_spacing;
+                    if relative_pos.x < close_button_start {
+                        if selected {
+                            edit_name = true;
+                        } else {
+                            cfg.selected_tab = i;
+                        }
                     } else {
-                        // tab text
-                        ui.add_space(ui.spacing().button_padding.x);
-                        ui.label(&t.name);
-
-                        // clickable area
-                        ui.allocate_ui_at_rect(rect, |ui| {
-                            let resp = ui.add_sized(
-                                Vec2::new(TAB_BUTTON_WIDTH, ui.available_height()),
-                                Button::new("").frame(false),
-                            );
-                            if resp.clicked() {
-                                cfg.selected_tab = i;
-                            }
-                        });
+                        removed = true;
                     }
+                }
+            }
 
-                    *rect.left_mut() += TAB_BUTTON_WIDTH;
+            // actually draw tab
+            ui.allocate_ui_at_rect(rect, |ui| {
+                if !resp.dragged() {
+                    draw_tab(ui, &mut t.name, selected, edit_name);
+                } else {
+                    ui.output().cursor_icon = CursorIcon::Grabbing;
 
-                    // clickable area
-                    ui.allocate_ui_at_rect(rect, |ui| {
-                        let resp = ui.add_sized(
-                            Vec2::new(TAB_CROSS_WIDTH, ui.available_height()),
-                            Button::new(" 🗙 ").frame(false),
-                        );
-                        remove = resp.clicked();
-                    });
-                });
+                    let id = Id::new("tab").with(i);
+                    let layer_id = LayerId::new(Order::Tooltip, id);
 
-            if !(remove && remove_tab(data, cfg, i)) {
+                    if let (Some(pointer_pos), Some((_, grab_pos))) =
+                        (ui.ctx().pointer_interact_pos(), cfg.dragged_tab)
+                    {
+                        ui.with_layer_id(layer_id, |ui| {
+                            draw_tab(ui, &mut t.name, selected, edit_name)
+                        });
+                        let distance = Vec2::new(pointer_pos.x - grab_pos.x, 0.0);
+                        ui.ctx().translate_layer(layer_id, distance);
+                    }
+                }
+            });
+
+            // move the tab if it was dropped
+            if ui.input().pointer.any_released() {
+                match (ui.ctx().pointer_interact_pos(), cfg.dragged_tab) {
+                    (Some(pointer_pos), Some((dragged_idx, grab_pos))) if dragged_idx == i => {
+                        let distance = pointer_pos.x - grab_pos.x;
+                        let min_dist = tab_width / 2.0 + tab_spacing;
+                        let moved = if distance < -min_dist {
+                            let moved = (-distance + min_dist) / (tab_width + tab_spacing);
+                            -(moved as isize)
+                        } else if distance > min_dist {
+                            let moved = (distance + min_dist) / (tab_width + tab_spacing);
+                            moved as isize
+                        } else {
+                            0
+                        };
+
+                        let idx =
+                            (i as isize + moved).clamp(0, cfg.tabs.len() as isize - 1) as usize;
+                        move_tab(data, cfg, i, idx);
+                        cfg.dragged_tab = None;
+                    }
+                    _ => (),
+                }
+            }
+
+            if !(removed && remove_tab(data, cfg, i)) {
                 i += 1;
             }
         }
@@ -239,6 +295,36 @@ pub fn tab_bar(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
             ui.toggle_value(&mut cfg.show_help, "?");
         });
     });
+}
+
+fn draw_tab(ui: &mut Ui, name: &mut String, selected: bool, edit_name: bool) {
+    let tab_fill = if selected {
+        ui.visuals().selection.bg_fill
+    } else {
+        ui.visuals().faint_bg_color
+    };
+
+    Frame::default()
+        .rounding(Rounding::same(5.0))
+        .fill(tab_fill)
+        .show(ui, |ui| {
+            ui.set_width(tab_width(ui));
+
+            let edit_resp = TextEdit::singleline(name)
+                .desired_width(TAB_BUTTON_WIDTH)
+                .frame(false)
+                .interactive(selected)
+                .show(ui);
+
+            if edit_name {
+                edit_resp.response.request_focus();
+            }
+
+            ui.add_sized(
+                Vec2::new(TAB_CROSS_WIDTH, ui.available_height()),
+                Button::new("🗙").frame(false),
+            );
+        });
 }
 
 pub fn tab_plot(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
