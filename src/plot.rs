@@ -152,6 +152,11 @@ pub fn keybindings(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
     if input.consume_key(Modifiers::CTRL, Key::H) {
         cfg.show_help = !cfg.show_help;
     }
+    // Open help sidebar so the search bar can be focused
+    if !cfg.show_help && input.modifiers.matches(Modifiers::CTRL) && input.key_pressed(Key::F) {
+        cfg.show_help = true;
+    }
+
     if input.consume_key(Modifiers::CTRL, Key::N) {
         add_plot(data, cfg, cfg.selected_tab, "".into());
     }
