@@ -267,20 +267,10 @@ pub fn tab_bar(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
                 match (ui.ctx().pointer_interact_pos(), cfg.dragged_tab) {
                     (Some(pointer_pos), Some((dragged_idx, grab_pos))) if dragged_idx == i => {
                         let distance = pointer_pos.x - grab_pos.x;
-                        let min_dist = tab_width / 2.0 + tab_spacing;
-                        let moved = if distance < -min_dist {
-                            let moved = (-distance + min_dist) / (tab_width + tab_spacing);
-                            -(moved as isize)
-                        } else if distance > min_dist {
-                            let moved = (distance + min_dist) / (tab_width + tab_spacing);
-                            moved as isize
-                        } else {
-                            0
-                        };
-
-                        let idx =
-                            (i as isize + moved).clamp(0, cfg.tabs.len() as isize - 1) as usize;
-                        move_tab(data, cfg, i, idx);
+                        let tab_distance = tab_width + tab_spacing;
+                        let moved = (distance / tab_distance) as isize;
+                        let idx = (i as isize + moved).clamp(0, cfg.tabs.len() as isize - 1);
+                        move_tab(data, cfg, i, idx as usize);
                         cfg.dragged_tab = None;
                     }
                     _ => (),
