@@ -214,9 +214,10 @@ pub fn tab_bar(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
             let size = Vec2::new(tab_width, ui.spacing().interact_size.y);
             let rect = Rect::from_min_size(tab_pos, size);
             let resp = ui.allocate_rect(rect, Sense::click_and_drag());
+            let pointer_pos = ui.ctx().pointer_interact_pos();
 
             if resp.drag_started() {
-                if let Some(p) = resp.interact_pointer_pos() {
+                if let Some(p) = pointer_pos {
                     cfg.dragged_tab = Some((i, p));
                 }
             }
@@ -226,7 +227,7 @@ pub fn tab_bar(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
             let mut edit_name = false;
             let mut removed = false;
             if resp.clicked() {
-                if let Some(clicked_pos) = resp.interact_pointer_pos() {
+                if let Some(clicked_pos) = pointer_pos {
                     let relative_pos = clicked_pos - tab_pos;
                     let close_button_start = tab_button_width() + tab_spacing;
                     if relative_pos.x < close_button_start {
@@ -242,30 +243,26 @@ pub fn tab_bar(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
             }
 
             // actually draw tab
-            ui.allocate_ui_at_rect(rect, |ui| {
-                if !resp.dragged() {
-                    draw_tab(ui, &mut t.name, selected, edit_name);
-                } else {
-                    ui.output().cursor_icon = CursorIcon::Grabbing;
-
+            ui.allocate_ui_at_rect(rect, |ui| match (pointer_pos, cfg.dragged_tab) {
+                (Some(pointer_pos), Some((dragged_idx, grab_pos))) if dragged_idx == i => {
                     let id = Id::new("tab").with(i);
                     let layer_id = LayerId::new(Order::Tooltip, id);
+                    let distance = Vec2::new(pointer_pos.x - grab_pos.x, 0.0);
 
-                    if let (Some(pointer_pos), Some((_, grab_pos))) =
-                        (ui.ctx().pointer_interact_pos(), cfg.dragged_tab)
-                    {
-                        ui.with_layer_id(layer_id, |ui| {
-                            draw_tab(ui, &mut t.name, selected, edit_name)
-                        });
-                        let distance = Vec2::new(pointer_pos.x - grab_pos.x, 0.0);
-                        ui.ctx().translate_layer(layer_id, distance);
-                    }
+                    ui.with_layer_id(layer_id, |ui| {
+                        draw_tab(ui, &mut t.name, selected, edit_name)
+                    });
+                    ui.ctx().translate_layer(layer_id, distance);
+                    ui.output().cursor_icon = CursorIcon::Grabbing;
+                }
+                _ => {
+                    draw_tab(ui, &mut t.name, selected, edit_name);
                 }
             });
 
             // move the tab if it was dropped
             if ui.input().pointer.any_released() {
-                match (ui.ctx().pointer_interact_pos(), cfg.dragged_tab) {
+                match (pointer_pos, cfg.dragged_tab) {
                     (Some(pointer_pos), Some((dragged_idx, grab_pos))) if dragged_idx == i => {
                         let distance = pointer_pos.x - grab_pos.x;
                         let tab_distance = tab_width + tab_spacing;
