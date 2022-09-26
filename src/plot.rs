@@ -116,16 +116,29 @@ pub fn remove_tab(data: &mut PlotData, cfg: &mut Config, tab: usize) -> bool {
 }
 
 pub fn move_tab(data: &mut PlotData, cfg: &mut Config, from: usize, to: usize) {
+    let selected_tab = cfg.selected_tab;
     if from < to {
         for i in from..to {
             cfg.tabs.swap(i, i + 1);
             data.plots.swap(i, i + 1);
+        }
+
+        if selected_tab > from && selected_tab <= to {
+            cfg.selected_tab -= 1;
         }
     } else {
         for i in (to..from).rev() {
             cfg.tabs.swap(i + 1, i);
             data.plots.swap(i + 1, i);
         }
+
+        if selected_tab < from && selected_tab >= to {
+            cfg.selected_tab += 1;
+        }
+    }
+
+    if selected_tab == from {
+        cfg.selected_tab = to;
     }
 }
 
