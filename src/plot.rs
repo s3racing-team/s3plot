@@ -750,50 +750,48 @@ fn highlight_matches(ui: &mut Ui, text: &str, query: &str) -> bool {
             }],
             ..Default::default()
         }));
-    } else {
-        if let Some(pos) = text.to_lowercase().find(query) {
-            let hl_color = if ui.style().visuals.dark_mode {
-                Color32::from_rgb(0xfa, 0xc6, 0x26)
-            } else {
-                Color32::from_rgb(0xfa, 0xc6, 0x96)
-            };
-            ui.label(WidgetText::LayoutJob(LayoutJob {
-                text: text.into(),
-                sections: vec![
-                    LayoutSection {
-                        byte_range: 0..pos,
-                        format: TextFormat {
-                            font_id: TextStyle::Monospace.resolve(ui.style()),
-                            color: ui.visuals().text_color(),
-                            ..Default::default()
-                        },
-                        leading_space: 0.0,
-                    },
-                    LayoutSection {
-                        byte_range: pos..pos + query.len(),
-                        format: TextFormat {
-                            font_id: TextStyle::Monospace.resolve(ui.style()),
-                            color: ui.visuals().text_color(),
-                            background: hl_color,
-                            ..Default::default()
-                        },
-                        leading_space: 0.0,
-                    },
-                    LayoutSection {
-                        byte_range: pos + query.len()..text.len(),
-                        format: TextFormat {
-                            font_id: TextStyle::Monospace.resolve(ui.style()),
-                            color: ui.visuals().text_color(),
-                            ..Default::default()
-                        },
-                        leading_space: 0.0,
-                    },
-                ],
-                ..Default::default()
-            }));
+    } else if let Some(pos) = text.to_lowercase().find(query) {
+        let hl_color = if ui.style().visuals.dark_mode {
+            Color32::from_rgb(0xfa, 0xc6, 0x26)
         } else {
-            return false;
-        }
+            Color32::from_rgb(0xfa, 0xc6, 0x96)
+        };
+        ui.label(WidgetText::LayoutJob(LayoutJob {
+            text: text.into(),
+            sections: vec![
+                LayoutSection {
+                    byte_range: 0..pos,
+                    format: TextFormat {
+                        font_id: TextStyle::Monospace.resolve(ui.style()),
+                        color: ui.visuals().text_color(),
+                        ..Default::default()
+                    },
+                    leading_space: 0.0,
+                },
+                LayoutSection {
+                    byte_range: pos..pos + query.len(),
+                    format: TextFormat {
+                        font_id: TextStyle::Monospace.resolve(ui.style()),
+                        color: ui.visuals().text_color(),
+                        background: hl_color,
+                        ..Default::default()
+                    },
+                    leading_space: 0.0,
+                },
+                LayoutSection {
+                    byte_range: pos + query.len()..text.len(),
+                    format: TextFormat {
+                        font_id: TextStyle::Monospace.resolve(ui.style()),
+                        color: ui.visuals().text_color(),
+                        ..Default::default()
+                    },
+                    leading_space: 0.0,
+                },
+            ],
+            ..Default::default()
+        }));
+    } else {
+        return false;
     }
 
     true
