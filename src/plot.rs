@@ -569,7 +569,8 @@ fn help_sidebar(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
                 .default_open(true)
                 .show(ui, |ui| {
                     for c in BuiltinConst::members() {
-                        highlight_matches(ui, &c.to_string(), query);
+                        let text = format!("{c}: {} = {}", c.data_type(), c.val());
+                        highlight_matches(ui, &text, query);
                     }
                 });
 
