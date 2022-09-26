@@ -150,10 +150,10 @@ pub fn select_prev_tab(cfg: &mut Config) {
     cfg.selected_tab = (cfg.tabs.len() + cfg.selected_tab - 1) % cfg.tabs.len()
 }
 
-pub fn add_plot(data: &mut PlotData, cfg: &mut Config, tab: usize, y_expr: String) {
+pub fn add_plot(data: &mut PlotData, cfg: &mut Config, plot: NamedPlot) {
+    let tab = cfg.selected_tab;
     let plots = &mut cfg.tabs[tab].plots;
-    let name = format!("{}.", plots.len());
-    plots.push(NamedPlot::new(name, Expr::new("time".into(), y_expr)));
+    plots.push(plot);
     data.plots[tab].push(PlotValues::Result(Ok(Vec::new())));
 }
 
@@ -187,7 +187,8 @@ pub fn keybindings(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
     }
 
     if input.consume_key(Modifiers::CTRL, Key::N) {
-        add_plot(data, cfg, cfg.selected_tab, "".into());
+        let name = format!("{}.", cfg.tabs[cfg.selected_tab].plots.len());
+        add_plot(data, cfg, NamedPlot::new(name, Expr::new("time", "")));
     }
 }
 
@@ -428,7 +429,8 @@ fn input_sidebar(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
 
     ui.horizontal(|ui| {
         if ui.button(" + ").clicked() {
-            add_plot(data, cfg, cfg.selected_tab, "".into());
+            let name = format!("{}.", cfg.tabs[cfg.selected_tab].plots.len());
+            add_plot(data, cfg, NamedPlot::new(name, Expr::new("time", "")));
         }
 
         ui.menu_button("...", |ui| {
@@ -438,7 +440,8 @@ fn input_sidebar(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
                         for j in 0..data.streams[i].entries.len() {
                             let name = &data.streams[i].entries[j].name;
                             if ui.button(name).clicked() {
-                                add_plot(data, cfg, cfg.selected_tab, name.clone());
+                                let plot = NamedPlot::new(name.into(), Expr::new("time", name));
+                                add_plot(data, cfg, plot);
 
                                 ui.close_menu();
                             }

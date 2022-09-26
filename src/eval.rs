@@ -13,8 +13,11 @@ pub struct Expr {
 }
 
 impl Expr {
-    pub fn new(x: String, y: String) -> Self {
-        Self { x, y }
+    pub fn new(x: impl Into<String>, y: impl Into<String>) -> Self {
+        Self {
+            x: x.into(),
+            y: y.into(),
+        }
     }
 }
 
