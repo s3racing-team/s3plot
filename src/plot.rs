@@ -2,7 +2,7 @@ use std::fmt::Write;
 use std::ops::Range;
 use std::sync::Arc;
 
-use cods::{BuiltinConst, BuiltinFun, DataType, Pos, UserFacing};
+use cods::{BuiltinConst, BuiltinFun, DataType, Pos, SignatureKind, UserFacing};
 use egui::plot::{Legend, Line, Plot, PlotPoints};
 use egui::style::Margin;
 use egui::text::{LayoutJob, LayoutSection};
@@ -675,37 +675,9 @@ fn help_sidebar(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
                 .default_open(true)
                 .show(ui, |ui| {
                     for f in BuiltinFun::members() {
-                        let signatures: &[(_, _)] = match f {
-                            BuiltinFun::Pow => &cods::POW_SIGNATURES,
-                            BuiltinFun::Ln => &cods::LN_SIGNATURES,
-                            BuiltinFun::Log => &cods::LOG_SIGNATURES,
-                            BuiltinFun::Sqrt => &cods::SQRT_SIGNATURES,
-                            BuiltinFun::Ncr => &cods::NCR_SIGNATURES,
-                            BuiltinFun::ToDeg => &cods::TO_DEG_SIGNATURES,
-                            BuiltinFun::ToRad => &cods::TO_RAD_SIGNATURES,
-                            BuiltinFun::Sin => &cods::SIN_SIGNATURES,
-                            BuiltinFun::Cos => &cods::COS_SIGNATURES,
-                            BuiltinFun::Tan => &cods::TAN_SIGNATURES,
-                            BuiltinFun::Sinh => &cods::SINH_SIGNATURES,
-                            BuiltinFun::Cosh => &cods::COSH_SIGNATURES,
-                            BuiltinFun::Tanh => &cods::TANH_SIGNATURES,
-                            BuiltinFun::Asin => &cods::ASIN_SIGNATURES,
-                            BuiltinFun::Acos => &cods::ACOS_SIGNATURES,
-                            BuiltinFun::Atan => &cods::ATAN_SIGNATURES,
-                            BuiltinFun::Asinh => &cods::ASINH_SIGNATURES,
-                            BuiltinFun::Acosh => &cods::ACOSH_SIGNATURES,
-                            BuiltinFun::Atanh => &cods::ATANH_SIGNATURES,
-                            BuiltinFun::Gcd => &cods::GCD_SIGNATURES,
-                            BuiltinFun::Min => &cods::MIN_SIGNATURES,
-                            BuiltinFun::Max => &cods::MAX_SIGNATURES,
-                            BuiltinFun::Clamp => &cods::CLAMP_SIGNATURES,
-                            BuiltinFun::Abs => &cods::ABS_SIGNATURES,
-                            BuiltinFun::Print => &cods::PRINT_SIGNATURES,
-                            BuiltinFun::Println => &cods::PRINTLN_SIGNATURES,
-                            BuiltinFun::Spill => continue,
-                            BuiltinFun::SpillLocal => continue,
-                            BuiltinFun::Assert => &cods::ASSERT_SIGNATURES,
-                            BuiltinFun::AssertEq => &cods::ASSERT_EQ_SIGNATURES,
+                        let signatures: &[(_, _)] = match f.signatures() {
+                            SignatureKind::Normal(s) => s,
+                            SignatureKind::Spill(_) => continue,
                         };
 
                         let mut one_shown = false;
