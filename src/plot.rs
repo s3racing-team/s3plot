@@ -20,6 +20,11 @@ use crate::util::{self, format_time};
 const TAB_CROSS_WIDTH: f32 = 20.0;
 const TAB_BUTTON_WIDTH: f32 = 80.0;
 
+const PLOT_FRAME_PADDING: f32 = 2.0;
+
+const TEXT_EDIT_MARGIN_X: f32 = 4.0;
+const TEXT_EDIT_MARGIN_Y: f32 = 2.0;
+
 const DEFAULT_ASPECT_RATIO: f32 = 0.1;
 const ERROR_RED: Color32 = Color32::from_rgb(0xf0, 0x56, 0x56);
 
@@ -32,6 +37,8 @@ pub struct Config {
     pub tabs: Vec<TabConfig>,
     #[serde(skip)]
     pub dragged_tab: Option<(usize, Pos2)>,
+    #[serde(skip)]
+    pub dragged_plot: Option<(usize, Pos2)>,
 }
 
 impl Default for Config {
@@ -61,6 +68,7 @@ impl Default for Config {
                 ],
             }],
             dragged_tab: None,
+            dragged_plot: None,
         }
     }
 }
@@ -163,6 +171,21 @@ pub fn add_plot(data: &mut PlotData, cfg: &mut Config, plot: NamedPlot, eval: bo
     plots.push(plot);
 }
 
+pub fn move_plot(data: &mut PlotData, cfg: &mut Config, from: usize, to: usize) {
+    let tab = cfg.selected_tab;
+    if from < to {
+        for i in from..to {
+            cfg.tabs[tab].plots.swap(i, i + 1);
+            data.plots[tab].swap(i, i + 1);
+        }
+    } else {
+        for i in (to..from).rev() {
+            cfg.tabs[tab].plots.swap(i + 1, i);
+            data.plots[tab].swap(i + 1, i);
+        }
+    }
+}
+
 pub fn keybindings(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
     let mut input = ui.input_mut();
     if input.consume_key(Modifiers::CTRL, Key::T) {
@@ -203,12 +226,12 @@ pub fn keybindings(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
     }
 }
 
+#[inline]
 fn tab_button_width() -> f32 {
-    // TextEdit margin
-    const MARGIN: f32 = 4.0;
-    TAB_BUTTON_WIDTH + MARGIN + MARGIN
+    TAB_BUTTON_WIDTH + 2.0 * TEXT_EDIT_MARGIN_X
 }
 
+#[inline]
 fn tab_width(ui: &Ui) -> f32 {
     tab_button_width() + ui.spacing().item_spacing.x + TAB_CROSS_WIDTH
 }
@@ -416,22 +439,67 @@ pub fn tab_plot(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
 }
 
 fn input_sidebar(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
-    let tab_cfg = &mut cfg.tabs[cfg.selected_tab];
-    let mut i = 0;
-    while i < tab_cfg.plots.len() {
-        let p = &mut tab_cfg.plots[i];
-        let d = &data.plots[cfg.selected_tab][i];
-        let input = expr_inputs(ui, p, d);
+    let plot_height = 3.0 * ui.spacing().interact_size.y
+        + 2.0 * ui.spacing().item_spacing.y
+        + 6.0 * TEXT_EDIT_MARGIN_Y
+        + 2.0 * PLOT_FRAME_PADDING;
+    let plot_spacing = ui.spacing().item_spacing.y;
 
-        if input.removed {
-            tab_cfg.plots.remove(i);
-            let _ = data.plots[cfg.selected_tab].remove(i);
-        } else {
-            if input.x_changed || input.y_changed {
-                data.plots[cfg.selected_tab][i] =
-                    PlotValues::Job(Job::start(p.expr.clone(), Arc::clone(&data.streams)));
+    let mut i = 0;
+    while i < cfg.tabs[cfg.selected_tab].plots.len() {
+        let plot = &mut cfg.tabs[cfg.selected_tab].plots[i];
+        let values = &data.plots[cfg.selected_tab][i];
+        let pointer_pos = ui.ctx().pointer_interact_pos();
+
+        let mut input = None;
+        match (pointer_pos, cfg.dragged_plot) {
+            (Some(pointer_pos), Some((dragged_idx, grab_pos))) if dragged_idx == i => {
+                let id = Id::new("plot").with(i);
+                let layer_id = LayerId::new(Order::Tooltip, id);
+                let distance = Vec2::new(0.0, pointer_pos.y - grab_pos.y);
+
+                ui.with_layer_id(layer_id, |ui| {
+                    expr_inputs(ui, plot, values, i, &mut cfg.dragged_plot);
+                });
+                ui.ctx().translate_layer(layer_id, distance);
+                ui.output().cursor_icon = CursorIcon::Grabbing;
             }
-            i += 1;
+            _ => {
+                input = Some(expr_inputs(ui, plot, values, i, &mut cfg.dragged_plot));
+            }
+        };
+
+        // move the tab if it was dropped
+        if ui.input().pointer.any_released() {
+            match (pointer_pos, cfg.dragged_plot) {
+                (Some(pointer_pos), Some((dragged_idx, grab_pos))) if dragged_idx == i => {
+                    let distance = pointer_pos.y - grab_pos.y;
+                    let plot_distance = plot_height + plot_spacing;
+                    let moved = (distance / plot_distance) as isize;
+                    let len = cfg.tabs[cfg.selected_tab].plots.len();
+                    let new_idx = (i as isize + moved).clamp(0, len as isize - 1);
+                    move_plot(data, cfg, i, new_idx as usize);
+                    cfg.dragged_plot = None;
+                }
+                _ => (),
+            }
+        }
+
+        let tab_cfg = &mut cfg.tabs[cfg.selected_tab];
+        let plot = &mut tab_cfg.plots[i];
+        match input {
+            Some(input) if input.removed => {
+                tab_cfg.plots.remove(i);
+                let _ = data.plots[cfg.selected_tab].remove(i);
+            }
+            Some(input) => {
+                if input.x_changed || input.y_changed {
+                    data.plots[cfg.selected_tab][i] =
+                        PlotValues::Job(Job::start(plot.expr.clone(), Arc::clone(&data.streams)));
+                }
+                i += 1;
+            }
+            None => i += 1,
         }
     }
 
@@ -472,96 +540,124 @@ struct ExprInput {
     y_changed: bool,
 }
 
-fn expr_inputs(ui: &mut Ui, p: &mut NamedPlot, c: &PlotValues) -> ExprInput {
-    let removed = ui.horizontal(|ui| {
-        let r = ui.button(" − ").clicked();
-        let width = ui.available_width() - ui.spacing().interact_size.x;
-        TextEdit::singleline(&mut p.name)
-            .desired_width(width)
-            .frame(false)
-            .show(ui);
-
-        if let PlotValues::Job(_) = c {
-            ui.spinner();
-        }
-        r
-    });
-
-    let mut x_layouter = |ui: &egui::Ui, string: &str, wrap_width: f32| {
-        let format = TextFormat {
-            font_id: TextStyle::Monospace.resolve(ui.style()),
-            ..Default::default()
-        };
-        let mut layout_job = match c {
-            PlotValues::Result(Err(e)) => match &e.x {
-                Some(e) => mark_errors(string, e, format),
-                None => LayoutJob::single_section(string.to_string(), format),
-            },
-            _ => LayoutJob::single_section(string.to_string(), format),
-        };
-        layout_job.wrap.max_width = wrap_width;
-        ui.fonts().layout_job(layout_job)
+fn expr_inputs(
+    ui: &mut Ui,
+    plot: &mut NamedPlot,
+    values: &PlotValues,
+    idx: usize,
+    dragged_plot: &mut Option<(usize, Pos2)>,
+) -> ExprInput {
+    let plot_fill = match dragged_plot {
+        Some((i, _)) if idx == *i => Color32::from_rgba_unmultiplied(0x80, 0x80, 0x80, 0x20),
+        _ => Color32::TRANSPARENT,
     };
-    let x_changed = ui.horizontal(|ui| {
-        ui.add_sized(
-            Vec2::new(20.0, 10.0),
-            Label::new(RichText::new(" X ").monospace()),
-        );
-        ui.add(
-            TextEdit::multiline(&mut p.expr.x)
-                .desired_width(ui.available_width())
-                .desired_rows(1)
-                .layouter(&mut x_layouter),
-        )
-        .changed()
-    });
-    if let PlotValues::Result(Err(e)) = c {
-        if let Some(e) = &e.x {
-            ui.colored_label(ERROR_RED, e.to_string());
+    let resp = Frame::default()
+        .rounding(Rounding::same(3.0))
+        .fill(plot_fill)
+        .inner_margin(PLOT_FRAME_PADDING)
+        .show(ui, |ui| {
+            let removed = ui.horizontal(|ui| {
+                let r = ui.add(Button::new(" − ").sense(Sense::click_and_drag()));
+                let width = ui.available_width() - ui.spacing().interact_size.x;
+                TextEdit::singleline(&mut plot.name)
+                    .desired_width(width)
+                    .frame(false)
+                    .show(ui);
+
+                if let PlotValues::Job(_) = values {
+                    ui.spinner();
+                }
+
+                r.clicked()
+            });
+
+            let mut x_layouter = |ui: &egui::Ui, string: &str, wrap_width: f32| {
+                let format = TextFormat {
+                    font_id: TextStyle::Monospace.resolve(ui.style()),
+                    ..Default::default()
+                };
+                let mut layout_job = match values {
+                    PlotValues::Result(Err(e)) => match &e.x {
+                        Some(e) => mark_errors(string, e, format),
+                        None => LayoutJob::single_section(string.to_string(), format),
+                    },
+                    _ => LayoutJob::single_section(string.to_string(), format),
+                };
+                layout_job.wrap.max_width = wrap_width;
+                ui.fonts().layout_job(layout_job)
+            };
+            let x_changed = ui.horizontal(|ui| {
+                ui.add_sized(
+                    Vec2::new(20.0, 10.0),
+                    Label::new(RichText::new(" X ").monospace()),
+                );
+                ui.add(
+                    TextEdit::multiline(&mut plot.expr.x)
+                        .desired_width(ui.available_width())
+                        .desired_rows(1)
+                        .layouter(&mut x_layouter),
+                )
+                .changed()
+            });
+            if let PlotValues::Result(Err(e)) = values {
+                if let Some(e) = &e.x {
+                    ui.colored_label(ERROR_RED, e.to_string());
+                }
+            }
+
+            let mut y_layouter = |ui: &egui::Ui, string: &str, wrap_width: f32| {
+                let format = TextFormat {
+                    font_id: TextStyle::Monospace.resolve(ui.style()),
+                    ..Default::default()
+                };
+                let mut layout_job = match values {
+                    PlotValues::Result(Err(e)) => match &e.y {
+                        Some(e) => mark_errors(string, e, format),
+                        None => LayoutJob::single_section(string.to_string(), format),
+                    },
+                    _ => LayoutJob::single_section(string.to_string(), format),
+                };
+                layout_job.wrap.max_width = wrap_width;
+                ui.fonts().layout_job(layout_job)
+            };
+            let y_changed = ui.horizontal(|ui| {
+                ui.add_sized(
+                    Vec2::new(20.0, 10.0),
+                    Label::new(RichText::new(" Y ").monospace()),
+                );
+                ui.add(
+                    TextEdit::multiline(&mut plot.expr.y)
+                        .desired_width(ui.available_width())
+                        .desired_rows(1)
+                        .layouter(&mut y_layouter),
+                )
+                .changed()
+            });
+            if let PlotValues::Result(Err(e)) = values {
+                if let Some(e) = &e.y {
+                    ui.colored_label(ERROR_RED, e.to_string());
+                }
+            }
+
+            ui.add_space(10.0);
+
+            ExprInput {
+                removed: removed.inner,
+                x_changed: x_changed.inner,
+                y_changed: y_changed.inner,
+            }
+        });
+
+    if dragged_plot.is_none() {
+        let resp = resp.response.interact(Sense::drag());
+        if resp.drag_started() {
+            if let Some(pointer_pos) = resp.hover_pos() {
+                *dragged_plot = Some((idx, pointer_pos));
+            }
         }
     }
 
-    let mut y_layouter = |ui: &egui::Ui, string: &str, wrap_width: f32| {
-        let format = TextFormat {
-            font_id: TextStyle::Monospace.resolve(ui.style()),
-            ..Default::default()
-        };
-        let mut layout_job = match c {
-            PlotValues::Result(Err(e)) => match &e.y {
-                Some(e) => mark_errors(string, e, format),
-                None => LayoutJob::single_section(string.to_string(), format),
-            },
-            _ => LayoutJob::single_section(string.to_string(), format),
-        };
-        layout_job.wrap.max_width = wrap_width;
-        ui.fonts().layout_job(layout_job)
-    };
-    let y_changed = ui.horizontal(|ui| {
-        ui.add_sized(
-            Vec2::new(20.0, 10.0),
-            Label::new(RichText::new(" Y ").monospace()),
-        );
-        ui.add(
-            TextEdit::multiline(&mut p.expr.y)
-                .desired_width(ui.available_width())
-                .desired_rows(1)
-                .layouter(&mut y_layouter),
-        )
-        .changed()
-    });
-    if let PlotValues::Result(Err(e)) = c {
-        if let Some(e) = &e.y {
-            ui.colored_label(ERROR_RED, e.to_string());
-        }
-    }
-
-    ui.add_space(10.0);
-
-    ExprInput {
-        removed: removed.inner,
-        x_changed: x_changed.inner,
-        y_changed: y_changed.inner,
-    }
+    resp.inner
 }
 
 fn mark_errors(input: &str, error: &cods::Error, format: TextFormat) -> LayoutJob {
