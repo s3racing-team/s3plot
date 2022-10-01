@@ -150,11 +150,17 @@ pub fn select_prev_tab(cfg: &mut Config) {
     cfg.selected_tab = (cfg.tabs.len() + cfg.selected_tab - 1) % cfg.tabs.len()
 }
 
-pub fn add_plot(data: &mut PlotData, cfg: &mut Config, plot: NamedPlot) {
+pub fn add_plot(data: &mut PlotData, cfg: &mut Config, plot: NamedPlot, eval: bool) {
     let tab = cfg.selected_tab;
     let plots = &mut cfg.tabs[tab].plots;
+
+    if eval {
+        let job = Job::start(plot.expr.clone(), Arc::clone(&data.streams));
+        data.plots[tab].push(PlotValues::Job(job));
+    } else {
+        data.plots[tab].push(PlotValues::Result(Ok(Vec::new())));
+    }
     plots.push(plot);
-    data.plots[tab].push(PlotValues::Result(Ok(Vec::new())));
 }
 
 pub fn keybindings(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
@@ -188,7 +194,12 @@ pub fn keybindings(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
 
     if input.consume_key(Modifiers::CTRL, Key::N) {
         let name = format!("{}.", cfg.tabs[cfg.selected_tab].plots.len());
-        add_plot(data, cfg, NamedPlot::new(name, Expr::new("time", "")));
+        add_plot(
+            data,
+            cfg,
+            NamedPlot::new(name, Expr::new("time", "")),
+            false,
+        );
     }
 }
 
@@ -427,7 +438,12 @@ fn input_sidebar(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
     ui.horizontal(|ui| {
         if ui.button(" + ").clicked() {
             let name = format!("{}.", cfg.tabs[cfg.selected_tab].plots.len());
-            add_plot(data, cfg, NamedPlot::new(name, Expr::new("time", "")));
+            add_plot(
+                data,
+                cfg,
+                NamedPlot::new(name, Expr::new("time", "")),
+                false,
+            );
         }
 
         ui.menu_button("...", |ui| {
@@ -438,7 +454,7 @@ fn input_sidebar(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
                             let name = &data.streams[i].entries[j].name;
                             if ui.button(name).clicked() {
                                 let plot = NamedPlot::new(name.into(), Expr::new("time", name));
-                                add_plot(data, cfg, plot);
+                                add_plot(data, cfg, plot, true);
 
                                 ui.close_menu();
                             }
