@@ -234,7 +234,6 @@ pub fn tab_bar(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
             }
 
             let selected = cfg.selected_tab == i;
-            let t = &mut cfg.tabs[i];
             let mut edit_name = false;
             let mut removed = false;
             if resp.clicked() {
@@ -253,7 +252,23 @@ pub fn tab_bar(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
                 }
             }
 
+            // move the tab if it was dropped
+            if ui.input().pointer.any_released() {
+                match (pointer_pos, cfg.dragged_tab) {
+                    (Some(pointer_pos), Some((dragged_idx, grab_pos))) if dragged_idx == i => {
+                        let distance = pointer_pos.x - grab_pos.x;
+                        let tab_distance = tab_width + tab_spacing;
+                        let moved = (distance / tab_distance) as isize;
+                        let idx = (i as isize + moved).clamp(0, cfg.tabs.len() as isize - 1);
+                        move_tab(data, cfg, i, idx as usize);
+                        cfg.dragged_tab = None;
+                    }
+                    _ => (),
+                }
+            }
+
             // actually draw tab
+            let t = &mut cfg.tabs[i];
             ui.allocate_ui_at_rect(rect, |ui| match (pointer_pos, cfg.dragged_tab) {
                 (Some(pointer_pos), Some((dragged_idx, grab_pos))) if dragged_idx == i => {
                     let id = Id::new("tab").with(i);
@@ -270,21 +285,6 @@ pub fn tab_bar(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
                     draw_tab(ui, &mut t.name, selected, edit_name);
                 }
             });
-
-            // move the tab if it was dropped
-            if ui.input().pointer.any_released() {
-                match (pointer_pos, cfg.dragged_tab) {
-                    (Some(pointer_pos), Some((dragged_idx, grab_pos))) if dragged_idx == i => {
-                        let distance = pointer_pos.x - grab_pos.x;
-                        let tab_distance = tab_width + tab_spacing;
-                        let moved = (distance / tab_distance) as isize;
-                        let idx = (i as isize + moved).clamp(0, cfg.tabs.len() as isize - 1);
-                        move_tab(data, cfg, i, idx as usize);
-                        cfg.dragged_tab = None;
-                    }
-                    _ => (),
-                }
-            }
 
             if !(removed && remove_tab(data, cfg, i)) {
                 i += 1;
