@@ -216,7 +216,7 @@ pub fn keybindings(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
     }
 
     if input.consume_key(Modifiers::CTRL, Key::N) {
-        let name = format!("{}.", cfg.tabs[cfg.selected_tab].plots.len());
+        let name = format!("{}.", cfg.tabs[cfg.selected_tab].plots.len() + 1);
         add_plot(
             data,
             cfg,
@@ -505,7 +505,7 @@ fn input_sidebar(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
 
     ui.horizontal(|ui| {
         if ui.button(" + ").clicked() {
-            let name = format!("{}.", cfg.tabs[cfg.selected_tab].plots.len());
+            let name = format!("{}.", cfg.tabs[cfg.selected_tab].plots.len() + 1);
             add_plot(
                 data,
                 cfg,
