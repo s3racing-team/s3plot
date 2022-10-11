@@ -405,7 +405,7 @@ pub fn tab_plot(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
         .show_inside(ui, |ui| {
             let tab_cfg = &mut cfg.tabs[cfg.selected_tab];
 
-            Plot::new("custom")
+            Plot::new(&tab_cfg.name)
                 .data_aspect(tab_cfg.aspect_ratio)
                 .label_formatter(|_, v| {
                     let x = format_time(v.x);
