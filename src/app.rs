@@ -6,7 +6,7 @@ use egui::plot::PlotPoint;
 use egui::{
     menu, Align2, CentralPanel, Color32, Key, Modifiers, RichText, TopBottomPanel, Ui, Vec2, Window,
 };
-use egui_extras::{Size, TableBuilder};
+use egui_extras::{Column, TableBuilder};
 use serde::{Deserialize, Serialize};
 
 use crate::data::LogStream;
@@ -183,11 +183,11 @@ fn select_files_table(ui: &mut Ui, files: &mut Vec<SelectableFile>, common_prefi
     let mut move_row = None;
 
     TableBuilder::new(ui)
-        .column(Size::exact(50.0)) // arrows
-        .column(Size::exact(60.0)) // select/deselect
-        .column(Size::exact(200.0)) // file name
-        .column(Size::exact(400.0)) // sanity check
-        .column(Size::exact(200.0)) // start end
+        .column(Column::exact(50.0)) // arrows
+        .column(Column::exact(60.0)) // select/deselect
+        .column(Column::exact(200.0)) // file name
+        .column(Column::exact(400.0)) // sanity check
+        .column(Column::exact(200.0)) // start end
         .resizable(false)
         .striped(true)
         .header(20.0, |mut header| {
@@ -277,8 +277,8 @@ fn select_files_table(ui: &mut Ui, files: &mut Vec<SelectableFile>, common_prefi
 
 fn error_files_table(ui: &mut Ui, files: &[ErrorFile], common_prefix: &Path) {
     TableBuilder::new(ui)
-        .column(Size::exact(400.0)) // file name
-        .column(Size::exact(500.0)) // error
+        .column(Column::exact(400.0)) // file name
+        .column(Column::exact(500.0)) // error
         .resizable(false)
         .striped(true)
         .header(20.0, |mut header| {
