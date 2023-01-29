@@ -376,9 +376,9 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.0.78"
+version = "1.0.79"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a20104e2335ce8a659d6dd92a51a767a0c062599c73b343fd152cb401e828c3d"
+checksum = "50d30906286121d95be3d479533b458f87493b30a4b5f79a607db8f5d11aa91f"
 
 [[package]]
 name = "cesu8"
@@ -470,7 +470,7 @@ dependencies = [
 [[package]]
 name = "cods"
 version = "0.2.0"
-source = "git+https://github.com/saecki/comeondosomething#3b7765e7069f919fc37838690c00c5336118b87f"
+source = "git+https://github.com/saecki/comeondosomething#b60d48fb6a7e6a143bc0f85b4fbe4d15af8f3f40"
 dependencies = [
  "cods-derive",
 ]
@@ -478,7 +478,7 @@ dependencies = [
 [[package]]
 name = "cods-derive"
 version = "0.1.0"
-source = "git+https://github.com/saecki/comeondosomething#3b7765e7069f919fc37838690c00c5336118b87f"
+source = "git+https://github.com/saecki/comeondosomething#b60d48fb6a7e6a143bc0f85b4fbe4d15af8f3f40"
 
 [[package]]
 name = "combine"
@@ -1755,9 +1755,9 @@ dependencies = [
 
 [[package]]
 name = "ordered-stream"
-version = "0.1.3"
+version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d4eb9ba3f3e42dbdd3b7b122de5ca169c81e93d561eb900da3a8c99bcfcf381a"
+checksum = "360a24bdacdb7801a1a6af8500392864791c130ebe8bd9a063158cab00040c90"
 dependencies = [
  "futures-core",
  "pin-project-lite",
@@ -2356,9 +2356,9 @@ checksum = "4553f467ac8e3d374bc9a177a26801e5d0f9b211aa1673fb137a403afd1c9cf5"
 
 [[package]]
 name = "toml_edit"
-version = "0.18.0"
+version = "0.18.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "729bfd096e40da9c001f778f5cdecbd2957929a24e10e5883d9392220a751581"
+checksum = "56c59d8dd7d0dcbc6428bf7aa2f0e823e26e43b3c9aca15bbc9475d23e5fa12b"
 dependencies = [
  "indexmap",
  "nom8",
