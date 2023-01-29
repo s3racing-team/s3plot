@@ -2,6 +2,7 @@ use std::path::Path;
 use std::sync::Arc;
 use std::thread::JoinHandle;
 
+use chrono::{Duration, Local, TimeZone};
 use egui::plot::PlotPoint;
 use egui::{
     menu, Align2, CentralPanel, Color32, Key, Modifiers, RichText, TopBottomPanel, Ui, Vec2, Window,
@@ -14,6 +15,8 @@ use crate::eval::{self, Expr, ExprError};
 use crate::fs::{ErrorFile, Files, SelectableFile, SelectableFiles};
 use crate::plot::{self, Config};
 use crate::util;
+
+const DATE_TIME_FORMAT: &str = "%Y-%m-%d %H:%M:%S";
 
 #[derive(Default, Serialize, Deserialize)]
 #[serde(default)]
@@ -76,6 +79,14 @@ impl eframe::App for PlotApp {
     fn update(&mut self, ctx: &egui::Context, _: &mut eframe::Frame) {
         if ctx.input_mut().consume_key(Modifiers::CTRL, Key::O) {
             self.open_dir_dialog();
+        }
+        if ctx
+            .input_mut()
+            .consume_key(Modifiers::CTRL | Modifiers::SHIFT, Key::O)
+        {
+            if let Some(files) = &self.files {
+                self.try_open_dir(files.dir.clone());
+            }
         }
 
         TopBottomPanel::top("top_panel").show(ctx, |ui| {
@@ -184,10 +195,11 @@ fn select_files_table(ui: &mut Ui, files: &mut Vec<SelectableFile>, common_prefi
 
     TableBuilder::new(ui)
         .column(Column::exact(50.0)) // arrows
-        .column(Column::exact(60.0)) // select/deselect
+        .column(Column::exact(50.0)) // select/deselect
+        .column(Column::exact(80.0)) // version
         .column(Column::exact(200.0)) // file name
         .column(Column::exact(400.0)) // sanity check
-        .column(Column::exact(200.0)) // start end
+        .column(Column::exact(300.0)) // start end
         .resizable(false)
         .striped(true)
         .header(20.0, |mut header| {
@@ -196,6 +208,9 @@ fn select_files_table(ui: &mut Ui, files: &mut Vec<SelectableFile>, common_prefi
             });
             header.col(|ui| {
                 ui.heading("Select");
+            });
+            header.col(|ui| {
+                ui.heading("Version");
             });
             header.col(|ui| {
                 ui.heading("File");
@@ -227,6 +242,11 @@ fn select_files_table(ui: &mut Ui, files: &mut Vec<SelectableFile>, common_prefi
                     });
                     row.col(|ui| {
                         ui.horizontal_centered(|ui| {
+                            ui.label(f.stream.version.to_string());
+                        });
+                    });
+                    row.col(|ui| {
+                        ui.horizontal_centered(|ui| {
                             let name = f.file.strip_prefix(common_prefix).unwrap();
                             ui.label(name.display().to_string());
                         });
@@ -239,12 +259,25 @@ fn select_files_table(ui: &mut Ui, files: &mut Vec<SelectableFile>, common_prefi
                     });
                     row.col(|ui| {
                         ui.horizontal_centered(|ui| {
-                            if let (Some(start), Some(end)) =
+                            if let (Some(first), Some(last)) =
                                 (f.stream.time.first(), f.stream.time.last())
                             {
-                                let start = util::format_time(*start as f64 / 1000.0);
-                                let end = util::format_time(*end as f64 / 1000.0);
-                                ui.label(format!("{start} - {end}"));
+                                match f.stream.start {
+                                    Some(start) => {
+                                        let start = start + Duration::milliseconds(*first as i64);
+                                        let end = start + Duration::milliseconds(*last as i64);
+
+                                        let local_start = Local.from_utc_datetime(&start).format(DATE_TIME_FORMAT);
+                                        let local_end = Local.from_utc_datetime(&end).format(DATE_TIME_FORMAT);
+
+                                        ui.label(format!("{local_start} - {local_end}"));
+                                    }
+                                    None => {
+                                        let start = util::format_time(*first as f64 / 1000.0);
+                                        let end = util::format_time(*last as f64 / 1000.0);
+                                        ui.label(format!("{start} - {end}"));
+                                    }
+                                }
                             } else {
                                 ui.label("File is empty");
                             }

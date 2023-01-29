@@ -2,10 +2,11 @@ use std::string::FromUtf8Error;
 use std::sync::Arc;
 use std::{fmt, io};
 
-pub use read::read_file;
-pub use sanity::sanity_check;
+use chrono::NaiveDateTime;
 
 use crate::app::{PlotData, PlotValues};
+pub use crate::data::read::read_file;
+pub use crate::data::sanity::sanity_check;
 use crate::eval;
 use crate::plot::Config;
 
@@ -14,20 +15,11 @@ mod sanity;
 
 #[derive(Debug)]
 pub struct LogStream {
-    pub version: u16,
+    pub version: Version,
+    pub start: Option<NaiveDateTime>,
     /// time in ms
     pub time: Vec<u32>,
     pub entries: Vec<DataEntry>,
-}
-
-impl Default for LogStream {
-    fn default() -> Self {
-        Self {
-            version: 1,
-            time: Vec::new(),
-            entries: Vec::new(),
-        }
-    }
 }
 
 impl LogStream {
@@ -60,6 +52,21 @@ impl LogStream {
         self.time.extend_from_slice(&other.time);
         for (e, o) in self.entries.iter_mut().zip(other.entries.iter()) {
             e.kind.extend(&o.kind);
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Version {
+    V1,
+    V2,
+}
+
+impl fmt::Display for Version {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Version::V1 => write!(f, "v1"),
+            Version::V2 => write!(f, "v2"),
         }
     }
 }
@@ -163,6 +170,7 @@ pub enum Error {
     InvalidMagic([u8; 4]),
     UnknownVersion(u16),
     UnknownDatatype(u8),
+    InvalidTimestamp(i64),
 }
 
 impl std::error::Error for Error {}
@@ -174,10 +182,11 @@ impl fmt::Display for Error {
             Self::Utf8(error) => write!(f, "Error decoding utf8 string: {}", error),
             Self::InvalidMagic(magic) => match std::str::from_utf8(magic) {
                 Ok(m) => write!(f, "Invalid magic number: {m}"),
-                Err(_) => write!(f, "Invalid magic number: {:?}", magic),
+                Err(_) => write!(f, "Invalid magic number: {magic:?}"),
             },
-            Self::UnknownVersion(version) => write!(f, "Unknown version: {}", version),
-            Self::UnknownDatatype(code) => write!(f, "Unknown datatype code: {}", code),
+            Self::UnknownVersion(version) => write!(f, "Unknown version: {version}"),
+            Self::UnknownDatatype(code) => write!(f, "Unknown datatype code: {code}"),
+            Self::InvalidTimestamp(timestamp) => write!(f, "Invalid unix timestamp: {timestamp}"),
         }
     }
 }

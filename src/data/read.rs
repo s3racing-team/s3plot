@@ -1,6 +1,8 @@
 use std::io::{self, Read, Seek, SeekFrom};
 
-use super::{DataEntry, EntryKind, Error, LogStream};
+use chrono::NaiveDateTime;
+
+use super::{DataEntry, EntryKind, Error, LogStream, Version};
 
 impl EntryKind {
     fn size(&self) -> u8 {
@@ -56,15 +58,27 @@ pub fn read_file(reader: &mut (impl Read + Seek)) -> Result<LogStream, Error> {
         return Err(Error::InvalidMagic(magic));
     }
 
-    let version = read_u16(reader)?;
-    if version != 1 {
-        return Err(Error::UnknownVersion(version));
-    }
+    let version = match read_u16(reader)? {
+        1 => Version::V1,
+        2 => Version::V2,
+        v => return Err(Error::UnknownVersion(v)),
+    };
 
     let num_entries = read_u16(reader)?;
 
+    let start = match version {
+        Version::V1 => None,
+        Version::V2 => {
+            let unix_timestamp = read_i64(reader)?;
+            let date_time = NaiveDateTime::from_timestamp_opt(unix_timestamp, 0)
+                .ok_or(Error::InvalidTimestamp(unix_timestamp))?;
+            Some(date_time)
+        }
+    };
+
     let mut log_file = LogStream {
         version,
+        start,
         time: Vec::new(),
         entries: Vec::with_capacity(num_entries as usize),
     };
