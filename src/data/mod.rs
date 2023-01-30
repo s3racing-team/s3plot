@@ -178,8 +178,8 @@ impl std::error::Error for Error {}
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::IO(error) => write!(f, "Error reading files: {}", error),
-            Self::Utf8(error) => write!(f, "Error decoding utf8 string: {}", error),
+            Self::IO(error) => write!(f, "Error reading files: {error}"),
+            Self::Utf8(error) => write!(f, "Error decoding utf8 string: {error}"),
             Self::InvalidMagic(magic) => match std::str::from_utf8(magic) {
                 Ok(m) => write!(f, "Invalid magic number: {m}"),
                 Err(_) => write!(f, "Invalid magic number: {magic:?}"),
