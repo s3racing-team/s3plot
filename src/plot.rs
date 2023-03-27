@@ -187,43 +187,44 @@ pub fn move_plot(data: &mut PlotData, cfg: &mut Config, from: usize, to: usize) 
 }
 
 pub fn keybindings(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
-    let mut input = ui.input_mut();
-    if input.consume_key(Modifiers::CTRL, Key::T) {
-        add_tab(data, cfg);
-    }
-    if input.consume_key(Modifiers::CTRL, Key::W) {
-        let tab = cfg.selected_tab;
-        remove_tab(data, cfg, tab);
-    }
+    ui.input_mut(|input| {
+        if input.consume_key(Modifiers::CTRL, Key::T) {
+            add_tab(data, cfg);
+        }
+        if input.consume_key(Modifiers::CTRL, Key::W) {
+            let tab = cfg.selected_tab;
+            remove_tab(data, cfg, tab);
+        }
 
-    if input.consume_key(Modifiers::CTRL | Modifiers::SHIFT, Key::Tab)
-        || input.consume_key(Modifiers::ALT, Key::ArrowLeft)
-    {
-        select_prev_tab(cfg);
-    }
-    if input.consume_key(Modifiers::CTRL, Key::Tab)
-        || input.consume_key(Modifiers::ALT, Key::ArrowRight)
-    {
-        select_next_tab(cfg);
-    }
+        if input.consume_key(Modifiers::CTRL | Modifiers::SHIFT, Key::Tab)
+            || input.consume_key(Modifiers::ALT, Key::ArrowLeft)
+        {
+            select_prev_tab(cfg);
+        }
+        if input.consume_key(Modifiers::CTRL, Key::Tab)
+            || input.consume_key(Modifiers::ALT, Key::ArrowRight)
+        {
+            select_next_tab(cfg);
+        }
 
-    if input.consume_key(Modifiers::CTRL, Key::H) {
-        cfg.show_help = !cfg.show_help;
-    }
-    // Open help sidebar so the search bar can be focused
-    if !cfg.show_help && input.modifiers.matches(Modifiers::CTRL) && input.key_pressed(Key::F) {
-        cfg.show_help = true;
-    }
+        if input.consume_key(Modifiers::CTRL, Key::H) {
+            cfg.show_help = !cfg.show_help;
+        }
+        // Open help sidebar so the search bar can be focused
+        if !cfg.show_help && input.modifiers.matches(Modifiers::CTRL) && input.key_pressed(Key::F) {
+            cfg.show_help = true;
+        }
 
-    if input.consume_key(Modifiers::CTRL, Key::N) {
-        let name = format!("{}.", cfg.tabs[cfg.selected_tab].plots.len() + 1);
-        add_plot(
-            data,
-            cfg,
-            NamedPlot::new(name, Expr::new("time", "")),
-            false,
-        );
-    }
+        if input.consume_key(Modifiers::CTRL, Key::N) {
+            let name = format!("{}.", cfg.tabs[cfg.selected_tab].plots.len() + 1);
+            add_plot(
+                data,
+                cfg,
+                NamedPlot::new(name, Expr::new("time", "")),
+                false,
+            );
+        }
+    });
 }
 
 #[inline]
@@ -276,7 +277,7 @@ pub fn tab_bar(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
             }
 
             // move the tab if it was dropped
-            if ui.input().pointer.any_released() {
+            if ui.input(|i| i.pointer.any_released()) {
                 match (pointer_pos, cfg.dragged_tab) {
                     (Some(pointer_pos), Some((dragged_idx, grab_pos))) if dragged_idx == i => {
                         let distance = pointer_pos.x - grab_pos.x;
@@ -302,7 +303,7 @@ pub fn tab_bar(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
                         draw_tab(ui, &mut t.name, selected, edit_name)
                     });
                     ui.ctx().translate_layer(layer_id, distance);
-                    ui.output().cursor_icon = CursorIcon::Grabbing;
+                    ui.output_mut(|o| o.cursor_icon = CursorIcon::Grabbing);
                 }
                 _ => {
                     draw_tab(ui, &mut t.name, selected, edit_name);
@@ -462,7 +463,7 @@ fn input_sidebar(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
                     expr_inputs(ui, plot, values, i, &mut cfg.dragged_plot);
                 });
                 ui.ctx().translate_layer(layer_id, distance);
-                ui.output().cursor_icon = CursorIcon::Grabbing;
+                ui.output_mut(|o| o.cursor_icon = CursorIcon::Grabbing);
             }
             _ => {
                 input = Some(expr_inputs(ui, plot, values, i, &mut cfg.dragged_plot));
@@ -470,7 +471,7 @@ fn input_sidebar(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
         };
 
         // move the plot if it was dropped
-        if ui.input().pointer.any_released() {
+        if ui.input(|i| i.pointer.any_released()) {
             match (pointer_pos, cfg.dragged_plot) {
                 (Some(pointer_pos), Some((dragged_idx, grab_pos))) if dragged_idx == i => {
                     let distance = pointer_pos.y - grab_pos.y;
@@ -584,7 +585,7 @@ fn expr_inputs(
                     _ => LayoutJob::single_section(string.to_string(), format),
                 };
                 layout_job.wrap.max_width = wrap_width;
-                ui.fonts().layout_job(layout_job)
+                ui.fonts(|f| f.layout_job(layout_job))
             };
             let x_changed = ui.horizontal(|ui| {
                 ui.add_sized(
@@ -618,7 +619,7 @@ fn expr_inputs(
                     _ => LayoutJob::single_section(string.to_string(), format),
                 };
                 layout_job.wrap.max_width = wrap_width;
-                ui.fonts().layout_job(layout_job)
+                ui.fonts(|f| f.layout_job(layout_job))
             };
             let y_changed = ui.horizontal(|ui| {
                 ui.add_sized(
@@ -743,7 +744,7 @@ fn help_sidebar(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
         .hint_text("Search...")
         .show(ui);
 
-    if ui.input_mut().consume_key(Modifiers::CTRL, Key::F) {
+    if ui.input_mut(|i| i.consume_key(Modifiers::CTRL, Key::F)) {
         resp.response.request_focus();
     }
 

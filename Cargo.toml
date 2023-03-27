@@ -7,8 +7,8 @@ edition = "2021"
 cods = { git = "https://github.com/saecki/comeondosomething" }
 serde = { version = "1.0" }
 anyhow = "1.0"
-eframe = { version = "0.20.1", features = ["persistence", "dark-light"] }
-egui = { version = "0.20.1", features = ["persistence"] }
-egui_extras = "0.20.0"
-rfd = "0.10.0"
-chrono = "0.4.23"
+eframe = { version = "0.22.0", features = ["persistence"] }
+egui = { version = "0.22.0", features = ["persistence"] }
+egui_extras = "0.22.0"
+rfd = "0.11.4"
+chrono = "0.4.26"

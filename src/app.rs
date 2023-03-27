@@ -77,13 +77,10 @@ impl eframe::App for PlotApp {
     }
 
     fn update(&mut self, ctx: &egui::Context, _: &mut eframe::Frame) {
-        if ctx.input_mut().consume_key(Modifiers::CTRL, Key::O) {
+        if ctx.input_mut(|i| i.consume_key(Modifiers::CTRL, Key::O)) {
             self.open_dir_dialog();
         }
-        if ctx
-            .input_mut()
-            .consume_key(Modifiers::CTRL | Modifiers::SHIFT, Key::O)
-        {
+        if ctx.input_mut(|i| i.consume_key(Modifiers::CTRL | Modifiers::SHIFT, Key::O)) {
             if let Some(files) = &self.files {
                 self.try_open_dir(files.dir.clone());
             }
@@ -267,8 +264,11 @@ fn select_files_table(ui: &mut Ui, files: &mut Vec<SelectableFile>, common_prefi
                                         let start = start + Duration::milliseconds(*first as i64);
                                         let end = start + Duration::milliseconds(*last as i64);
 
-                                        let local_start = Local.from_utc_datetime(&start).format(DATE_TIME_FORMAT);
-                                        let local_end = Local.from_utc_datetime(&end).format(DATE_TIME_FORMAT);
+                                        let local_start = Local
+                                            .from_utc_datetime(&start)
+                                            .format(DATE_TIME_FORMAT);
+                                        let local_end =
+                                            Local.from_utc_datetime(&end).format(DATE_TIME_FORMAT);
 
                                         ui.label(format!("{local_start} - {local_end}"));
                                     }

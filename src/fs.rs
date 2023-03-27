@@ -45,10 +45,10 @@ impl PlotApp {
 
     pub fn detect_files_being_dropped(&mut self, ctx: &Context) {
         // Preview hovering files
-        if !ctx.input().raw.hovered_files.is_empty() {
+        if !ctx.input(|i| i.raw.hovered_files.is_empty()) {
             let painter =
                 ctx.layer_painter(LayerId::new(Order::Foreground, Id::new("file_drop_target")));
-            let screen_rect = ctx.input().screen_rect();
+            let screen_rect = ctx.input(|i| i.screen_rect());
             painter.rect_filled(screen_rect, 0.0, Color32::from_black_alpha(192));
 
             // Draw plus
@@ -82,11 +82,13 @@ impl PlotApp {
             // File names
             let pos = center + Vec2::new(0.0, box_size * 2.0);
             let mut text = String::new();
-            for f in ctx.input().raw.hovered_files.iter() {
-                if let Some(p) = &f.path {
-                    write!(&mut text, "\n{}", p.display()).ok();
+            ctx.input(|input| {
+                for f in input.raw.hovered_files.iter() {
+                    if let Some(p) = &f.path {
+                        write!(&mut text, "\n{}", p.display()).ok();
+                    }
                 }
-            }
+            });
             painter.text(
                 pos,
                 Align2::CENTER_TOP,
@@ -97,13 +99,8 @@ impl PlotApp {
         }
 
         // Collect dropped files
-        if !ctx.input().raw.dropped_files.is_empty() {
-            if let Some(p) = ctx
-                .input()
-                .raw
-                .dropped_files
-                .first()
-                .and_then(|f| f.path.clone())
+        if !ctx.input(|i| i.raw.dropped_files.is_empty()) {
+            if let Some(p) = ctx.input(|i| i.raw.dropped_files.first().and_then(|f| f.path.clone()))
             {
                 self.try_open_dir(p);
             }
