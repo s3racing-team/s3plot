@@ -469,7 +469,7 @@ fn input_sidebar(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
             }
         };
 
-        // move the tab if it was dropped
+        // move the plot if it was dropped
         if ui.input().pointer.any_released() {
             match (pointer_pos, cfg.dragged_plot) {
                 (Some(pointer_pos), Some((dragged_idx, grab_pos))) if dragged_idx == i => {
