@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use cods::{Asts, Checker, Context, Funs, Ident, IdentSpan, Span, Stack, Val, VarRef};
-use egui::plot::PlotPoint;
+use egui_plot::PlotPoint;
 use serde::{Deserialize, Serialize};
 
 use crate::data::LogStream;

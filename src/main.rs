@@ -14,7 +14,6 @@ const APP_NAME: &str = "s3plot";
 
 fn main() {
     let options = NativeOptions {
-        drag_and_drop_support: true,
         follow_system_theme: true,
         ..Default::default()
     };

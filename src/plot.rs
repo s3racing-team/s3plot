@@ -3,7 +3,6 @@ use std::ops::Range;
 use std::sync::Arc;
 
 use cods::{BuiltinConst, BuiltinFun, DataType, Pos, SignatureKind, UserFacing};
-use egui::plot::{Legend, Line, Plot, PlotPoints};
 use egui::style::Margin;
 use egui::text::{LayoutJob, LayoutSection};
 use egui::{
@@ -11,6 +10,7 @@ use egui::{
     LayerId, Layout, Modifiers, Order, Pos2, Rect, RichText, Rounding, ScrollArea, Sense,
     SidePanel, TextEdit, TextFormat, TextStyle, Ui, Vec2, WidgetText,
 };
+use egui_plot::{Legend, Line, Plot, PlotPoints};
 use serde::{Deserialize, Serialize};
 
 use crate::app::{Job, PlotData, PlotValues};
@@ -211,7 +211,10 @@ pub fn keybindings(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
             cfg.show_help = !cfg.show_help;
         }
         // Open help sidebar so the search bar can be focused
-        if !cfg.show_help && input.modifiers.matches(Modifiers::CTRL) && input.key_pressed(Key::F) {
+        if !cfg.show_help
+            && input.modifiers.matches_exact(Modifiers::CTRL)
+            && input.key_pressed(Key::F)
+        {
             cfg.show_help = true;
         }
 
@@ -751,7 +754,7 @@ fn help_sidebar(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
     let query = &cfg.search_help.to_lowercase();
 
     ScrollArea::vertical()
-        .auto_shrink([false, false])
+        .auto_shrink([false, true])
         .show(ui, |ui| {
             CollapsingHeader::new(RichText::new("Variables").text_style(TextStyle::Heading))
                 .default_open(true)

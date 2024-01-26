@@ -3,11 +3,11 @@ use std::sync::Arc;
 use std::thread::JoinHandle;
 
 use chrono::{Duration, Local, TimeZone};
-use egui::plot::PlotPoint;
 use egui::{
     menu, Align2, CentralPanel, Color32, Key, Modifiers, RichText, TopBottomPanel, Ui, Vec2, Window,
 };
 use egui_extras::{Column, TableBuilder};
+use egui_plot::PlotPoint;
 use serde::{Deserialize, Serialize};
 
 use crate::data::LogStream;
