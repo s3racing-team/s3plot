@@ -858,7 +858,7 @@ fn help_sidebar(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
 
 fn highlight_matches(ui: &mut Ui, text: &str, query: &str) -> bool {
     if query.is_empty() {
-        ui.label(WidgetText::LayoutJob(LayoutJob {
+        let label = Label::new(WidgetText::LayoutJob(LayoutJob {
             text: text.into(),
             sections: vec![LayoutSection {
                 byte_range: 0..text.len(),
@@ -870,14 +870,16 @@ fn highlight_matches(ui: &mut Ui, text: &str, query: &str) -> bool {
                 leading_space: 0.0,
             }],
             ..Default::default()
-        }));
+        }))
+        .selectable(true);
+        ui.add(label);
     } else if let Some(pos) = text.to_lowercase().find(query) {
         let hl_color = if ui.style().visuals.dark_mode {
             Color32::from_rgb(0xfa, 0xc6, 0x26)
         } else {
             Color32::from_rgb(0xfa, 0xc6, 0x96)
         };
-        ui.label(WidgetText::LayoutJob(LayoutJob {
+        let label = Label::new(WidgetText::LayoutJob(LayoutJob {
             text: text.into(),
             sections: vec![
                 LayoutSection {
@@ -910,7 +912,9 @@ fn highlight_matches(ui: &mut Ui, text: &str, query: &str) -> bool {
                 },
             ],
             ..Default::default()
-        }));
+        }))
+        .selectable(true);
+        ui.add(label);
     } else {
         return false;
     }
