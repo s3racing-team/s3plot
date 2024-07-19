@@ -507,6 +507,7 @@ pub fn tab_plot(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
 }
 
 fn input_sidebar(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
+    // HACK: calculation barely works, because expr inputs can be multiline
     let plot_height = 3.0 * ui.spacing().interact_size.y
         + 2.0 * ui.spacing().item_spacing.y
         + 6.0 * TEXT_EDIT_MARGIN_Y
@@ -550,7 +551,7 @@ fn input_sidebar(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
                 });
                 let transform = TSTransform::new(Vec2::new(0.0, dist), 1.0);
                 ui.ctx().transform_layer_shapes(layer_id, transform);
-                // FIXME: doesn't work
+                // FIXME: only works sometimes
                 ui.output_mut(|o| o.cursor_icon = CursorIcon::Grabbing);
             }
             Some((_, ref moved_plots, dist)) if moved_plots.contains(&i) => {
