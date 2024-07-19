@@ -276,6 +276,7 @@ pub fn tab_bar(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
                 if let Some(clicked_pos) = pointer_pos {
                     let relative_pos = clicked_pos - tab_pos;
                     let close_button_start = tab_button_width() + tab_spacing;
+                    // FIXME: doesn't work
                     if relative_pos.x < close_button_start {
                         if selected {
                             edit_name = true;
@@ -477,6 +478,7 @@ fn input_sidebar(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
                 });
                 let transform = TSTransform::new(distance, 1.0);
                 ui.ctx().transform_layer_shapes(layer_id, transform);
+                // FIXME: doesn't work
                 ui.output_mut(|o| o.cursor_icon = CursorIcon::Grabbing);
             }
             _ => {
