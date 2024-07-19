@@ -137,19 +137,15 @@ pub fn remove_tab(data: &mut PlotData, cfg: &mut Config, tab: usize) -> bool {
 pub fn move_tab(data: &mut PlotData, cfg: &mut Config, from: usize, to: usize) {
     let selected_tab = cfg.selected_tab;
     if from < to {
-        for i in from..to {
-            cfg.tabs.swap(i, i + 1);
-            data.plots.swap(i, i + 1);
-        }
+        cfg.tabs[from..=to].rotate_left(1);
+        data.plots[from..=to].rotate_left(1);
 
         if selected_tab > from && selected_tab <= to {
             cfg.selected_tab -= 1;
         }
     } else {
-        for i in (to..from).rev() {
-            cfg.tabs.swap(i + 1, i);
-            data.plots.swap(i + 1, i);
-        }
+        cfg.tabs[to..=from].rotate_right(1);
+        data.plots[to..=from].rotate_right(1);
 
         if selected_tab < from && selected_tab >= to {
             cfg.selected_tab += 1;
@@ -260,26 +256,54 @@ pub fn tab_bar(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
     ui.horizontal(|ui| {
         let tab_width = tab_width(ui);
         let tab_spacing = ui.spacing().item_spacing.x;
+        let tab_distance = tab_width + tab_spacing;
+
+        let pointer_pos = ui.ctx().pointer_interact_pos();
+        let drag = match (pointer_pos, cfg.dragged_tab) {
+            (Some(pointer_pos), Some((from, grab_pos))) => {
+                let distance = pointer_pos.x - grab_pos.x;
+                let moved = (distance / tab_distance).round() as isize;
+                let to = (from as isize + moved).clamp(0, cfg.tabs.len() as isize - 1) as usize;
+
+                // move the tab if it was dropped
+                if ui.input(|i| i.pointer.any_released()) {
+                    move_tab(data, cfg, from, to);
+                    cfg.dragged_tab = None;
+                    None
+                } else {
+                    let moved_tabs = from.min(to)..=from.max(to);
+                    Some((from, moved_tabs, distance))
+                }
+            }
+            _ => None,
+        };
 
         let mut i = 0;
         while i < cfg.tabs.len() {
             let t = &mut cfg.tabs[i];
 
-            let pointer_pos = ui.ctx().pointer_interact_pos();
             let selected = cfg.selected_tab == i;
             let mut action = None;
-            match (pointer_pos, cfg.dragged_tab) {
-                (Some(pointer_pos), Some((dragged_idx, grab_pos))) if dragged_idx == i => {
+            match drag {
+                Some((dragged_idx, _, dist)) if dragged_idx == i => {
                     let id = Id::new("tab").with(i);
                     let layer_id = LayerId::new(Order::Tooltip, id);
-                    let distance = Vec2::new(pointer_pos.x - grab_pos.x, 0.0);
-
                     ui.with_layer_id(layer_id, |ui| {
                         draw_tab(ui, &mut t.name, selected, t.editing)
                     });
-                    let transform = TSTransform::new(distance, 1.0);
+                    let transform = TSTransform::new(Vec2::new(dist, 0.0), 1.0);
                     ui.ctx().transform_layer_shapes(layer_id, transform);
                     ui.output_mut(|o| o.cursor_icon = CursorIcon::Grabbing);
+                }
+                Some((_, ref moved_tabs, dist)) if moved_tabs.contains(&i) => {
+                    let id = Id::new("tab").with(i);
+                    let layer_id = LayerId::new(Order::Foreground, id);
+                    ui.with_layer_id(layer_id, |ui| {
+                        draw_tab(ui, &mut t.name, selected, t.editing)
+                    });
+                    let offset = -dist.signum() * tab_distance;
+                    let transform = TSTransform::new(Vec2::new(offset, 0.0), 1.0);
+                    ui.ctx().transform_layer_shapes(layer_id, transform);
                 }
                 _ => {
                     action = draw_tab(ui, &mut t.name, selected, t.editing);
@@ -298,21 +322,6 @@ pub fn tab_bar(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
                 Some(Action::StartEdit) => t.editing = true,
                 Some(Action::StopEdit) => t.editing = false,
                 None => (),
-            }
-
-            // move the tab if it was dropped
-            if ui.input(|i| i.pointer.any_released()) {
-                match (pointer_pos, cfg.dragged_tab) {
-                    (Some(pointer_pos), Some((dragged_idx, grab_pos))) if dragged_idx == i => {
-                        let distance = pointer_pos.x - grab_pos.x;
-                        let tab_distance = tab_width + tab_spacing;
-                        let moved = (distance / tab_distance) as isize;
-                        let idx = (i as isize + moved).clamp(0, cfg.tabs.len() as isize - 1);
-                        move_tab(data, cfg, i, idx as usize);
-                        cfg.dragged_tab = None;
-                    }
-                    _ => (),
-                }
             }
 
             if !(removed && remove_tab(data, cfg, i)) {
