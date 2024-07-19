@@ -1,6 +1,6 @@
 use std::io::{self, Read, Seek, SeekFrom};
 
-use chrono::NaiveDateTime;
+use chrono::DateTime;
 
 use super::{DataEntry, EntryKind, Error, LogStream, Version};
 
@@ -70,8 +70,9 @@ pub fn read_file(reader: &mut (impl Read + Seek)) -> Result<LogStream, Error> {
         Version::V1 => None,
         Version::V2 => {
             let unix_timestamp = read_i64(reader)?;
-            let date_time = NaiveDateTime::from_timestamp_opt(unix_timestamp, 0)
-                .ok_or(Error::InvalidTimestamp(unix_timestamp))?;
+            let date_time = DateTime::from_timestamp(unix_timestamp, 0)
+                .ok_or(Error::InvalidTimestamp(unix_timestamp))?
+                .naive_utc();
             Some(date_time)
         }
     };

@@ -17,7 +17,11 @@ fn main() {
         follow_system_theme: true,
         ..Default::default()
     };
-    let res = eframe::run_native(APP_NAME, options, Box::new(|c| Box::new(PlotApp::new(c))));
+    let res = eframe::run_native(
+        APP_NAME,
+        options,
+        Box::new(|c| Ok(Box::new(PlotApp::new(c)))),
+    );
     if let Err(err) = res {
         println!("{err}");
     }

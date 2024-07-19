@@ -3,11 +3,11 @@ use std::ops::Range;
 use std::sync::Arc;
 
 use cods::{BuiltinConst, BuiltinFun, DataType, Pos, SignatureKind, UserFacing};
-use egui::style::Margin;
+use egui::emath::TSTransform;
 use egui::text::{LayoutJob, LayoutSection};
 use egui::{
     Align, Button, CentralPanel, CollapsingHeader, Color32, CursorIcon, Frame, Id, Key, Label,
-    LayerId, Layout, Modifiers, Order, Pos2, Rect, RichText, Rounding, ScrollArea, Sense,
+    LayerId, Layout, Margin, Modifiers, Order, Pos2, Rect, RichText, Rounding, ScrollArea, Sense,
     SidePanel, TextEdit, TextFormat, TextStyle, Ui, Vec2, WidgetText,
 };
 use egui_plot::{Legend, Line, Plot, PlotPoints};
@@ -305,7 +305,8 @@ pub fn tab_bar(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
                     ui.with_layer_id(layer_id, |ui| {
                         draw_tab(ui, &mut t.name, selected, edit_name)
                     });
-                    ui.ctx().translate_layer(layer_id, distance);
+                    let transform = TSTransform::new(distance, 1.0);
+                    ui.ctx().transform_layer_shapes(layer_id, transform);
                     ui.output_mut(|o| o.cursor_icon = CursorIcon::Grabbing);
                 }
                 _ => {
@@ -465,7 +466,8 @@ fn input_sidebar(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
                 ui.with_layer_id(layer_id, |ui| {
                     expr_inputs(ui, plot, values, i, &mut cfg.dragged_plot);
                 });
-                ui.ctx().translate_layer(layer_id, distance);
+                let transform = TSTransform::new(distance, 1.0);
+                ui.ctx().transform_layer_shapes(layer_id, transform);
                 ui.output_mut(|o| o.cursor_icon = CursorIcon::Grabbing);
             }
             _ => {
