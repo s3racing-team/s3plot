@@ -7,7 +7,7 @@ use egui::emath::TSTransform;
 use egui::text::{LayoutJob, LayoutSection};
 use egui::{
     Align, Button, CentralPanel, CollapsingHeader, Color32, CursorIcon, Frame, Id, Key, Label,
-    LayerId, Layout, Margin, Modifiers, Order, Pos2, Rect, RichText, Rounding, ScrollArea, Sense,
+    LayerId, Layout, Margin, Modifiers, Order, Pos2, RichText, Rounding, ScrollArea, Sense,
     SidePanel, TextEdit, TextFormat, TextStyle, Ui, Vec2, WidgetText,
 };
 use egui_plot::{Legend, Line, Plot, PlotPoint, PlotPoints};
@@ -19,6 +19,7 @@ use crate::util::{self, format_time};
 
 const TAB_CROSS_WIDTH: f32 = 20.0;
 const TAB_BUTTON_WIDTH: f32 = 80.0;
+const TAB_BUTTON_HEIGHT: f32 = 24.0;
 
 const PLOT_FRAME_PADDING: f32 = 2.0;
 
@@ -79,6 +80,9 @@ pub struct TabConfig {
     pub id: u64,
     pub aspect_ratio: f32,
     pub plots: Vec<NamedPlot>,
+    #[serde(skip)]
+    #[serde(default)]
+    pub editing: bool,
 }
 
 impl TabConfig {
@@ -88,6 +92,7 @@ impl TabConfig {
             id: rand::random(),
             aspect_ratio,
             plots,
+            editing: false,
         }
     }
 
@@ -237,6 +242,11 @@ pub fn keybindings(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
 }
 
 #[inline]
+fn tab_height() -> f32 {
+    TAB_BUTTON_HEIGHT + 2.0 * TEXT_EDIT_MARGIN_Y
+}
+
+#[inline]
 fn tab_button_width() -> f32 {
     TAB_BUTTON_WIDTH + 2.0 * TEXT_EDIT_MARGIN_X
 }
@@ -253,37 +263,41 @@ pub fn tab_bar(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
 
         let mut i = 0;
         while i < cfg.tabs.len() {
-            // check if the tab was clicked or dragged
-            let tab_pos = ui.cursor().min;
-            let size = Vec2::new(tab_width, ui.spacing().interact_size.y);
-            let rect = Rect::from_min_size(tab_pos, size);
-            let resp = ui.allocate_rect(rect, Sense::click_and_drag());
+            let t = &mut cfg.tabs[i];
+
             let pointer_pos = ui.ctx().pointer_interact_pos();
-
-            if resp.drag_started() {
-                if let Some(p) = pointer_pos {
-                    cfg.dragged_tab = Some((i, p));
-                }
-            }
-
             let selected = cfg.selected_tab == i;
-            let mut edit_name = false;
+            let mut action = None;
+            match (pointer_pos, cfg.dragged_tab) {
+                (Some(pointer_pos), Some((dragged_idx, grab_pos))) if dragged_idx == i => {
+                    let id = Id::new("tab").with(i);
+                    let layer_id = LayerId::new(Order::Tooltip, id);
+                    let distance = Vec2::new(pointer_pos.x - grab_pos.x, 0.0);
+
+                    ui.with_layer_id(layer_id, |ui| {
+                        draw_tab(ui, &mut t.name, selected, t.editing)
+                    });
+                    let transform = TSTransform::new(distance, 1.0);
+                    ui.ctx().transform_layer_shapes(layer_id, transform);
+                    ui.output_mut(|o| o.cursor_icon = CursorIcon::Grabbing);
+                }
+                _ => {
+                    action = draw_tab(ui, &mut t.name, selected, t.editing);
+                }
+            };
+
             let mut removed = false;
-            if resp.clicked() {
-                if let Some(clicked_pos) = pointer_pos {
-                    let relative_pos = clicked_pos - tab_pos;
-                    let close_button_start = tab_button_width() + tab_spacing;
-                    // FIXME: doesn't work
-                    if relative_pos.x < close_button_start {
-                        if selected {
-                            edit_name = true;
-                        } else {
-                            cfg.selected_tab = i;
-                        }
-                    } else {
-                        removed = true;
+            match action {
+                Some(Action::DragStarted) => {
+                    if let Some(p) = pointer_pos {
+                        cfg.dragged_tab = Some((i, p));
                     }
                 }
+                Some(Action::Select) => cfg.selected_tab = i,
+                Some(Action::Removed) => removed = true,
+                Some(Action::StartEdit) => t.editing = true,
+                Some(Action::StopEdit) => t.editing = false,
+                None => (),
             }
 
             // move the tab if it was dropped
@@ -301,32 +315,14 @@ pub fn tab_bar(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
                 }
             }
 
-            // actually draw tab
-            let t = &mut cfg.tabs[i];
-            ui.allocate_ui_at_rect(rect, |ui| match (pointer_pos, cfg.dragged_tab) {
-                (Some(pointer_pos), Some((dragged_idx, grab_pos))) if dragged_idx == i => {
-                    let id = Id::new("tab").with(i);
-                    let layer_id = LayerId::new(Order::Tooltip, id);
-                    let distance = Vec2::new(pointer_pos.x - grab_pos.x, 0.0);
-
-                    ui.with_layer_id(layer_id, |ui| {
-                        draw_tab(ui, &mut t.name, selected, edit_name)
-                    });
-                    let transform = TSTransform::new(distance, 1.0);
-                    ui.ctx().transform_layer_shapes(layer_id, transform);
-                    ui.output_mut(|o| o.cursor_icon = CursorIcon::Grabbing);
-                }
-                _ => {
-                    draw_tab(ui, &mut t.name, selected, edit_name);
-                }
-            });
-
             if !(removed && remove_tab(data, cfg, i)) {
                 i += 1;
             }
         }
 
-        let resp = ui.add(Button::new(" + ").fill(ui.visuals().faint_bg_color));
+        let button =
+            Button::new(RichText::new(" + ").strong().size(16.0)).fill(ui.visuals().faint_bg_color);
+        let resp = ui.add_sized(Vec2::splat(TAB_BUTTON_HEIGHT), button);
         if resp.clicked() {
             add_tab(data, cfg);
         }
@@ -344,11 +340,21 @@ pub fn tab_bar(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
     });
 }
 
-fn draw_tab(ui: &mut Ui, name: &mut String, selected: bool, edit_name: bool) {
+enum Action {
+    DragStarted,
+    Removed,
+    Select,
+    StartEdit,
+    StopEdit,
+}
+
+fn draw_tab(ui: &mut Ui, name: &mut String, selected: bool, editing: bool) -> Option<Action> {
+    let mut action = None;
+
     let tab_fill = if selected {
-        ui.visuals().selection.bg_fill
+        ui.visuals().code_bg_color
     } else {
-        ui.visuals().faint_bg_color
+        ui.visuals().extreme_bg_color
     };
 
     Frame::default()
@@ -356,22 +362,45 @@ fn draw_tab(ui: &mut Ui, name: &mut String, selected: bool, edit_name: bool) {
         .fill(tab_fill)
         .show(ui, |ui| {
             ui.set_width(tab_width(ui));
+            ui.set_height(tab_height());
 
-            let edit_resp = TextEdit::singleline(name)
-                .desired_width(TAB_BUTTON_WIDTH)
-                .frame(false)
-                .interactive(selected)
-                .show(ui);
+            if editing {
+                let edit = TextEdit::singleline(name)
+                    .desired_width(TAB_BUTTON_WIDTH)
+                    .frame(false)
+                    .interactive(selected)
+                    .show(ui);
 
-            if edit_name {
-                edit_resp.response.request_focus();
+                let resp = edit.response;
+                if resp.lost_focus() {
+                    action = Some(Action::StopEdit);
+                } else {
+                    resp.request_focus();
+                }
+            } else {
+                let label = Label::new(name.clone())
+                    .selectable(false)
+                    .sense(Sense::click_and_drag());
+                let resp = ui.add_sized(Vec2::new(TAB_BUTTON_WIDTH, TAB_BUTTON_HEIGHT), label);
+                if selected && resp.clicked() {
+                    action = Some(Action::StartEdit);
+                } else if resp.drag_started() {
+                    action = Some(Action::DragStarted);
+                } else if resp.clicked() {
+                    action = Some(Action::Select);
+                }
             }
 
-            ui.add_sized(
+            let resp = ui.add_sized(
                 Vec2::new(TAB_CROSS_WIDTH, ui.available_height()),
                 Button::new("🗙").frame(false),
             );
+            if resp.clicked() {
+                action = Some(Action::Removed);
+            }
         });
+
+    action
 }
 
 pub fn tab_plot(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
