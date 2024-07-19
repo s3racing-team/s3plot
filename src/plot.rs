@@ -604,10 +604,20 @@ fn expr_inputs(
                 ui.fonts(|f| f.layout_job(layout_job))
             };
             let x_changed = ui.horizontal(|ui| {
-                ui.add_sized(
-                    Vec2::new(20.0, 10.0),
-                    Label::new(RichText::new(" X ").monospace()),
-                );
+                let resp = ui
+                    .add_sized(
+                        Vec2::new(20.0, 10.0),
+                        Label::new(RichText::new(" X ").monospace()).sense(Sense::drag()),
+                    )
+                    .on_hover_cursor(CursorIcon::Grab);
+                if dragged_plot.is_none() {
+                    if resp.drag_started() {
+                        if let Some(pointer_pos) = resp.hover_pos() {
+                            *dragged_plot = Some((idx, pointer_pos));
+                        }
+                    }
+                }
+
                 ui.add(
                     TextEdit::multiline(&mut plot.expr.x)
                         .desired_width(ui.available_width())
@@ -638,10 +648,20 @@ fn expr_inputs(
                 ui.fonts(|f| f.layout_job(layout_job))
             };
             let y_changed = ui.horizontal(|ui| {
-                ui.add_sized(
-                    Vec2::new(20.0, 10.0),
-                    Label::new(RichText::new(" Y ").monospace()),
-                );
+                let resp = ui
+                    .add_sized(
+                        Vec2::new(20.0, 10.0),
+                        Label::new(RichText::new(" Y ").monospace()).sense(Sense::drag()),
+                    )
+                    .on_hover_cursor(CursorIcon::Grab);
+                if dragged_plot.is_none() {
+                    if resp.drag_started() {
+                        if let Some(pointer_pos) = resp.hover_pos() {
+                            *dragged_plot = Some((idx, pointer_pos));
+                        }
+                    }
+                }
+
                 ui.add(
                     TextEdit::multiline(&mut plot.expr.y)
                         .desired_width(ui.available_width())
@@ -664,15 +684,6 @@ fn expr_inputs(
                 y_changed: y_changed.inner,
             }
         });
-
-    if dragged_plot.is_none() {
-        let resp = resp.response.interact(Sense::drag());
-        if resp.drag_started() {
-            if let Some(pointer_pos) = resp.hover_pos() {
-                *dragged_plot = Some((idx, pointer_pos));
-            }
-        }
-    }
 
     resp.inner
 }
