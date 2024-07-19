@@ -10,7 +10,7 @@ use egui::{
     LayerId, Layout, Margin, Modifiers, Order, Pos2, Rect, RichText, Rounding, ScrollArea, Sense,
     SidePanel, TextEdit, TextFormat, TextStyle, Ui, Vec2, WidgetText,
 };
-use egui_plot::{Legend, Line, Plot, PlotPoints};
+use egui_plot::{Legend, Line, Plot, PlotPoint, PlotPoints};
 use serde::{Deserialize, Serialize};
 
 use crate::app::{Job, PlotData, PlotValues};
@@ -79,8 +79,6 @@ pub struct TabConfig {
     pub id: u64,
     pub aspect_ratio: f32,
     pub plots: Vec<NamedPlot>,
-    #[serde(skip)]
-    pub init_plot: bool,
 }
 
 impl TabConfig {
@@ -90,7 +88,6 @@ impl TabConfig {
             id: rand::random(),
             aspect_ratio,
             plots,
-            init_plot: false,
         }
     }
 
@@ -420,6 +417,7 @@ pub fn tab_plot(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
         .show_inside(ui, |ui| {
             let tab_cfg = &mut cfg.tabs[cfg.selected_tab];
 
+            let num_pixels = ui.ctx().pixels_per_point() * ui.available_width();
             Plot::new(tab_cfg.id)
                 .data_aspect(tab_cfg.aspect_ratio)
                 .label_formatter(|_, v| {
@@ -429,6 +427,15 @@ pub fn tab_plot(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
                 })
                 .legend(Legend::default())
                 .show(ui, |ui| {
+                    let auto_bounds = ui.auto_bounds().any();
+                    let x_min = *ui.plot_bounds().range_x().start();
+                    let x_max = *ui.plot_bounds().range_x().end();
+
+                    // HACK: logs are in 50Hz (20ms steps), but that frequency could change at any
+                    // time, or even be dynamic
+                    let steps = 50.0 * (x_max - x_min);
+                    let chunk_size = ((steps / num_pixels as f64) as usize).max(1);
+
                     for (values, p) in data.plots[cfg.selected_tab]
                         .iter_mut()
                         .zip(tab_cfg.plots.iter())
@@ -444,7 +451,15 @@ pub fn tab_plot(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
 
                         match values {
                             PlotValues::Result(Ok(d)) if !d.is_empty() => {
-                                ui.line(Line::new(PlotPoints::Owned(d.clone())).name(&p.name));
+                                // when auto bounds are set, use full range to avoid slowly zooming out
+                                let range = if auto_bounds {
+                                    0..d.len()
+                                } else {
+                                    find_plot_range(d, x_min, x_max)
+                                };
+
+                                let values = subsample_plot(&d[range], chunk_size);
+                                ui.line(Line::new(PlotPoints::Owned(values)).name(&p.name));
                             }
                             _ => ui.line(Line::new([0.0, f64::NAN]).name(&p.name)),
                         }
@@ -920,4 +935,41 @@ fn highlight_matches(ui: &mut Ui, text: &str, query: &str) -> bool {
     }
 
     true
+}
+
+fn find_plot_range(values: &[PlotPoint], x_min: f64, x_max: f64) -> std::ops::Range<usize> {
+    let min = values.binary_search_by(|v| v.x.total_cmp(&x_min));
+    let min = match min {
+        Ok(i) => i,
+        Err(i) => i.saturating_sub(1),
+    };
+
+    let max = values.binary_search_by(|v| v.x.total_cmp(&x_max));
+    let max = match max {
+        Ok(i) | Err(i) => (i + 1).min(values.len()),
+    };
+
+    min..max
+}
+
+fn subsample_plot(values: &[PlotPoint], chunk_size: usize) -> Vec<PlotPoint> {
+    if chunk_size == 1 {
+        return values.to_vec();
+    }
+
+    let [first, middle @ .., last] = values else {
+        return values.to_vec();
+    };
+
+    let middle = middle.chunks(chunk_size).map(|c| {
+        let x = c.iter().map(|p| p.x).sum::<f64>() / c.len() as f64;
+        let y = c.iter().map(|p| p.y).sum::<f64>() / c.len() as f64;
+        PlotPoint { x, y }
+    });
+
+    Some(*first)
+        .into_iter()
+        .chain(middle)
+        .chain(Some(*last))
+        .collect()
 }
