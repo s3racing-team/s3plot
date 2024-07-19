@@ -47,10 +47,10 @@ impl Default for Config {
             show_help: true,
             search_help: "".into(),
             selected_tab: 0,
-            tabs: vec![TabConfig {
-                name: "Tab 1".into(),
-                aspect_ratio: DEFAULT_ASPECT_RATIO,
-                plots: vec![
+            tabs: vec![TabConfig::new(
+                "Tab 1".into(),
+                DEFAULT_ASPECT_RATIO,
+                vec![
                     NamedPlot {
                         name: "1.".into(),
                         expr: Expr {
@@ -66,7 +66,7 @@ impl Default for Config {
                         },
                     },
                 ],
-            }],
+            )],
             dragged_tab: None,
             dragged_plot: None,
         }
@@ -76,17 +76,26 @@ impl Default for Config {
 #[derive(Serialize, Deserialize)]
 pub struct TabConfig {
     pub name: String,
+    pub id: u64,
     pub aspect_ratio: f32,
     pub plots: Vec<NamedPlot>,
+    #[serde(skip)]
+    pub init_plot: bool,
 }
 
 impl TabConfig {
-    pub fn named(name: String) -> Self {
+    pub fn new(name: String, aspect_ratio: f32, plots: Vec<NamedPlot>) -> Self {
         Self {
             name,
-            aspect_ratio: DEFAULT_ASPECT_RATIO,
-            plots: Vec::new(),
+            id: rand::random(),
+            aspect_ratio,
+            plots,
+            init_plot: false,
         }
+    }
+
+    pub fn named(name: String) -> Self {
+        Self::new(name, DEFAULT_ASPECT_RATIO, Vec::new())
     }
 }
 
@@ -410,7 +419,7 @@ pub fn tab_plot(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
         .show_inside(ui, |ui| {
             let tab_cfg = &mut cfg.tabs[cfg.selected_tab];
 
-            Plot::new(&tab_cfg.name)
+            Plot::new(tab_cfg.id)
                 .data_aspect(tab_cfg.aspect_ratio)
                 .label_formatter(|_, v| {
                     let x = format_time(v.x);
