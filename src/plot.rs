@@ -312,15 +312,15 @@ pub fn tab_bar(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
 
             let mut removed = false;
             match action {
-                Some(Action::DragStarted) => {
+                Some(TabAction::DragStarted) => {
                     if let Some(p) = pointer_pos {
                         cfg.dragged_tab = Some((i, p));
                     }
                 }
-                Some(Action::Select) => cfg.selected_tab = i,
-                Some(Action::Removed) => removed = true,
-                Some(Action::StartEdit) => t.editing = true,
-                Some(Action::StopEdit) => t.editing = false,
+                Some(TabAction::Select) => cfg.selected_tab = i,
+                Some(TabAction::Removed) => removed = true,
+                Some(TabAction::StartEdit) => t.editing = true,
+                Some(TabAction::StopEdit) => t.editing = false,
                 None => (),
             }
 
@@ -349,7 +349,7 @@ pub fn tab_bar(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
     });
 }
 
-enum Action {
+enum TabAction {
     DragStarted,
     Removed,
     Select,
@@ -357,7 +357,7 @@ enum Action {
     StopEdit,
 }
 
-fn draw_tab(ui: &mut Ui, name: &mut String, selected: bool, editing: bool) -> Option<Action> {
+fn draw_tab(ui: &mut Ui, name: &mut String, selected: bool, editing: bool) -> Option<TabAction> {
     let mut action = None;
 
     let tab_fill = if selected {
@@ -382,7 +382,7 @@ fn draw_tab(ui: &mut Ui, name: &mut String, selected: bool, editing: bool) -> Op
 
                 let resp = edit.response;
                 if resp.lost_focus() {
-                    action = Some(Action::StopEdit);
+                    action = Some(TabAction::StopEdit);
                 } else {
                     resp.request_focus();
                 }
@@ -392,11 +392,11 @@ fn draw_tab(ui: &mut Ui, name: &mut String, selected: bool, editing: bool) -> Op
                     .sense(Sense::click_and_drag());
                 let resp = ui.add_sized(Vec2::new(TAB_BUTTON_WIDTH, TAB_BUTTON_HEIGHT), label);
                 if selected && resp.clicked() {
-                    action = Some(Action::StartEdit);
+                    action = Some(TabAction::StartEdit);
                 } else if resp.drag_started() {
-                    action = Some(Action::DragStarted);
+                    action = Some(TabAction::DragStarted);
                 } else if resp.clicked() {
-                    action = Some(Action::Select);
+                    action = Some(TabAction::Select);
                 }
             }
 
@@ -405,7 +405,7 @@ fn draw_tab(ui: &mut Ui, name: &mut String, selected: bool, editing: bool) -> Op
                 Button::new("🗙").frame(false),
             );
             if resp.clicked() {
-                action = Some(Action::Removed);
+                action = Some(TabAction::Removed);
             }
         });
 
@@ -654,104 +654,86 @@ fn expr_inputs(
                 r.clicked()
             });
 
-            let mut x_layouter = |ui: &egui::Ui, string: &str, wrap_width: f32| {
-                let format = TextFormat {
-                    font_id: TextStyle::Monospace.resolve(ui.style()),
-                    ..Default::default()
-                };
-                let mut layout_job = match values {
-                    PlotValues::Result(Err(e)) => match &e.x {
-                        Some(e) => mark_errors(string, e, format),
-                        None => LayoutJob::single_section(string.to_string(), format),
-                    },
-                    _ => LayoutJob::single_section(string.to_string(), format),
-                };
-                layout_job.wrap.max_width = wrap_width;
-                ui.fonts(|f| f.layout_job(layout_job))
-            };
-            let x_changed = ui.horizontal(|ui| {
-                let resp = ui
-                    .add_sized(
-                        Vec2::new(20.0, 10.0),
-                        Label::new(RichText::new(" X ").monospace()).sense(Sense::drag()),
-                    )
-                    .on_hover_cursor(CursorIcon::Grab);
-                if dragged_plot.is_none() {
-                    if resp.drag_started() {
-                        if let Some(pointer_pos) = resp.hover_pos() {
-                            *dragged_plot = Some((idx, pointer_pos));
-                        }
-                    }
-                }
-
-                ui.add(
-                    TextEdit::multiline(&mut plot.expr.x)
-                        .desired_width(ui.available_width())
-                        .desired_rows(1)
-                        .layouter(&mut x_layouter),
-                )
-                .changed()
-            });
-            if let PlotValues::Result(Err(e)) = values {
-                if let Some(e) = &e.x {
-                    ui.colored_label(ERROR_RED, e.to_string());
-                }
-            }
-
-            let mut y_layouter = |ui: &egui::Ui, string: &str, wrap_width: f32| {
-                let format = TextFormat {
-                    font_id: TextStyle::Monospace.resolve(ui.style()),
-                    ..Default::default()
-                };
-                let mut layout_job = match values {
-                    PlotValues::Result(Err(e)) => match &e.y {
-                        Some(e) => mark_errors(string, e, format),
-                        None => LayoutJob::single_section(string.to_string(), format),
-                    },
-                    _ => LayoutJob::single_section(string.to_string(), format),
-                };
-                layout_job.wrap.max_width = wrap_width;
-                ui.fonts(|f| f.layout_job(layout_job))
-            };
-            let y_changed = ui.horizontal(|ui| {
-                let resp = ui
-                    .add_sized(
-                        Vec2::new(20.0, 10.0),
-                        Label::new(RichText::new(" Y ").monospace()).sense(Sense::drag()),
-                    )
-                    .on_hover_cursor(CursorIcon::Grab);
-                if dragged_plot.is_none() {
-                    if resp.drag_started() {
-                        if let Some(pointer_pos) = resp.hover_pos() {
-                            *dragged_plot = Some((idx, pointer_pos));
-                        }
-                    }
-                }
-
-                ui.add(
-                    TextEdit::multiline(&mut plot.expr.y)
-                        .desired_width(ui.available_width())
-                        .desired_rows(1)
-                        .layouter(&mut y_layouter),
-                )
-                .changed()
-            });
-            if let PlotValues::Result(Err(e)) = values {
-                if let Some(e) = &e.y {
-                    ui.colored_label(ERROR_RED, e.to_string());
-                }
-            }
+            let x_action = expr_input(ui, " X ", &mut plot.expr.x, values.x_err());
+            let y_action = expr_input(ui, " Y ", &mut plot.expr.y, values.y_err());
 
             ui.add_space(10.0);
 
+            if dragged_plot.is_none() {
+                if x_action == Some(PlotAction::DragStarted)
+                    || y_action == Some(PlotAction::DragStarted)
+                {
+                    if let Some(pointer_pos) = ui.input(|i| i.pointer.hover_pos()) {
+                        *dragged_plot = Some((idx, pointer_pos));
+                    }
+                }
+            }
+
             ExprInput {
                 removed: removed.inner,
-                x_changed: x_changed.inner,
-                y_changed: y_changed.inner,
+                x_changed: x_action == Some(PlotAction::Changed),
+                y_changed: y_action == Some(PlotAction::Changed),
             }
         });
 
     resp.inner
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum PlotAction {
+    DragStarted,
+    Changed,
+}
+
+fn expr_input(
+    ui: &mut Ui,
+    label: &str,
+    expr: &mut String,
+    error: Option<&cods::Error>,
+) -> Option<PlotAction> {
+    let mut action = None;
+
+    let mut layouter = |ui: &egui::Ui, string: &str, wrap_width: f32| {
+        let format = TextFormat {
+            font_id: TextStyle::Monospace.resolve(ui.style()),
+            ..Default::default()
+        };
+        let mut layout_job = match error {
+            Some(e) => mark_errors(string, e, format),
+            None => LayoutJob::single_section(string.to_string(), format),
+        };
+        layout_job.wrap.max_width = wrap_width;
+        ui.fonts(|f| f.layout_job(layout_job))
+    };
+    ui.horizontal(|ui| {
+        let resp = ui
+            .add_sized(
+                Vec2::new(20.0, 10.0),
+                Label::new(RichText::new(label).monospace())
+                    .selectable(false)
+                    .sense(Sense::drag()),
+            )
+            .on_hover_cursor(CursorIcon::Grab);
+        if resp.drag_started() {
+            action = Some(PlotAction::DragStarted);
+        }
+
+        let resp = ui.add(
+            TextEdit::multiline(expr)
+                .desired_width(ui.available_width())
+                .desired_rows(1)
+                .layouter(&mut layouter),
+        );
+
+        if resp.changed() {
+            action = Some(PlotAction::Changed);
+        }
+    });
+    if let Some(e) = error {
+        ui.colored_label(ERROR_RED, e.to_string());
+    }
+
+    action
 }
 
 fn mark_errors(input: &str, error: &cods::Error, format: TextFormat) -> LayoutJob {

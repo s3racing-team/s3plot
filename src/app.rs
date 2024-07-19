@@ -50,6 +50,20 @@ impl PlotValues {
             _ => None,
         }
     }
+
+    pub fn x_err(&self) -> Option<&cods::Error> {
+        match self {
+            PlotValues::Result(Err(e)) => e.x.as_ref(),
+            _ => None,
+        }
+    }
+
+    pub fn y_err(&self) -> Option<&cods::Error> {
+        match self {
+            PlotValues::Result(Err(e)) => e.y.as_ref(),
+            _ => None,
+        }
+    }
 }
 
 pub struct Job {
