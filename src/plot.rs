@@ -512,48 +512,61 @@ fn input_sidebar(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
         + 6.0 * TEXT_EDIT_MARGIN_Y
         + 2.0 * PLOT_FRAME_PADDING;
     let plot_spacing = ui.spacing().item_spacing.y;
+    let plot_distance = plot_height + plot_spacing;
+
+    let pointer_pos = ui.ctx().pointer_interact_pos();
+    let drag = match (pointer_pos, cfg.dragged_plot) {
+        (Some(pointer_pos), Some((from, grab_pos))) => {
+            let distance = pointer_pos.y - grab_pos.y;
+            let moved = (distance / plot_distance).round() as isize;
+            let len = cfg.tabs[cfg.selected_tab].plots.len();
+            let to = (from as isize + moved).clamp(0, len as isize - 1) as usize;
+
+            // move the plot if it was dropped
+            if ui.input(|i| i.pointer.any_released()) {
+                move_plot(data, cfg, from, to);
+                cfg.dragged_plot = None;
+                None
+            } else {
+                let moved_plots = from.min(to)..=from.max(to);
+                Some((from, moved_plots, distance))
+            }
+        }
+        _ => None,
+    };
 
     let mut i = 0;
     while i < cfg.tabs[cfg.selected_tab].plots.len() {
         let plot = &mut cfg.tabs[cfg.selected_tab].plots[i];
         let values = &data.plots[cfg.selected_tab][i];
-        let pointer_pos = ui.ctx().pointer_interact_pos();
 
         let mut input = None;
-        match (pointer_pos, cfg.dragged_plot) {
-            (Some(pointer_pos), Some((dragged_idx, grab_pos))) if dragged_idx == i => {
+        match drag {
+            Some((dragged_idx, _, dist)) if dragged_idx == i => {
                 let id = Id::new("plot").with(i);
                 let layer_id = LayerId::new(Order::Tooltip, id);
-                let distance = Vec2::new(0.0, pointer_pos.y - grab_pos.y);
-
                 ui.with_layer_id(layer_id, |ui| {
                     expr_inputs(ui, plot, values, i, &mut cfg.dragged_plot);
                 });
-                let transform = TSTransform::new(distance, 1.0);
+                let transform = TSTransform::new(Vec2::new(0.0, dist), 1.0);
                 ui.ctx().transform_layer_shapes(layer_id, transform);
                 // FIXME: doesn't work
                 ui.output_mut(|o| o.cursor_icon = CursorIcon::Grabbing);
+            }
+            Some((_, ref moved_plots, dist)) if moved_plots.contains(&i) => {
+                let id = Id::new("plot").with(i);
+                let layer_id = LayerId::new(Order::Foreground, id);
+                ui.with_layer_id(layer_id, |ui| {
+                    expr_inputs(ui, plot, values, i, &mut cfg.dragged_plot);
+                });
+                let offset = -dist.signum() * plot_distance;
+                let transform = TSTransform::new(Vec2::new(0.0, offset), 1.0);
+                ui.ctx().transform_layer_shapes(layer_id, transform);
             }
             _ => {
                 input = Some(expr_inputs(ui, plot, values, i, &mut cfg.dragged_plot));
             }
         };
-
-        // move the plot if it was dropped
-        if ui.input(|i| i.pointer.any_released()) {
-            match (pointer_pos, cfg.dragged_plot) {
-                (Some(pointer_pos), Some((dragged_idx, grab_pos))) if dragged_idx == i => {
-                    let distance = pointer_pos.y - grab_pos.y;
-                    let plot_distance = plot_height + plot_spacing;
-                    let moved = (distance / plot_distance) as isize;
-                    let len = cfg.tabs[cfg.selected_tab].plots.len();
-                    let new_idx = (i as isize + moved).clamp(0, len as isize - 1);
-                    move_plot(data, cfg, i, new_idx as usize);
-                    cfg.dragged_plot = None;
-                }
-                _ => (),
-            }
-        }
 
         let tab_cfg = &mut cfg.tabs[cfg.selected_tab];
         let plot = &mut tab_cfg.plots[i];
