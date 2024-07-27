@@ -2,10 +2,12 @@ use std::fmt::Write as _;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use egui::{Align2, Color32, Context, Id, LayerId, Order, Pos2, Rect, TextStyle, Vec2};
 use serde::{Deserialize, Serialize};
 
+use crate::app::{Job, PlotData, PlotValues};
 use crate::data::{self, LogStream, SanityError};
 use crate::PlotApp;
 
@@ -173,7 +175,20 @@ impl PlotApp {
             streams.swap(0, lowest_delta.0);
 
             self.files = Some(files);
-            self.data = Some(data::process_data(streams, &self.config));
+            self.data = Some({
+                let streams = streams.into();
+                let plots = (self.config.tabs.iter())
+                    .map(|t| {
+                        t.plots
+                            .iter()
+                            .map(|p| {
+                                PlotValues::Job(Job::start(p.expr.clone(), Arc::clone(&streams)))
+                            })
+                            .collect()
+                    })
+                    .collect();
+                PlotData { streams, plots }
+            });
         }
     }
 }

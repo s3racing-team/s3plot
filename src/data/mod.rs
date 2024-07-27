@@ -1,14 +1,10 @@
 use std::string::FromUtf8Error;
-use std::sync::Arc;
 use std::{fmt, io};
 
 use chrono::NaiveDateTime;
 
-use crate::app::{PlotData, PlotValues};
 pub use crate::data::read::read_file;
 pub use crate::data::sanity::sanity_check;
-use crate::eval;
-use crate::plot::Config;
 
 mod read;
 mod sanity;
@@ -205,18 +201,3 @@ impl From<FromUtf8Error> for Error {
 
 #[derive(Debug)]
 pub struct SanityError(pub String);
-
-pub fn process_data(streams: Vec<LogStream>, config: &Config) -> PlotData {
-    let streams = streams.into();
-    let plots = config
-        .tabs
-        .iter()
-        .map(|t| {
-            t.plots
-                .iter()
-                .map(|p| PlotValues::Result(eval::eval(&p.expr, Arc::clone(&streams))))
-                .collect()
-        })
-        .collect();
-    PlotData { streams, plots }
-}
