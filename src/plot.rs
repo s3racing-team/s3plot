@@ -375,7 +375,8 @@ fn draw_tab(ui: &mut Ui, name: &mut String, selected: bool, editing: bool) -> Op
 
             if editing {
                 let edit = TextEdit::singleline(name)
-                    .desired_width(TAB_BUTTON_WIDTH)
+                    .desired_width(TAB_BUTTON_WIDTH - 2.0 * TEXT_EDIT_MARGIN_X)
+                    .horizontal_align(Align::Center)
                     .frame(false)
                     .interactive(selected)
                     .show(ui);
