@@ -120,12 +120,11 @@ pub fn read_file(reader: &mut (impl Read + Seek)) -> Result<LogStream, Error> {
                     let ctx = match &mut bool_ctx {
                         Some(ctx) => ctx,
                         None => {
-                            bool_ctx = Some(BoolContext {
-                                bit_fields: read_u8(reader)?,
+                            let bit_fields = read_u8(reader)?;
+                            bool_ctx.insert(BoolContext {
+                                bit_fields,
                                 mask: 1,
-                            });
-
-                            bool_ctx.as_mut().unwrap()
+                            })
                         }
                     };
 
