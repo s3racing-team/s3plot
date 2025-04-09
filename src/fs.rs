@@ -7,9 +7,9 @@ use std::sync::Arc;
 use egui::{Align2, Color32, Context, Id, LayerId, Order, Pos2, Rect, TextStyle, Vec2};
 use serde::{Deserialize, Serialize};
 
+use crate::PlotApp;
 use crate::app::{Job, PlotData, PlotValues};
 use crate::data::{self, LogStream, SanityError};
-use crate::PlotApp;
 
 #[derive(Serialize, Deserialize, Default, Clone, Debug)]
 pub struct Files {

@@ -4,7 +4,7 @@ use std::thread::JoinHandle;
 
 use chrono::{Duration, Local, TimeZone};
 use egui::{
-    menu, Align2, CentralPanel, Color32, Key, Modifiers, RichText, TopBottomPanel, Ui, Vec2, Window,
+    Align2, CentralPanel, Color32, Key, Modifiers, RichText, TopBottomPanel, Ui, Vec2, Window, menu,
 };
 use egui_extras::{Column, TableBuilder};
 use egui_plot::PlotPoint;
