@@ -237,7 +237,7 @@ fn find_files(dir: PathBuf) -> Result<Files, data::Error> {
             continue;
         }
 
-        if path.extension().map_or(false, |e| e == "s3lg") {
+        if path.extension().is_some_and(|e| e == "s3lg") {
             items.push(path);
         }
     }
