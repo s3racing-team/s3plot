@@ -113,11 +113,19 @@ impl eframe::App for PlotApp {
                         }
                         ui.close_menu();
                     }
-                    if ui.button("Reopen files").clicked() {
+                    if ui.button("Reopen selected files").clicked() {
                         if let Some(files) = self.files.clone() {
                             self.try_open_files(files, true);
                         }
                         ui.close_menu();
+                    }
+                    ui.separator();
+
+                    if ui.button("Open config").clicked() {
+                        self.open_config_dialog();
+                    }
+                    if ui.button("Save config").clicked() {
+                        self.save_config_dialog();
                     }
                 });
 

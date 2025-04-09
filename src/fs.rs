@@ -39,6 +39,41 @@ pub struct ErrorFile {
 }
 
 impl PlotApp {
+    pub fn open_config_dialog(&mut self) {
+        let Some(path) = rfd::FileDialog::new().pick_file() else {
+            return;
+        };
+        let Ok(text) = std::fs::read_to_string(path) else {
+            return;
+        };
+
+        let Ok(config) = ron::from_str(&text) else {
+            // TODO: show error
+            return;
+        };
+        self.config = config;
+        if let Some(data) = &mut self.data {
+            data.plots = (self.config.tabs.iter())
+                .map(|t| {
+                    t.plots
+                        .iter()
+                        .map(|p| {
+                            PlotValues::Job(Job::start(p.expr.clone(), Arc::clone(&data.streams)))
+                        })
+                        .collect()
+                })
+                .collect();
+        }
+    }
+
+    pub fn save_config_dialog(&mut self) {
+        let Some(path) = rfd::FileDialog::new().save_file() else {
+            return;
+        };
+        let config = ron::to_string(&self.config).expect("should always succeed");
+        _ = std::fs::write(&path, config.as_bytes());
+    }
+
     pub fn open_dir_dialog(&mut self) {
         if let Some(path) = rfd::FileDialog::new().pick_folder() {
             self.try_open_dir(path);
