@@ -6,9 +6,9 @@ use cods::{BuiltinConst, BuiltinFun, DataType, Pos, SignatureKind, UserFacing};
 use egui::emath::TSTransform;
 use egui::text::{LayoutJob, LayoutSection};
 use egui::{
-    Align, Button, CentralPanel, CollapsingHeader, Color32, CursorIcon, Frame, Id, Key, Label,
-    LayerId, Layout, Margin, Modifiers, Order, Pos2, RichText, Rounding, ScrollArea, Sense,
-    SidePanel, TextEdit, TextFormat, TextStyle, Ui, Vec2, WidgetText,
+    Align, Button, CentralPanel, CollapsingHeader, Color32, CornerRadius, CursorIcon, Frame, Id,
+    Key, Label, LayerId, Layout, Margin, Modifiers, Order, Pos2, RichText, ScrollArea, Sense,
+    SidePanel, TextEdit, TextFormat, TextStyle, Ui, UiBuilder, Vec2, WidgetText,
 };
 use egui_plot::{Legend, Line, Plot, PlotPoint, PlotPoints};
 use serde::{Deserialize, Serialize};
@@ -288,7 +288,7 @@ pub fn tab_bar(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
                 Some((dragged_idx, _, dist)) if dragged_idx == i => {
                     let id = Id::new("tab").with(i);
                     let layer_id = LayerId::new(Order::Tooltip, id);
-                    ui.with_layer_id(layer_id, |ui| {
+                    ui.scope_builder(UiBuilder::new().layer_id(layer_id), |ui| {
                         draw_tab(ui, &mut t.name, selected, t.editing)
                     });
                     let transform = TSTransform::new(Vec2::new(dist, 0.0), 1.0);
@@ -298,7 +298,7 @@ pub fn tab_bar(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
                 Some((_, ref moved_tabs, dist)) if moved_tabs.contains(&i) => {
                     let id = Id::new("tab").with(i);
                     let layer_id = LayerId::new(Order::Foreground, id);
-                    ui.with_layer_id(layer_id, |ui| {
+                    ui.scope_builder(UiBuilder::new().layer_id(layer_id), |ui| {
                         draw_tab(ui, &mut t.name, selected, t.editing)
                     });
                     let offset = -dist.signum() * tab_distance;
@@ -367,7 +367,7 @@ fn draw_tab(ui: &mut Ui, name: &mut String, selected: bool, editing: bool) -> Op
     };
 
     Frame::default()
-        .rounding(Rounding::same(5.0))
+        .corner_radius(CornerRadius::same(5))
         .fill(tab_fill)
         .show(ui, |ui| {
             ui.set_width(tab_width(ui));
@@ -423,8 +423,8 @@ pub fn tab_plot(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
         .resizable(true)
         .default_width(350.0)
         .frame(Frame {
-            inner_margin: Margin::same(6.0),
-            rounding: Rounding::same(5.0),
+            inner_margin: Margin::same(6),
+            corner_radius: CornerRadius::same(5),
             fill: panel_fill,
             ..Default::default()
         })
@@ -441,8 +441,8 @@ pub fn tab_plot(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
             .resizable(true)
             .default_width(350.0)
             .frame(Frame {
-                inner_margin: Margin::same(6.0),
-                rounding: Rounding::same(5.0),
+                inner_margin: Margin::same(6),
+                corner_radius: CornerRadius::same(5),
                 fill: panel_fill,
                 ..Default::default()
             })
@@ -452,7 +452,7 @@ pub fn tab_plot(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
     }
 
     CentralPanel::default()
-        .frame(Frame::none())
+        .frame(Frame::NONE)
         .show_inside(ui, |ui| {
             let tab_cfg = &mut cfg.tabs[cfg.selected_tab];
 
@@ -498,9 +498,9 @@ pub fn tab_plot(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
                                 };
 
                                 let values = subsample_plot(&d[range], chunk_size);
-                                ui.line(Line::new(PlotPoints::Owned(values)).name(&p.name));
+                                ui.line(Line::new(&p.name, PlotPoints::Owned(values)));
                             }
-                            _ => ui.line(Line::new([0.0, f64::NAN]).name(&p.name)),
+                            _ => ui.line(Line::new(&p.name, [0.0, f64::NAN])),
                         }
                     }
                 });
@@ -547,7 +547,7 @@ fn input_sidebar(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
             Some((dragged_idx, _, dist)) if dragged_idx == i => {
                 let id = Id::new("plot").with(i);
                 let layer_id = LayerId::new(Order::Tooltip, id);
-                ui.with_layer_id(layer_id, |ui| {
+                ui.scope_builder(UiBuilder::new().layer_id(layer_id), |ui| {
                     expr_inputs(ui, plot, values, i, &mut cfg.dragged_plot);
                 });
                 let transform = TSTransform::new(Vec2::new(0.0, dist), 1.0);
@@ -558,7 +558,7 @@ fn input_sidebar(ui: &mut Ui, data: &mut PlotData, cfg: &mut Config) {
             Some((_, ref moved_plots, dist)) if moved_plots.contains(&i) => {
                 let id = Id::new("plot").with(i);
                 let layer_id = LayerId::new(Order::Foreground, id);
-                ui.with_layer_id(layer_id, |ui| {
+                ui.scope_builder(UiBuilder::new().layer_id(layer_id), |ui| {
                     expr_inputs(ui, plot, values, i, &mut cfg.dragged_plot);
                 });
                 let offset = -dist.signum() * plot_distance;
@@ -637,7 +637,7 @@ fn expr_inputs(
         _ => Color32::TRANSPARENT,
     };
     let resp = Frame::default()
-        .rounding(Rounding::same(3.0))
+        .corner_radius(CornerRadius::same(3))
         .fill(plot_fill)
         .inner_margin(PLOT_FRAME_PADDING)
         .show(ui, |ui| {

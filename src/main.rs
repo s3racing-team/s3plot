@@ -13,10 +13,7 @@ mod util;
 const APP_NAME: &str = "s3plot";
 
 fn main() {
-    let options = NativeOptions {
-        follow_system_theme: true,
-        ..Default::default()
-    };
+    let options = NativeOptions::default();
     let res = eframe::run_native(
         APP_NAME,
         options,
